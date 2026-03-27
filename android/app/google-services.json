@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "630393329450",
+    "project_id": "aimatch-d3a1b",
+    "storage_bucket": "aimatch-d3a1b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:630393329450:android:5f4e06d4c1409cf3187053",
+        "android_client_info": {
+          "package_name": "com.example.untitled1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDD6YmXs3wOYQCpg--_317GUXvsPG4CK9E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

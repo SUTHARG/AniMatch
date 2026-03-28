@@ -1,11 +1,13 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'anime.dart';           // ← was '../models/anime.dart'
-import 'jikan_service.dart';   // ← was '../services/jikan_service.dart'
+import 'anime.dart';
+import 'jikan_service.dart';
 import 'quiz_screen.dart';
 import 'detail_screen.dart';
 import 'search_screen.dart';
 import 'watchlist_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,13 +17,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final JikanService _jikan = JikanService();
   int _currentIndex = 0;
 
   final List<Widget> _pages = const [
     _HomeTab(),
     SearchScreen(),
     WatchlistScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -47,17 +49,20 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedIcon: Icon(Icons.bookmark_rounded),
             label: 'Watchlist',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'Profile',
+          ),
         ],
       ),
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton.extended(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const QuizScreen()),
-              ),
-              icon: const Icon(Icons.auto_awesome_rounded),
-              label: const Text('Find anime'),
-            )
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const QuizScreen())),
+        icon: const Icon(Icons.auto_awesome_rounded),
+        label: const Text('Find anime'),
+      )
           : null,
     );
   }
@@ -74,6 +79,7 @@ class _HomeTabState extends State<_HomeTab> {
   final JikanService _jikan = JikanService();
   List<Anime> _topAnime = [];
   List<Anime> _seasonal = [];
+  Anime? _animeOfDay;
   bool _loading = true;
 
   @override
@@ -86,10 +92,19 @@ class _HomeTabState extends State<_HomeTab> {
     try {
       final top = await _jikan.getTopAnime();
       final seasonal = await _jikan.getCurrentSeasonAnime();
+
+      // Anime of the day: pick one from top based on day of year (changes daily)
+      Anime? aod;
+      if (top.isNotEmpty) {
+        final dayIndex = DateTime.now().dayOfYear % top.length;
+        aod = top[dayIndex];
+      }
+
       if (mounted) {
         setState(() {
           _topAnime = top;
           _seasonal = seasonal;
+          _animeOfDay = aod;
           _loading = false;
         });
       }
@@ -108,12 +123,11 @@ class _HomeTabState extends State<_HomeTab> {
         SliverAppBar(
           title: Row(
             children: [
-              Text('🎌', style: const TextStyle(fontSize: 22)),
+              const Text('🎌', style: TextStyle(fontSize: 22)),
               const SizedBox(width: 8),
               Text('AniMatch',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  )),
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold)),
             ],
           ),
           floating: true,
@@ -123,32 +137,29 @@ class _HomeTabState extends State<_HomeTab> {
 
         if (_loading)
           const SliverFillRemaining(
-            child: Center(child: CircularProgressIndicator()),
-          )
+              child: Center(child: CircularProgressIndicator()))
         else ...[
-          // "Find your next anime" banner
-          SliverToBoxAdapter(
-            child: _RecommendBanner(),
-          ),
+          // Quiz banner
+          SliverToBoxAdapter(child: _RecommendBanner()),
+
+          // Anime of the day
+          if (_animeOfDay != null) ...[
+            SliverToBoxAdapter(child: _SectionHeader(title: '🌟 Anime of the day')),
+            SliverToBoxAdapter(
+              child: _AnimeOfDayCard(anime: _animeOfDay!),
+            ),
+          ],
 
           // Airing now
           if (_seasonal.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: _SectionHeader(title: '📡 Airing now'),
-            ),
-            SliverToBoxAdapter(
-              child: _HorizontalAnimeList(animeList: _seasonal),
-            ),
+            SliverToBoxAdapter(child: _SectionHeader(title: '📡 Airing now')),
+            SliverToBoxAdapter(child: _HorizontalAnimeList(animeList: _seasonal)),
           ],
 
           // Top rated
           if (_topAnime.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: _SectionHeader(title: '⭐ Top rated all time'),
-            ),
-            SliverToBoxAdapter(
-              child: _HorizontalAnimeList(animeList: _topAnime),
-            ),
+            SliverToBoxAdapter(child: _SectionHeader(title: '⭐ Top rated all time')),
+            SliverToBoxAdapter(child: _HorizontalAnimeList(animeList: _topAnime)),
           ],
 
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -157,6 +168,114 @@ class _HomeTabState extends State<_HomeTab> {
     );
   }
 }
+
+// ── Anime of the Day card ─────────────────────────────────────────────────────
+
+class _AnimeOfDayCard extends StatelessWidget {
+  final Anime anime;
+  const _AnimeOfDayCard({required this.anime});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId))),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Container(
+          height: 200,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.primary.withOpacity(0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CachedNetworkImage(imageUrl: anime.imageUrl, fit: BoxFit.cover),
+              // Dark gradient
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.85),
+                    ],
+                    stops: const [0.3, 1.0],
+                  ),
+                ),
+              ),
+              // Content
+              Positioned(
+                bottom: 16, left: 16, right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      anime.displayTitle,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded,
+                            color: Color(0xFFFFD700), size: 14),
+                        const SizedBox(width: 4),
+                        Text(anime.scoreText,
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13)),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.play_circle_outline_rounded,
+                            color: Colors.white70, size: 14),
+                        const SizedBox(width: 4),
+                        Text(anime.episodeText,
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13)),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white30),
+                          ),
+                          child: const Text('View →',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Recommend Banner ──────────────────────────────────────────────────────────
 
 class _RecommendBanner extends StatelessWidget {
   @override
@@ -168,10 +287,7 @@ class _RecommendBanner extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              colorScheme.primaryContainer,
-              colorScheme.secondaryContainer,
-            ],
+            colors: [colorScheme.primaryContainer, colorScheme.secondaryContainer],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -185,28 +301,23 @@ class _RecommendBanner extends StatelessWidget {
                 children: [
                   Text('Not sure what to watch?',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onPrimaryContainer,
-                          )),
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onPrimaryContainer,
+                      )),
                   const SizedBox(height: 4),
                   Text('Take a quick quiz and get personalized picks',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onPrimaryContainer
-                                .withOpacity(0.8),
-                          )),
+                        color: colorScheme.onPrimaryContainer.withOpacity(0.8),
+                      )),
                   const SizedBox(height: 12),
                   FilledButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const QuizScreen()),
-                    ),
+                    onPressed: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const QuizScreen())),
                     style: FilledButton.styleFrom(
                       backgroundColor: colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     child: const Text('Start quiz ✨'),
                   ),
@@ -230,9 +341,10 @@ class _SectionHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
       child: Text(title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              )),
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold)),
     );
   }
 }
@@ -252,12 +364,8 @@ class _HorizontalAnimeList extends StatelessWidget {
         itemBuilder: (_, i) {
           final anime = animeList[i];
           return GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DetailScreen(malId: anime.malId),
-              ),
-            ),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId))),
             child: Container(
               width: 130,
               margin: const EdgeInsets.only(right: 12),
@@ -275,15 +383,12 @@ class _HorizontalAnimeList extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    anime.displayTitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          height: 1.3,
-                        ),
-                  ),
+                  Text(anime.displayTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500, height: 1.3,
+                      )),
                   if (anime.score != null)
                     Row(
                       children: [
@@ -302,5 +407,13 @@ class _HorizontalAnimeList extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+// Extension for day of year
+extension DateTimeExt on DateTime {
+  int get dayOfYear {
+    return int.parse(
+        '${difference(DateTime(year)).inDays}');
   }
 }

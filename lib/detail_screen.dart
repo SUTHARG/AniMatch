@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'anime.dart';           // ← was '../models/anime.dart'
-import 'jikan_service.dart';   // ← was '../services/jikan_service.dart'
-import 'firebase_service.dart';// ← was '../services/firebase_service.dart'
-
+import 'anime.dart';
+import 'jikan_service.dart';
+import 'firebase_service.dart';
+import 'login_screen.dart';
 class DetailScreen extends StatefulWidget {
   final int malId;
   const DetailScreen({super.key, required this.malId});
@@ -49,7 +49,18 @@ class _DetailScreenState extends State<DetailScreen> {
     if (_anime == null) return;
     if (!_firebase.isLoggedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Log in to save to watchlist')),
+        SnackBar(
+          content: const Text('Log in to save to your watchlist'),
+          action: SnackBarAction(
+            label: 'Login',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+          ),
+        ),
       );
       return;
     }

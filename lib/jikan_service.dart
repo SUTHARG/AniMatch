@@ -76,50 +76,60 @@ class JikanService {
   /// Get recommendations based on quiz answers
   Future<List<Anime>> getRecommendations(QuizAnswers answers) async {
     final params = <String, String>{
-      'order_by': 'score',
-      'sort': 'desc',
-      'limit': '20',
-      'min_score': '7.0',
+      'order_by': 'popularity', // Popularity often yields better variety than score
+      'limit': '25',
+      'min_score': '6.0', // Lowered significantly to allow more matches
       'sfw': 'true',
     };
 
-    // Add genres from quiz
+    // Only strictly filter by the FIRST genre to keep the net extremely wide
     final genreIds = answers.genreIds;
     if (genreIds.isNotEmpty) {
-      params['genres'] = genreIds.join(',');
+      params['genres'] = genreIds.first.toString();
     }
 
-    // Add status filter
     if (answers.statusParam.isNotEmpty) {
       params['status'] = answers.statusParam;
     }
 
-    // Add episode range
-    if (answers.maxEpisodes != null) {
-      params['max_score'] = '10'; // placeholder; episode filtering done client-side
+    List<Anime> finalResults = [];
+    int page = 1;
+
+    // Fetch up to 6 pages (150 top anime) because client-side filtering by episodes
+    // guarantees we will drop a huge chunk of them.
+    while (finalResults.length < 12 && page <= 6) {
+      params['page'] = page.toString();
+      final data = await _get('/anime', params: params);
+      List<Anime> results = (data['data'] as List<dynamic>? ?? [])
+          .map((e) => Anime.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      if (results.isEmpty) break;
+
+      // Client-side episode length filter
+      if (answers.minEpisodes != null || answers.maxEpisodes != null) {
+        results = results.where((a) {
+          if (a.episodes == null) return true; // include unknowns
+          final eps = a.episodes!;
+          if (answers.minEpisodes != null && eps < answers.minEpisodes!) return false;
+          if (answers.maxEpisodes != null && eps > answers.maxEpisodes!) return false;
+          return true;
+        }).toList();
+      }
+
+      finalResults.addAll(results);
+
+      // If we got less than requested limit from API, no more pages exist globally
+      if ((data['data'] as List).length < 25) break;
+
+      page++;
     }
 
-    final data = await _get('/anime', params: params);
-    List<Anime> results = (data['data'] as List<dynamic>? ?? [])
-        .map((e) => Anime.fromJson(e as Map<String, dynamic>))
-        .toList();
-
-    // Client-side episode filtering
-    if (answers.minEpisodes != null || answers.maxEpisodes != null) {
-      results = results.where((a) {
-        if (a.episodes == null) return true; // include unknowns
-        final eps = a.episodes!;
-        if (answers.minEpisodes != null && eps < answers.minEpisodes!) {
-          return false;
-        }
-        if (answers.maxEpisodes != null && eps > answers.maxEpisodes!) {
-          return false;
-        }
-        return true;
-      }).toList();
-    }
-
-    return results;
+    // Shuffle the results slightly so it doesn't always feel like the same 12 anime 
+    // if the query is extremely generic
+    finalResults.shuffle();
+    
+    return finalResults.take(16).toList();
   }
 
   /// Get full details for a single anime

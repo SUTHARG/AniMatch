@@ -113,14 +113,19 @@ class QuizAnswers {
 
   List<int> get genreIds {
     final ids = <int>{};
-    // Add mood-based genres
-    final moodIds = moodToGenreIds[mood] ?? [];
-    ids.addAll(moodIds.take(1)); // take top mood genre
-    // Add user-selected genres
+    // Add user-selected genres first
     for (final g in genres) {
       final id = genreNameToId[g];
       if (id != null) ids.add(int.parse(id));
+      if (ids.length >= 2) break; // Limit to max 2 genres to avoid over-filtering
     }
+    
+    // Fallback to mood genre only if no user genres were selected
+    if (ids.isEmpty) {
+      final moodIds = moodToGenreIds[mood] ?? [];
+      ids.addAll(moodIds.take(1));
+    }
+    
     return ids.toList();
   }
 

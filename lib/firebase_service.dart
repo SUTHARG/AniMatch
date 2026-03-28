@@ -1,14 +1,27 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'anime.dart';           // ← was '../models/anime.dart'
 
 class FirebaseService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
+  FirebaseAuth get _auth => FirebaseAuth.instance;
 
-  String? get _uid => _auth.currentUser?.uid;
+  String? get _uid {
+    try {
+      return _auth.currentUser?.uid;
+    } catch (e) {
+      return null; // Suppress throwing if Firebase isn't initialized
+    }
+  }
 
-  bool get isLoggedIn => _auth.currentUser != null;
+  bool get isLoggedIn {
+    try {
+      return _auth.currentUser != null;
+    } catch (e) {
+      return false;
+    }
+  }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
 

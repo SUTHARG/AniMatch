@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'anime.dart';           // ← was '../models/anime.dart'
-import 'firebase_service.dart';// ← was '../services/firebase_service.dart'
+import 'anime.dart';           
+import 'firebase_service.dart';
 import 'detail_screen.dart';
+import 'login_screen.dart'; // ← newly added
 
 class WatchlistScreen extends StatelessWidget {
   const WatchlistScreen({super.key});
@@ -25,7 +26,12 @@ class WatchlistScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodyLarge),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                },
                 child: const Text('Log in'),
               ),
             ],

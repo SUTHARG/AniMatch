@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'anime.dart';           // ← was 'lib/models/anime.dart'
-import 'firebase_service.dart';// ← was '../services/firebase_service.dart'
+import 'anime.dart';
+import 'firebase_service.dart';
 import 'detail_screen.dart';
+import 'login_screen.dart';
 
 class ResultsScreen extends StatelessWidget {
   final List<Anime> anime;
@@ -136,7 +137,18 @@ class _AnimeCardState extends State<_AnimeCard> {
   Future<void> _toggleWatchlist() async {
     if (!_firebase.isLoggedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Log in to save to watchlist')),
+        SnackBar(
+          content: const Text('Log in to save to watchlist'),
+          action: SnackBarAction(
+            label: 'Login',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+          ),
+        ),
       );
       return;
     }

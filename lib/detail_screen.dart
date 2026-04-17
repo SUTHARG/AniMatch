@@ -13,6 +13,7 @@ import 'rating_sheet.dart';
 import 'streaming_utils.dart';
 import 'floating_notification.dart';
 import 'image_utils.dart';
+import 'shimmer_skeletons.dart';
 
 class DetailScreen extends StatefulWidget {
   final int malId;
@@ -74,25 +75,33 @@ class _DetailScreenState extends State<DetailScreen> {
     final web = Uri.tryParse(rawUrl);
     final mal = Uri.parse('https://myanimelist.net/anime/${widget.malId}');
 
-    Future<void> tryLaunch(Uri? uri) async {
-      if (uri == null) return;
+    Future<bool> tryLaunch(Uri? uri) async {
+      if (uri == null) return false;
       try {
         if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          return;
+          final success = await launchUrl(uri, mode: LaunchMode.externalApplication);
+          return success;
         }
       } catch (_) {}
+      return false;
     }
 
-    await tryLaunch(resolved);
-    if (resolved != web) await tryLaunch(web);
+    // Try primary resolved link (native app scheme)
+    if (await tryLaunch(resolved)) return;
+    
+    // Fallback to web link if resolved was different
+    if (resolved != web) {
+      if (await tryLaunch(web)) return;
+    }
+    
+    // Final fallback to MAL page
     await tryLaunch(mal);
 
     if (ctx != null && ctx.mounted) {
       FloatingNotification.show(
         ctx,
         title: 'Opening Alternative',
-        message: 'Could not open specific link. Opening MAL instead.',
+        message: 'Opening MAL instead of primary link.',
         icon: Icons.open_in_new_rounded,
       );
     }
@@ -214,7 +223,7 @@ class _DetailScreenState extends State<DetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) return const Scaffold(body: DetailShimmer());
     if (_error != null || _anime == null) return Scaffold(appBar: AppBar(), body: Center(child: Text(_error ?? 'Failed')));
 
     final anime = _anime!;
@@ -240,7 +249,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 SizedBox(
                   height: 400, width: double.infinity,
                   child: (_loadingAnilist && _anilistImageUrl == null) 
-                    ? Container(color: Colors.black)
+                    ? const ShimmerSkeleton(width: double.infinity, height: double.infinity, borderRadius: 0)
                     : Stack(
                         fit: StackFit.expand,
                         children: [
@@ -340,12 +349,43 @@ class _DetailScreenState extends State<DetailScreen> {
                         child: OutlinedButton.icon(
                           onPressed: _openStatusSheet,
                           icon: const Icon(Icons.edit_note_rounded, color: Colors.white),
-                          label: const Text('Edit Watch List', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                          label: const Text('Edit Watch List',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.white),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30))),
                         ),
                       ),
                     ],
                   ),
+                  if (anime.trailerUrl != null && anime.trailerUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _launchUrl(anime.trailerUrl!),
+                        icon: const Icon(Icons.movie_creation_outlined,
+                            color: Colors.amber),
+                        label: const Text('Watch Trailer',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white24),
+                          backgroundColor: Colors.white.withOpacity(0.05),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.center,

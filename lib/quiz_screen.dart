@@ -213,9 +213,12 @@ class _QuizScreenState extends State<QuizScreen>
           ),
 
           // Bottom button
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-            child: _buildBottomButton(colorScheme),
+          SafeArea(
+            bottom: true,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: _buildBottomButton(colorScheme),
+            ),
           ),
         ],
       ),

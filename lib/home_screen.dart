@@ -12,6 +12,7 @@ import 'search_screen.dart';
 import 'watchlist_screen.dart';
 import 'profile_screen.dart';
 import 'image_utils.dart';
+import 'shimmer_skeletons.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,65 +40,68 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       extendBody: true, // Allows content to flow behind the glass bar
       body: IndexedStack(index: _currentIndex, children: _pages),
-      bottomNavigationBar: Container(
-        height: 85,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        child: Stack(
-          alignment: Alignment.bottomCenter,
-          clipBehavior: Clip.none,
-          children: [
-            // Floating Glass Pill
-            Positioned.fill(
-              child: ClipPath(
-                clipper: _NotchedPillClipper(notchMargin: 8),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface.withValues(alpha: 0.8),
-                      // The border is handled by custom painter for the notch
+      bottomNavigationBar: SafeArea(
+        bottom: true,
+        child: Container(
+          height: 80, // Safe height for contents
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Stack(
+            alignment: Alignment.bottomCenter,
+            clipBehavior: Clip.none,
+            children: [
+              // Floating Glass Pill
+              Positioned.fill(
+                child: ClipPath(
+                  clipper: _NotchedPillClipper(notchMargin: 8),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surface.withValues(alpha: 0.8),
+                        // The border is handled by custom painter for the notch
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-
-            // The thin white border following the notch
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _NotchedPillBorderPainter(
-                  notchMargin: 8,
-                  color: Colors.white.withValues(alpha: 0.2),
+  
+              // The thin white border following the notch
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _NotchedPillBorderPainter(
+                    notchMargin: 8,
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
                 ),
               ),
-            ),
-
-            // Content icons
-            BottomAppBar(
-              shape: const CircularNotchedRectangle(),
-              notchMargin: 8,
-              color: Colors.transparent, // Transparent to show glass behind
-              elevation: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _NavBarIcon(
-                    icon: _currentIndex == 0 ? Icons.home_rounded : Icons.home_outlined,
-                    isActive: _currentIndex == 0,
-                    onTap: () => setState(() => _currentIndex = 0),
-                    label: 'Home',
-                  ),
-                  const SizedBox(width: 48), // Space for FAB
-                  _NavBarIcon(
-                    icon: _currentIndex == 1 ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-                    isActive: _currentIndex == 1,
-                    onTap: () => setState(() => _currentIndex = 1),
-                    label: 'Watchlist',
-                  ),
-                ],
+  
+              // Content icons
+              BottomAppBar(
+                shape: const CircularNotchedRectangle(),
+                notchMargin: 8,
+                color: Colors.transparent, // Transparent to show glass behind
+                elevation: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _NavBarIcon(
+                      icon: _currentIndex == 0 ? Icons.home_rounded : Icons.home_outlined,
+                      isActive: _currentIndex == 0,
+                      onTap: () => setState(() => _currentIndex = 0),
+                      label: 'Home',
+                    ),
+                    const SizedBox(width: 48), // Space for FAB
+                    _NavBarIcon(
+                      icon: _currentIndex == 1 ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                      isActive: _currentIndex == 1,
+                      onTap: () => setState(() => _currentIndex = 1),
+                      label: 'Watchlist',
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       floatingActionButton: Container(
@@ -370,7 +374,7 @@ class _HomeTabState extends State<_HomeTab> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return CustomScrollView(
+    final content = CustomScrollView(
       slivers: [
         SliverAppBar(
           title: ConstrainedBox(
@@ -414,7 +418,7 @@ class _HomeTabState extends State<_HomeTab> {
 
         if (_loading)
           const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()))
+              child: HomeShimmer())
         else ...[
           // Spotlight Carousel
           if (_spotlight.isNotEmpty)
@@ -458,6 +462,13 @@ class _HomeTabState extends State<_HomeTab> {
         ],
       ],
     );
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: Colors.amber,
+      backgroundColor: Colors.black,
+      child: content,
+    );
   }
 }
 
@@ -471,153 +482,236 @@ class _SpotlightCarousel extends StatefulWidget {
 }
 
 class _SpotlightCarouselState extends State<_SpotlightCarousel> {
-  final PageController _pageController = PageController();
+  late final PageController _pageController;
+  Timer? _autoPlayTimer;
   int _currentIndex = 0;
+  static const int _infinitePages = 1000; // Virtually infinite for a few cards
+
+  @override
+  void initState() {
+    super.initState();
+    // Start in the middle to allow infinite scrolling in both directions
+    final initialPage = (_infinitePages ~/ 2) - ((_infinitePages ~/ 2) % (widget.spotlightAnime.isEmpty ? 1 : widget.spotlightAnime.length));
+    _pageController = PageController(initialPage: initialPage);
+    _currentIndex = initialPage % (widget.spotlightAnime.isEmpty ? 1 : widget.spotlightAnime.length);
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _autoPlayTimer?.cancel();
+    _autoPlayTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_pageController.hasClients) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 1000),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _autoPlayTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
+    if (widget.spotlightAnime.isEmpty) return const SizedBox.shrink();
+    
     return SizedBox(
-      height: 480,
+      height: 520, // Slightly taller for the card padding
       child: Stack(
         children: [
           PageView.builder(
             controller: _pageController,
-            onPageChanged: (idx) => setState(() => _currentIndex = idx),
-            itemCount: widget.spotlightAnime.length,
+            onPageChanged: (idx) {
+              setState(() => _currentIndex = idx % widget.spotlightAnime.length);
+              // Reset timer on page change (manual or auto)
+              _startTimer();
+            },
+            itemCount: _infinitePages,
             itemBuilder: (context, index) {
-              final anime = widget.spotlightAnime[index];
-              return GestureDetector(
-                onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => DetailScreen(malId: anime.malId))),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    PremiumImage(
-                      imageUrl: anime.displayImageUrl,
-                      fit: BoxFit.cover,
-                    ),
-                    // Dark fade at the bottom
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.2),
-                            Colors.black.withValues(alpha: 0.9),
-                            colorScheme.surface,
-                          ],
-                          stops: const [0.0, 0.4, 0.85, 1.0],
+              final isCurrent = (index % widget.spotlightAnime.length) == _currentIndex;
+              final anime = widget.spotlightAnime[index % widget.spotlightAnime.length];
+              
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: GestureDetector(
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => DetailScreen(malId: anime.malId))),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(32),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isCurrent 
+                              ? Colors.amber.withOpacity(0.3) 
+                              : Colors.black.withOpacity(0.4),
+                          blurRadius: isCurrent ? 30 : 20,
+                          spreadRadius: isCurrent ? 5 : 2,
                         ),
-                      ),
+                      ],
                     ),
-                    // Overlay details
-                    Positioned(
-                      left: 16,
-                      bottom: 40,
-                      right: 48,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(32),
+                      child: Stack(
+                        fit: StackFit.expand,
                         children: [
-                          Text(
-                            '#${index + 1} Spotlight',
-                            style: const TextStyle(
-                              color: Colors.amber,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                          PremiumImage(
+                            imageUrl: anime.displayImageUrl,
+                            fit: BoxFit.cover,
+                          ),
+                          // Premium Multi-gradient System
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withOpacity(0.1),
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.3),
+                                  Colors.black.withOpacity(0.9),
+                                ],
+                                stops: const [0.0, 0.3, 0.6, 1.0],
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            anime.displayTitle,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
+                          // Side shade for text pop
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  Colors.black.withOpacity(0.6),
+                                  Colors.transparent,
+                                ],
+                                stops: const [0.0, 0.6],
+                              ),
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              FilledButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => DetailScreen(
-                                              malId: anime.malId)));
-                                },
-                                icon: const Icon(Icons.play_circle_fill_rounded,
-                                    color: Colors.black),
-                                label: const Text('Watch Now',
-                                    style: TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold)),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.amber,
+                          // Overlay details
+                          Positioned(
+                            left: 24,
+                            bottom: 30,
+                            right: 48,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                                  ),
+                                  child: Text(
+                                    '#${(index % widget.spotlightAnime.length) + 1} Spotlight',
+                                    style: const TextStyle(
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              FilledButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => DetailScreen(
-                                              malId: anime.malId)));
-                                },
-                                icon: const Icon(Icons.chevron_right_rounded,
-                                    color: Colors.white),
-                                label: const Text('Detail',
-                                    style: TextStyle(color: Colors.white)),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor:
-                                      Colors.white.withValues(alpha: 0.2),
+                                const SizedBox(height: 12),
+                                Text(
+                                  anime.displayTitle,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: -0.5,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 20),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: [
+                                    FilledButton.icon(
+                                      onPressed: () {
+                                        Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (_) => DetailScreen(
+                                                    malId: anime.malId)));
+                                      },
+                                      icon: const Icon(Icons.play_circle_fill_rounded,
+                                          color: Colors.black, size: 20),
+                                      label: const Text('Watch Now',
+                                          style: TextStyle(
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.bold)),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: Colors.amber,
+                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                      ),
+                                    ),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(100),
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                        child: FilledButton.icon(
+                                          onPressed: () {
+                                            Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (_) => DetailScreen(
+                                                        malId: anime.malId)));
+                                          },
+                                          icon: const Icon(Icons.info_outline_rounded,
+                                              color: Colors.white, size: 20),
+                                          label: const Text('Detail',
+                                              style: TextStyle(color: Colors.white)),
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor:
+                                                Colors.white.withOpacity(0.15),
+                                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               );
             },
           ),
           // Dot indicators on the right
           Positioned(
-            right: 16,
+            right: 24,
             top: 0,
             bottom: 0,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                widget.spotlightAnime.length,
+                widget.spotlightAnime.length.clamp(0, 10), // Limit dots for layout
                 (index) => AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  width: 8,
-                  height: 8,
+                  margin: const EdgeInsets.symmetric(vertical: 5),
+                  width: _currentIndex == index ? 4 : 3,
+                  height: _currentIndex == index ? 20 : 8,
                   decoration: BoxDecoration(
                     color: _currentIndex == index
                         ? Colors.amber
-                        : Colors.white.withValues(alpha: 0.4),
-                    shape: BoxShape.circle,
+                        : Colors.white.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
@@ -1224,14 +1318,14 @@ class _TopTenSectionState extends State<_TopTenSection> {
                       child: Row(
                         children: [
                           // Large rank text
-                          SizedBox(
+                           SizedBox(
                              width: 40,
                              child: Column(
                                children: [
-                                  Text(numStr, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                                  Container(height: 2, width: 20, color: Colors.white54, margin: const EdgeInsets.only(top: 4)),
-                               ],
-                             )
+                                    Text(numStr, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                                    Container(height: 2, width: 20, color: Colors.white54, margin: const EdgeInsets.only(top: 4)),
+                                  ],
+                                )
                           ),
                           // Small Poster
                           ClipRRect(

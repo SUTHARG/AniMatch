@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'anime.dart';
 
 enum WatchStatus {
@@ -33,7 +35,7 @@ enum WatchStatus {
 
   static WatchStatus fromString(String? s) {
     return WatchStatus.values.firstWhere(
-          (e) => e.name == s,
+      (e) => e.name == s,
       orElse: () => WatchStatus.planToWatch,
     );
   }
@@ -42,6 +44,7 @@ enum WatchStatus {
 class FirebaseService {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
   FirebaseAuth get _auth => FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   String? get _uid {
     try { return _auth.currentUser?.uid; } catch (_) { return null; }
@@ -55,16 +58,57 @@ class FirebaseService {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
 
-  Future<UserCredential> signInWithEmail(String email, String password) =>
-      _auth.signInWithEmailAndPassword(email: email, password: password);
+  Future<void> _ensureUserInitialized(User user) async {
+    final doc = _db.collection('users').doc(user.uid);
+    final snap = await doc.get();
+    if (!snap.exists) {
+      await doc.set({
+        'email': user.email,
+        'createdAt': FieldValue.serverTimestamp(),
+        'displayName': user.displayName,
+      }, SetOptions(merge: true));
+    }
+  }
 
-  Future<UserCredential> registerWithEmail(String email, String password) =>
-      _auth.createUserWithEmailAndPassword(email: email, password: password);
+  Future<UserCredential> signInWithEmail(String email, String password) async {
+    final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+    if (cred.user != null) await _ensureUserInitialized(cred.user!);
+    return cred;
+  }
+
+  Future<UserCredential> registerWithEmail(String email, String password) async {
+    final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+    if (cred.user != null) await _ensureUserInitialized(cred.user!);
+    return cred;
+  }
+
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null;
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final cred = await _auth.signInWithCredential(credential);
+      if (cred.user != null) await _ensureUserInitialized(cred.user!);
+      return cred;
+    } catch (e) {
+      debugPrint('Google Sign-In error: $e');
+      rethrow;
+    }
+  }
 
   Future<void> updateDisplayName(String name) =>
       _auth.currentUser!.updateDisplayName(name);
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    await _auth.signOut();
+    await _googleSignIn.signOut();
+  }
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -321,4 +365,68 @@ class FirebaseService {
       return null;
     }
   }
-}
+
+  // ── Search History ────────────────────────────────────────────────────────
+
+  Future<void> saveSearchQuery(String query) async {
+    if (_uid == null || query.trim().isEmpty) return;
+    final docRef = _db.collection('users').doc(_uid).collection('metadata').doc('search');
+    
+    // Add to array, ensuring uniqueness
+    await docRef.set({
+      'history': FieldValue.arrayUnion([query.trim()]),
+      'lastUpdated': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    // Optional: Limit to last 15 items by checking size
+    try {
+      final doc = await docRef.get();
+      if (doc.exists) {
+        List<String> history = List<String>.from(doc.data()?['history'] ?? []);
+        if (history.length > 15) {
+          history = history.sublist(history.length - 15);
+          await docRef.update({'history': history});
+        }
+      }
+    } catch (_) {}
+  }
+
+  Stream<List<String>> getRecentSearchesStream() {
+    if (_uid == null) return Stream.value([]);
+    return _db
+        .collection('users')
+        .doc(_uid)
+        .collection('metadata')
+        .doc('search')
+        .snapshots()
+        .map((snap) {
+          if (!snap.exists) return [];
+          final history = List<String>.from(snap.data()?['history'] ?? []);
+          return history.reversed.toList(); // Newest first
+        });
+  }
+
+  Future<void> removeSearchQuery(String query) async {
+    if (_uid == null) return;
+    await _db
+        .collection('users')
+        .doc(_uid)
+        .collection('metadata')
+        .doc('search')
+        .update({
+      'history': FieldValue.arrayRemove([query]),
+    });
+  }
+
+  Future<void> clearSearchHistory() async {
+    if (_uid == null) return;
+    await _db
+        .collection('users')
+        .doc(_uid)
+        .collection('metadata')
+        .doc('search')
+        .set({
+      'history': [],
+    }, SetOptions(merge: true));
+  }
+}

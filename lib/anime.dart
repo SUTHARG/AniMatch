@@ -107,7 +107,7 @@ class Anime {
       type: json['type'] as String?,
       year: json['year'] as int?,
       genres: genreList,
-      trailerUrl: json['trailer']?['url'] as String?,
+      trailerUrl: _parseTrailerUrl(json['trailer']),
       rank: json['rank'] as int?,
       members: json['members'] as int?,
       malUrl: 'https://myanimelist.net/anime/$malId',
@@ -183,6 +183,36 @@ class Anime {
   /// Returns the image URL for display.
   String get displayImageUrl {
     return imageUrl;
+  }
+
+  static String? _parseTrailerUrl(Map<String, dynamic>? trailer) {
+    if (trailer == null) return null;
+
+    // 1. Try regular URL first
+    final url = trailer['url'] as String?;
+    if (url != null && url.isNotEmpty && !url.contains('embed')) return url;
+
+    // 2. Try YouTube ID
+    final youtubeId = trailer['youtube_id'] as String?;
+    if (youtubeId != null && youtubeId.isNotEmpty) {
+      return 'https://www.youtube.com/watch?v=$youtubeId';
+    }
+
+    // 3. Try parsing ID from embed_url
+    final embedUrl = trailer['embed_url'] as String?;
+    if (embedUrl != null && embedUrl.isNotEmpty) {
+      if (embedUrl.contains('youtube.com/embed/')) {
+        final id = embedUrl.split('youtube.com/embed/').last.split('?').first;
+        return 'https://www.youtube.com/watch?v=$id';
+      }
+      if (embedUrl.contains('youtube-nocookie.com/embed/')) {
+        final id = embedUrl.split('youtube-nocookie.com/embed/').last.split('?').first;
+        return 'https://www.youtube.com/watch?v=$id';
+      }
+      return embedUrl;
+    }
+
+    return null;
   }
 }
 

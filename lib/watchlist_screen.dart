@@ -7,6 +7,7 @@ import 'firebase_service.dart';
 import 'detail_screen.dart';
 import 'login_screen.dart';
 import 'image_utils.dart';
+import 'shimmer_skeletons.dart';
 
 class WatchlistScreen extends StatefulWidget {
   const WatchlistScreen({super.key});
@@ -139,7 +140,7 @@ class _WatchlistTab extends StatelessWidget {
       stream: firebase.watchlistStream(filter: statusFilter),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const WatchlistShimmer();
         }
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
@@ -147,16 +148,24 @@ class _WatchlistTab extends StatelessWidget {
         final items = snapshot.data ?? [];
         if (items.isEmpty) return _EmptyTab(statusFilter: statusFilter);
 
-        return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.60,
+        return RefreshIndicator(
+          onRefresh: () async {
+            // Re-trigger the stream by forcing a rebuild or just waiting
+            await Future.delayed(const Duration(seconds: 1));
+          },
+          color: Colors.amber,
+          backgroundColor: Colors.black,
+          child: GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.60,
+            ),
+            itemCount: items.length,
+            itemBuilder: (_, i) => _WatchlistCard(item: items[i]),
           ),
-          itemCount: items.length,
-          itemBuilder: (_, i) => _WatchlistCard(item: items[i]),
         );
       },
     );

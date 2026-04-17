@@ -3,6 +3,7 @@ import 'anime.dart';           // ← was 'lib/models/anime.dart'
 import 'jikan_service.dart';   // ← was '../services/jikan_service.dart'
 import 'firebase_service.dart';// ← was '../services/firebase_service.dart'
 import 'results_screen.dart';
+import 'floating_notification.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key});
@@ -37,17 +38,29 @@ class _QuizScreenState extends State<QuizScreen>
     {'value': 'action', 'label': 'Action-packed', 'emoji': '⚡', 'sub': 'Battles, Powers, Fights'},
     {'value': 'chill', 'label': 'Relaxing & Chill', 'emoji': '🌸', 'sub': 'Slice of Life, Iyashikei'},
     {'value': 'adventure', 'label': 'Epic Adventure', 'emoji': '🗺️', 'sub': 'Fantasy, Isekai, Journey'},
+    {'value': 'mystery', 'label': 'Mystery & Suspense', 'emoji': '🕵️', 'sub': 'Detective, Mind-bending'},
+    {'value': 'battles', 'label': 'Epic Battles', 'emoji': '🗡️', 'sub': 'Martial Arts, Swordplay'},
+    {'value': 'cozy', 'label': 'Cozy & Warm', 'emoji': '☕', 'sub': 'Comforting, Healing'},
+    {'value': 'gore', 'label': 'Horror & Gore', 'emoji': '🩸', 'sub': 'Terrifying, Bloody, Intense'},
+    {'value': 'sports', 'label': 'Sports & Hype', 'emoji': '🏆', 'sub': 'Action, Teamwork, Fire'},
+    {'value': 'sad', 'label': 'Sad & Melancholy', 'emoji': '💧', 'sub': 'Emotional, Tear-jerker'},
   ];
 
   static const _genres = [
-    'Action', 'Adventure', 'Comedy', 'Drama',
-    'Fantasy', 'Romance', 'Sci-Fi', 'Slice of Life',
-    'Thriller', 'Mystery', 'Horror', 'Sports',
+    'Action', 'Adventure', 'Cars', 'Comedy', 'Dementia',
+    'Demons', 'Drama', 'Ecchi', 'Fantasy', 'Game',
+    'Harem', 'Historical', 'Horror', 'Isekai', 'Josei',
+    'Kids', 'Magic', 'Martial Arts', 'Mecha', 'Military',
+    'Music', 'Mystery', 'Parody', 'Police', 'Psychological',
+    'Romance', 'Samurai', 'School', 'Sci-Fi', 'Seinen',
+    'Shoujo', 'Shoujo Ai', 'Shounen', 'Shounen Ai',
+    'Slice of Life', 'Space', 'Sports', 'Super Power',
+    'Supernatural', 'Thriller', 'Vampire',
   ];
 
   static const _episodeRanges = [
     {'value': 'short', 'label': 'Short', 'sub': 'Under 13 episodes', 'emoji': '⚡'},
-    {'value': 'medium', 'label': 'Medium', 'sub': '13 – 50 episodes', 'emoji': '📺'},
+    {'value': 'medium', 'label': 'Medium', 'sub': '13 - 50 episodes', 'emoji': '📺'},
     {'value': 'long', 'label': 'Long', 'sub': '50+ episodes', 'emoji': '🔥'},
     {'value': 'any', 'label': 'Any length', 'sub': "I don't mind", 'emoji': '🎲'},
   ];
@@ -135,11 +148,11 @@ class _QuizScreenState extends State<QuizScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load recommendations: $e'),
-          backgroundColor: Colors.red.shade700,
-        ),
+      FloatingNotification.show(
+        context,
+        title: 'Quiz Error',
+        message: 'Could not load your recommendations. Please try again.',
+        icon: Icons.error_outline_rounded,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -340,7 +353,7 @@ class _MoodStep extends StatelessWidget {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
+            childAspectRatio: 1.15,
           ),
           itemBuilder: (_, i) {
             final mood = moods[i];
@@ -524,6 +537,8 @@ class _SelectCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -535,6 +550,8 @@ class _SelectCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     sub,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
                       color: isSelected

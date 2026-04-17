@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:untitled1/anilist_service.dart';
 import 'anime.dart';
 import 'firebase_service.dart';
 import 'detail_screen.dart';
 import 'login_screen.dart';
+import 'floating_notification.dart';
+import 'image_utils.dart';
 
 class ResultsScreen extends StatelessWidget {
   final List<Anime> anime;
@@ -120,12 +122,36 @@ class _AnimeCard extends StatefulWidget {
 
 class _AnimeCardState extends State<_AnimeCard> {
   final FirebaseService _firebase = FirebaseService();
+  final AnilistService _anilist = AnilistService();
   bool _inWatchlist = false;
+  String? _anilistImageUrl;
+  bool _loadingAnilist = false;
 
   @override
   void initState() {
     super.initState();
     _checkWatchlist();
+    _loadAnilistImage();
+  }
+
+  Future<void> _loadAnilistImage() async {
+    if (!mounted) return;
+    setState(() => _loadingAnilist = true);
+    
+    // Stage 1: Try by MAL ID
+    String? url = await _anilist.getCoverImageByMalId(widget.anime.malId);
+    
+    // Stage 2: Try by Title if ID fails
+    if (url == null && mounted) {
+      url = await _anilist.getCoverImageByTitle(widget.anime.displayTitle);
+    }
+
+    if (mounted) {
+      setState(() {
+        _anilistImageUrl = url;
+        _loadingAnilist = false;
+      });
+    }
   }
 
   Future<void> _checkWatchlist() async {
@@ -136,19 +162,18 @@ class _AnimeCardState extends State<_AnimeCard> {
 
   Future<void> _toggleWatchlist() async {
     if (!_firebase.isLoggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Log in to save to watchlist'),
-          action: SnackBarAction(
-            label: 'Login',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          ),
-        ),
+      FloatingNotification.show(
+        context,
+        title: 'Authentication Required',
+        message: 'Log in to save this anime to your watchlist',
+        icon: Icons.lock_outline_rounded,
+        actionLabel: 'Login',
+        onAction: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        },
       );
       return;
     }
@@ -186,18 +211,23 @@ class _AnimeCardState extends State<_AnimeCard> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CachedNetworkImage(
-                    imageUrl: widget.anime.imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
+                  if (_loadingAnilist && _anilistImageUrl == null)
+                    Container(
                       color: colorScheme.surfaceVariant,
-                      child: const Center(child: CircularProgressIndicator()),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    )
+                  else
+                    PremiumImage(
+                      imageUrl: _anilistImageUrl ?? widget.anime.displayImageUrl,
+                      title: widget.anime.displayTitle,
+                      fit: BoxFit.cover,
                     ),
-                    errorWidget: (_, __, ___) => Container(
-                      color: colorScheme.surfaceVariant,
-                      child: const Icon(Icons.broken_image_outlined),
-                    ),
-                  ),
                   // Score badge
                   if (widget.anime.score != null)
                     Positioned(
@@ -329,7 +359,12 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => FloatingNotification.show(
+                context,
+                title: 'Action Shared',
+                message: 'This feature is coming soon!',
+                icon: Icons.celebration_rounded,
+              ),
               child: const Text('Try again'),
             ),
           ],

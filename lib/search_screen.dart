@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'anime.dart';           // ← was 'lib/models/anime.dart'
-import 'jikan_service.dart';   // ← was '../services/jikan_service.dart'
+import 'package:untitled1/anilist_service.dart';
+import 'anime.dart';
+import 'jikan_service.dart';
 import 'detail_screen.dart';
+import 'image_utils.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -96,45 +98,94 @@ class _SearchScreenState extends State<SearchScreen> {
                     ],
                   ),
                 )
-              : ListView.builder(
-                  itemCount: _results.length,
-                  itemBuilder: (_, i) {
-                    final anime = _results[i];
-                    return ListTile(
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: CachedNetworkImage(
-                          imageUrl: anime.imageUrl,
-                          width: 44,
-                          height: 60,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      title: Text(anime.displayTitle,
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(
-                        '${anime.scoreText} · ${anime.episodeText}',
-                        style: TextStyle(
-                            fontSize: 12, color: colorScheme.onSurfaceVariant),
-                      ),
-                      trailing: anime.genres.isNotEmpty
-                          ? Chip(
-                              label: Text(anime.genres.first,
-                                  style: const TextStyle(fontSize: 10)),
-                              padding: EdgeInsets.zero,
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                            )
-                          : null,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DetailScreen(malId: anime.malId),
-                        ),
-                      ),
-                    );
-                  },
+                : ListView.builder(
+                    itemCount: _results.length,
+                    itemBuilder: (_, i) {
+                      return _SearchAnimeCard(anime: _results[i]);
+                    },
+                  ),
+    );
+  }
+}
+
+class _SearchAnimeCard extends StatefulWidget {
+  final Anime anime;
+  const _SearchAnimeCard({required this.anime});
+
+  @override
+  State<_SearchAnimeCard> createState() => _SearchAnimeCardState();
+}
+
+class _SearchAnimeCardState extends State<_SearchAnimeCard> {
+  final AnilistService _anilist = AnilistService();
+  String? _anilistImageUrl;
+  bool _loadingAnilist = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAnilistImage();
+  }
+
+  Future<void> _loadAnilistImage() async {
+    if (!mounted || !kIsWeb) return;
+    setState(() => _loadingAnilist = true);
+    
+    // Stage 1: Try by MAL ID
+    String? url = await _anilist.getCoverImageByMalId(widget.anime.malId);
+    
+    // Stage 2: Try by Title if ID fails
+    if (url == null && mounted) {
+      url = await _anilist.getCoverImageByTitle(widget.anime.displayTitle);
+    }
+
+    if (mounted) {
+      setState(() {
+        _anilistImageUrl = url;
+        _loadingAnilist = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final anime = widget.anime;
+
+    return ListTile(
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          width: 44,
+          height: 60,
+          color: colorScheme.surfaceVariant,
+          child: (_loadingAnilist && _anilistImageUrl == null)
+              ? const Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)))
+              : PremiumImage(
+                  imageUrl: _anilistImageUrl ?? anime.displayImageUrl,
+                  title: anime.displayTitle,
+                  fit: BoxFit.cover,
                 ),
+        ),
+      ),
+      title: Text(anime.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        '${anime.scoreText} · ${anime.episodeText}',
+        style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+      ),
+      trailing: anime.genres.isNotEmpty
+          ? Chip(
+              label: Text(anime.genres.first, style: const TextStyle(fontSize: 10)),
+              padding: EdgeInsets.zero,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            )
+          : null,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DetailScreen(malId: anime.malId),
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'firebase_service.dart';
 import 'anime.dart';
+import 'floating_notification.dart';
 
 /// Shows a bottom sheet to pick / change watch status.
 /// Returns the chosen [WatchStatus] or null if dismissed.
@@ -92,8 +93,11 @@ class _WatchStatusSheetState extends State<_WatchStatusSheet> {
       if (mounted) Navigator.pop(context, status);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e')),
+        FloatingNotification.show(
+          context,
+          title: 'Update Failed',
+          message: 'Could not update your watchlist. Try again.',
+          icon: Icons.sync_problem_rounded,
         );
         setState(() => _saving = false);
       }

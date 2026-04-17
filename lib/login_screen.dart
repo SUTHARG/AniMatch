@@ -1,6 +1,10 @@
+import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
+import 'floating_notification.dart';
+import 'image_utils.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -80,38 +84,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Theme.of(context).colorScheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
+    FloatingNotification.show(
+      context,
+      title: 'Authentication Error',
+      message: message,
+      icon: Icons.error_outline_rounded,
     );
   }
 
   void _showSuccess(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_outline,
-                color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Text(message),
-          ],
-        ),
-        backgroundColor: Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
+    FloatingNotification.show(
+      context,
+      title: 'Success',
+      message: message,
+      icon: Icons.check_circle_outline_rounded,
     );
   }
 
@@ -129,202 +116,275 @@ class _LoginScreenState extends State<LoginScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      extendBodyBehindAppBar: true,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
-          child: Form(
-            key: _formKey,
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Cinematic Background
+          Positioned.fill(
+            child: Image.asset(
+              ImageUtils.resolveAsset('assets/images/login_bg.png'),
+              fit: BoxFit.cover,
+            ),
+          ),
+          
+          // Blur Overlay
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+              child: Container(color: Colors.black.withOpacity(0.5)),
+            ),
+          ),
+
+          // Safe Area for content
+          SafeArea(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Icon
-                Icon(
-                  _isLogin
-                      ? Icons.lock_person_rounded
-                      : Icons.person_add_rounded,
-                  size: 72,
-                  color: colorScheme.primary,
-                ),
-                const SizedBox(height: 20),
-
-                // Title
-                Text(
-                  _isLogin ? 'Welcome back' : 'Create account',
-                  style: textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _isLogin
-                      ? 'Log in to sync your anime watchlist'
-                      : 'Start discovering and saving your favorite anime',
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-
-                // Name field (signup only)
-                if (!_isLogin) ...[
-                  TextFormField(
-                    controller: _nameController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(
-                      labelText: 'Display name',
-                      prefixIcon: const Icon(Icons.person_outline_rounded),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      filled: true,
-                      fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
-                    ),
-                    validator: (v) {
-                      if (!_isLogin && (v == null || v.trim().isEmpty)) {
-                        return 'Please enter your name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Email field
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    filled: true,
-                    fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!v.contains('@') || !v.contains('.')) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Password field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword),
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    filled: true,
-                    fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return 'Please enter your password';
-                    }
-                    if (!_isLogin && v.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 32),
-
-                // Submit button
-                SizedBox(
-                  height: 52,
-                  child: FilledButton(
-                    // KEY FIX: only disable when loading, always enabled otherwise
-                    onPressed: _isLoading ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(
-                            _isLogin ? 'Log in' : 'Sign up',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Toggle login / signup
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      _isLogin
-                          ? "Don't have an account?"
-                          : 'Already have an account?',
-                      style: TextStyle(color: colorScheme.onSurfaceVariant),
-                    ),
-                    TextButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () => setState(() {
-                                _isLogin = !_isLogin;
-                                _emailController.clear();
-                                _passwordController.clear();
-                                _nameController.clear();
-                                _formKey.currentState?.reset();
-                              }),
-                      child: Text(
-                        _isLogin ? 'Sign up' : 'Log in',
-                        style:
-                            const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
                     ),
                   ],
+                ),
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Hero Icon with Glow
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: colorScheme.primary.withOpacity(0.1),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: colorScheme.primary.withOpacity(0.2),
+                                    blurRadius: 30,
+                                    spreadRadius: 5,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                _isLogin ? Icons.lock_person_rounded : Icons.person_add_rounded,
+                                size: 64,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Title & Description
+                            Text(
+                              _isLogin ? 'Welcome back' : 'Create account',
+                              style: textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _isLogin
+                                  ? 'Log in to sync your anime watchlist'
+                                  : 'Start discovering and saving your favorite anime',
+                              style: textTheme.bodyLarge?.copyWith(
+                                color: Colors.white70,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 48),
+
+                            // Fields
+                            if (!_isLogin) ...[
+                              _GlassField(
+                                controller: _nameController,
+                                label: 'Display name',
+                                icon: Icons.person_outline_rounded,
+                                validator: (v) {
+                                  if (!_isLogin && (v == null || v.trim().isEmpty)) {
+                                    return 'Please enter your name';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+
+                            _GlassField(
+                              controller: _emailController,
+                              label: 'Email',
+                              icon: Icons.email_outlined,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'Please enter email';
+                                if (!v.contains('@')) return 'Invalid email';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            _GlassField(
+                              controller: _passwordController,
+                              label: 'Password',
+                              icon: Icons.lock_outline_rounded,
+                              obscureText: _obscurePassword,
+                              isPassword: true,
+                              onToggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) return 'Please enter password';
+                                if (!_isLogin && v.length < 6) return 'Too short';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 40),
+
+                            // Submit Button
+                            SizedBox(
+                              height: 56,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    colors: [Colors.amber, Colors.orange.shade800],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.amber.withOpacity(0.3),
+                                      blurRadius: 15,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _submit,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: CircularProgressIndicator(color: Colors.black, strokeWidth: 3),
+                                        )
+                                      : Text(
+                                          _isLogin ? 'Log in' : 'Sign up',
+                                          style: const TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Toggle
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _isLogin ? "Don't have an account? " : 'Already have an account? ',
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                TextButton(
+                                  onPressed: _isLoading ? null : () => setState(() => _isLogin = !_isLogin),
+                                  child: Text(
+                                    _isLogin ? 'Sign up' : 'Log in',
+                                    style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 40),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
+    );
+  }
+}
+
+class _GlassField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final bool obscureText;
+  final bool isPassword;
+  final TextInputType? keyboardType;
+  final VoidCallback? onToggleVisibility;
+  final String? Function(String?)? validator;
+
+  const _GlassField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.obscureText = false,
+    this.isPassword = false,
+    this.keyboardType,
+    this.onToggleVisibility,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        prefixIcon: Icon(icon, color: Colors.amber, size: 22),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  obscureText ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  color: Colors.white38,
+                  size: 20,
+                ),
+                onPressed: onToggleVisibility,
+              )
+            : null,
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.05),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.amber, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.red.withOpacity(0.5)),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+      validator: validator,
     );
   }
 }

@@ -9,9 +9,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     if (kIsWeb) {
+      // TODO: Replace with your actual Firebase API Key from the Firebase Console if this one is invalid.
+      // Your console shows: "API key not valid"
       await Firebase.initializeApp(
         options: const FirebaseOptions(
-          apiKey: "AIzaSyDOpCymvLPS68NDOFZ-syO15fswxbmHrSs",
+          apiKey: "AIzaSyDD6YmXs3wOYQCpg--_317GUXvsPG4CK9E",
           authDomain: "aimatch-d3a1b.firebaseapp.com",
           projectId: "aimatch-d3a1b",
           storageBucket: "aimatch-d3a1b.firebasestorage.app",

@@ -174,62 +174,58 @@ class FirebaseService {
 
   // ── Stats ─────────────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> getUserStats() async {
-    if (_uid == null) return {};
-    final snap = await _watchlistRef.get();
-    final docs = snap.docs.map((d) => d.data()).toList();
+  Stream<Map<String, dynamic>> getUserStatsStream() {
+    if (_uid == null) return Stream.value({});
+    
+    return _watchlistRef.snapshots().map((snap) {
+      final docs = snap.docs.map((d) => d.data()).toList();
 
-    int totalAnime = docs.length;
-    int completed = docs.where((d) => d['status'] == 'completed').length;
-    int watching  = docs.where((d) => d['status'] == 'watching').length;
-    int dropped   = docs.where((d) => d['status'] == 'dropped').length;
-    int planToWatch = docs.where((d) => d['status'] == 'planToWatch').length;
-    int onHold    = docs.where((d) => d['status'] == 'onHold').length;
+      int totalAnime = docs.length;
+      int completed = docs.where((d) => d['status'] == 'completed').length;
+      int watching  = docs.where((d) => d['status'] == 'watching').length;
+      int dropped   = docs.where((d) => d['status'] == 'dropped').length;
+      int planToWatch = docs.where((d) => d['status'] == 'planToWatch').length;
+      int onHold    = docs.where((d) => d['status'] == 'onHold').length;
 
-    // Total episodes watched (progress across all entries)
-    int totalEpisodes = 0;
-    for (final d in docs) {
-      totalEpisodes += (d['episodeProgress'] as int? ?? 0);
-    }
-
-    // Average user rating
-    final ratings = docs
-        .map((d) => d['userRating'])
-        .whereType<num>()
-        .map((r) => r.toDouble())
-        .toList();
-    final avgRating = ratings.isEmpty
-        ? 0.0
-        : ratings.reduce((a, b) => a + b) / ratings.length;
-
-    // Favorite genres (most frequent across all entries)
-    final genreCount = <String, int>{};
-    for (final d in docs) {
-      final genres = (d['genres'] as List<dynamic>? ?? []).cast<String>();
-      for (final g in genres) {
-        genreCount[g] = (genreCount[g] ?? 0) + 1;
+      int totalEpisodes = 0;
+      for (final d in docs) {
+        totalEpisodes += (d['episodeProgress'] as int? ?? 0);
       }
-    }
-    final sortedGenres = genreCount.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final topGenres = sortedGenres.take(3).map((e) => e.key).toList();
 
-    // Minutes watched (assume avg 24 min per episode)
-    final minutesWatched = totalEpisodes * 24;
+      final ratings = docs
+          .map((d) => d['userRating'])
+          .whereType<num>()
+          .map((r) => r.toDouble())
+          .toList();
+      final avgRating = ratings.isEmpty
+          ? 0.0
+          : ratings.reduce((a, b) => a + b) / ratings.length;
 
-    return {
-      'totalAnime': totalAnime,
-      'completed': completed,
-      'watching': watching,
-      'dropped': dropped,
-      'planToWatch': planToWatch,
-      'onHold': onHold,
-      'totalEpisodes': totalEpisodes,
-      'minutesWatched': minutesWatched,
-      'avgRating': avgRating,
-      'topGenres': topGenres,
-      'ratingsGiven': ratings.length,
-    };
+      final genreCount = <String, int>{};
+      for (final d in docs) {
+        final genres = (d['genres'] as List<dynamic>? ?? []).cast<String>();
+        for (final g in genres) {
+          genreCount[g] = (genreCount[g] ?? 0) + 1;
+        }
+      }
+      final sortedGenres = genreCount.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final topGenres = sortedGenres.take(3).map((e) => e.key).toList();
+
+      return {
+        'totalAnime': totalAnime,
+        'completed': completed,
+        'watching': watching,
+        'dropped': dropped,
+        'planToWatch': planToWatch,
+        'onHold': onHold,
+        'totalEpisodes': totalEpisodes,
+        'minutesWatched': totalEpisodes * 24,
+        'avgRating': avgRating,
+        'topGenres': topGenres,
+        'ratingsGiven': ratings.length,
+      };
+    });
   }
 
   // ── Quiz History ──────────────────────────────────────────────────────────
@@ -272,5 +268,57 @@ class FirebaseService {
         .collection('reactions')
         .doc(malId.toString())
         .set({'malId': malId, 'liked': liked, 'at': FieldValue.serverTimestamp()});
+  }
+
+  // ── Streaming Cache ───────────────────────────────────────────────────────
+
+  /// Persists [links] for [malId] under streamingCache/{malId} for [uid].
+  /// Includes a server timestamp so the 7-day TTL can be enforced on read.
+  Future<void> cacheStreamingLinks(
+      String uid, int malId, List<dynamic> links) async {
+    try {
+      final doc = _db
+          .collection('users')
+          .doc(uid)
+          .collection('streamingCache')
+          .doc('$malId');
+      await doc.set({
+        'malId': malId,
+        'links': links
+            .map((l) => {'name': (l as dynamic).name, 'url': (l as dynamic).url})
+            .toList(),
+        'cachedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Cache write failure is non-fatal — streaming data will be re-fetched
+      // on the next detail screen open.
+    }
+  }
+
+  /// Returns cached streaming links for [malId], or `null` if the entry does
+  /// not exist or is older than 7 days.
+  Future<List<dynamic>?> getCachedStreamingLinks(
+      String uid, int malId) async {
+    try {
+      final doc = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('streamingCache')
+          .doc('$malId')
+          .get();
+      if (!doc.exists) return null;
+      final data = doc.data()!;
+
+      // Expire cache after 7 days
+      final cachedAt = (data['cachedAt'] as Timestamp?)?.toDate();
+      if (cachedAt == null ||
+          DateTime.now().difference(cachedAt).inDays > 7) {
+        return null;
+      }
+
+      return data['links'] as List<dynamic>;
+    } catch (_) {
+      return null;
+    }
   }
 }

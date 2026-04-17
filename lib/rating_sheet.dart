@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'firebase_service.dart';
+import 'floating_notification.dart';
 
 /// Shows a bottom sheet to rate and review an anime.
 Future<void> showRatingSheet(
@@ -78,8 +79,11 @@ class _RatingSheetState extends State<_RatingSheet> {
 
   Future<void> _save() async {
     if (_rating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a rating first')),
+      FloatingNotification.show(
+        context,
+        title: 'Rating Required',
+        message: 'Please select a rating first',
+        icon: Icons.star_outline_rounded,
       );
       return;
     }
@@ -93,8 +97,12 @@ class _RatingSheetState extends State<_RatingSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed: $e')));
+        FloatingNotification.show(
+          context,
+          title: 'Save Failed',
+          message: 'Failed to save rating. Please try again.',
+          icon: Icons.error_outline_rounded,
+        );
         setState(() => _saving = false);
       }
     }

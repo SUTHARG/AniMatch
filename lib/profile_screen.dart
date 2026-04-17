@@ -1,8 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
 import 'login_screen.dart';
 import 'stats_screen.dart';
+import 'image_utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,16 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     '🐉', '⚔️', '🌸', '🎭', '🌙', '⭐',
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadStats();
-  }
-
-  Future<void> _loadStats() async {
-    final stats = await _firebase.getUserStats();
-    if (mounted) setState(() { _stats = stats; _loadingStats = false; });
-  }
+  // No longer needed: using real-time StreamBuilder in the UI
 
   Future<void> _pickAvatar(String current) async {
     final picked = await showDialog<String>(
@@ -78,62 +71,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
             slivers: [
               // App bar with gradient
               SliverAppBar(
-                expandedHeight: 200,
+                expandedHeight: 220,
                 pinned: true,
+                backgroundColor: Colors.black,
                 flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          colorScheme.primary,
-                          colorScheme.primaryContainer,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                  background: Stack(
+                    children: [
+                      // Gradient Base
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: RadialGradient(
+                              center: const Alignment(0.7, -0.6),
+                              radius: 1.5,
+                              colors: [
+                                Colors.amber.withOpacity(0.3),
+                                Colors.black,
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    child: SafeArea(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 20),
-                          // Avatar circle
-                          GestureDetector(
-                            onTap: () => _pickAvatar(initials),
-                            child: CircleAvatar(
-                              radius: 44,
-                              backgroundColor:
-                              colorScheme.primary.withOpacity(0.3),
-                              child: Text(
-                                initials,
-                                style: const TextStyle(
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                      // Animated-like shimmer effect (Static for performance)
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.05),
+                                Colors.transparent,
+                                Colors.white.withOpacity(0.02),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 32), // Compensate for status bar manually for better control
+                            // Avatar circle with Glow
+                            GestureDetector(
+                              onTap: () => _pickAvatar(initials),
+                              child: Hero(
+                                tag: 'profile_avatar',
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.amber.withOpacity(0.5), width: 2),
+                                    boxShadow: [
+                                      BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 20, spreadRadius: 2),
+                                    ],
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 40,
+                                    backgroundColor: Colors.white10,
+                                    child: Text(
+                                      initials,
+                                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.amber),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(name,
-                              style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
-                          Text(email,
-                              style: const TextStyle(
-                                  fontSize: 13, color: Colors.white70)),
-                        ],
+                            const SizedBox(height: 16),
+                            Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
+                            const SizedBox(height: 4),
+                            Text(email, style: const TextStyle(fontSize: 13, color: Colors.white54)),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.logout_rounded,
-                        color: Colors.white),
-                    onPressed: () => _firebase.signOut(),
-                    tooltip: 'Log out',
+                    icon: const Icon(Icons.settings_outlined, color: Colors.white70),
+                    onPressed: () {},
                   ),
                 ],
               ),
@@ -142,37 +160,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.all(20),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    // Quick stats row
-                    _loadingStats
-                        ? const Center(child: CircularProgressIndicator())
-                        : Row(
-                      children: [
-                        _QuickStat(
-                          value: '${_stats['totalAnime'] ?? 0}',
-                          label: 'Anime',
-                          icon: '🎌',
-                        ),
-                        _QuickStat(
-                          value:
-                          '${_stats['totalEpisodes'] ?? 0}',
-                          label: 'Episodes',
-                          icon: '📺',
-                        ),
-                        _QuickStat(
-                          value: _formatMinutes(
-                              _stats['minutesWatched'] as int? ?? 0),
-                          label: 'Watched',
-                          icon: '⏱️',
-                        ),
-                        _QuickStat(
-                          value: (_stats['avgRating'] as double? ?? 0) == 0
-                              ? '—'
-                              : (_stats['avgRating'] as double)
-                              .toStringAsFixed(1),
-                          label: 'Avg score',
-                          icon: '⭐',
-                        ),
-                      ],
+                    StreamBuilder<Map<String, dynamic>>(
+                      stream: _firebase.getUserStatsStream(),
+                      builder: (context, snapshot) {
+                        final stats = snapshot.data ?? {};
+                        final loading = snapshot.connectionState == ConnectionState.waiting;
+                        
+                        if (loading && stats.isEmpty) {
+                          return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
+                        }
+
+                        return Row(
+                          children: [
+                            _QuickStat(
+                              value: '${stats['totalAnime'] ?? 0}',
+                              label: 'Anime',
+                              icon: '🎌',
+                            ),
+                            _QuickStat(
+                              value: '${stats['totalEpisodes'] ?? 0}',
+                              label: 'Episodes',
+                              icon: '📺',
+                            ),
+                            _QuickStat(
+                              value: _formatMinutes(stats['minutesWatched'] as int? ?? 0),
+                              label: 'Watched',
+                              icon: '⏱️',
+                            ),
+                            _QuickStat(
+                              value: (stats['avgRating'] as double? ?? 0) == 0
+                                  ? '—'
+                                  : (stats['avgRating'] as double).toStringAsFixed(1),
+                              label: 'Avg score',
+                              icon: '⭐',
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
 
@@ -283,26 +307,29 @@ class _QuickStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 20)),
-            const SizedBox(height: 4),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 10, color: colorScheme.onSurfaceVariant)),
-          ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Column(
+              children: [
+                Text(icon, style: const TextStyle(fontSize: 18)),
+                const SizedBox(height: 8),
+                Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                const SizedBox(height: 2),
+                Text(label, style: const TextStyle(fontSize: 10, color: Colors.white54, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -323,42 +350,39 @@ class _MenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.4),
-          borderRadius: BorderRadius.circular(14),
+          color: Colors.white.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
         ),
         child: Row(
           children: [
             Container(
-              width: 40, height: 40,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 20),
+              child: Icon(icon, color: color, size: 22),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(subtitle,
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurfaceVariant)),
+                  Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.white)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.white38)),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                color: colorScheme.onSurfaceVariant),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 14),
           ],
         ),
       ),
@@ -403,23 +427,76 @@ class _NotLoggedInProfile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('👤', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 16),
-            const Text('Log in to see your profile',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen())),
-              child: const Text('Log in / Sign up'),
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Same Cinematic Background as Login for continuity
+          Positioned.fill(
+            child: Image.asset(
+              ImageUtils.resolveAsset('assets/images/login_bg.png'),
+              fit: BoxFit.cover,
             ),
-          ],
-        ),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.black.withOpacity(0.3), Colors.black],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.05),
+                    ),
+                    child: const Icon(Icons.account_circle_outlined, size: 80, color: Colors.white24),
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    'Join the World of Anime',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Sync your watchlist, track your progress, and get personalized recommendations.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.white60),
+                  ),
+                  const SizedBox(height: 48),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Get Started', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

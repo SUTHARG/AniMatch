@@ -4,7 +4,7 @@ import 'anime.dart';           // ← was '../models/anime.dart'
 
 class JikanService {
   static const String _baseUrl = 'https://api.jikan.moe/v4';
-  static const Duration _requestDelay = Duration(milliseconds: 400);
+  static const Duration _requestDelay = Duration(milliseconds: 800);
 
   DateTime? _lastRequestTime;
 
@@ -41,11 +41,12 @@ class JikanService {
   }
 
   /// Get top/trending anime for the home screen
-  Future<List<Anime>> getTopAnime({int page = 1, String? type}) async {
+  Future<List<Anime>> getTopAnime({int page = 1, String? type, String? filter}) async {
     final params = <String, String>{
       'page': page.toString(),
       'limit': '20',
       if (type != null) 'type': type,
+      if (filter != null) 'filter': filter,
     };
     final data = await _get('/top/anime', params: params);
     final list = data['data'] as List<dynamic>? ?? [];
@@ -55,6 +56,20 @@ class JikanService {
   /// Get currently airing (seasonal) anime
   Future<List<Anime>> getCurrentSeasonAnime() async {
     final data = await _get('/seasons/now', params: {'limit': '20'});
+    final list = data['data'] as List<dynamic>? ?? [];
+    return list.map((e) => Anime.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Get scheduled anime for a specific day ('monday', 'tuesday', etc.)
+  Future<List<Anime>> getSchedules(String dayOfWeek) async {
+    final data = await _get('/schedules', params: {'filter': dayOfWeek, 'limit': '15'});
+    final list = data['data'] as List<dynamic>? ?? [];
+    return list.map((e) => Anime.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Get top upcoming anime
+  Future<List<Anime>> getTopUpcomingAnime() async {
+    final data = await _get('/seasons/upcoming', params: {'limit': '20'});
     final list = data['data'] as List<dynamic>? ?? [];
     return list.map((e) => Anime.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -137,6 +152,53 @@ class JikanService {
     final data = await _get('/anime/$malId/full');
     return Anime.fromJson(data['data'] as Map<String, dynamic>);
   }
+
+  /// Get a completely random anime entry
+  Future<Anime> getRandomAnime() async {
+    final data = await _get('/random/anime');
+    return Anime.fromJson(data['data'] as Map<String, dynamic>);
+  }
+
+  /// Get the character cast for a specific anime
+  Future<List<AnimeCharacter>> getCharacters(int malId) async {
+    final data = await _get('/anime/$malId/characters');
+    final list = data['data'] as List<dynamic>? ?? [];
+    return list.map((e) => AnimeCharacter.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // ── Streaming ─────────────────────────────────────────────────────────────
+
+  /// Fetches the list of streaming platforms for [malId] from Jikan v4.
+  ///
+  /// Endpoint: GET /anime/{id}/streaming
+  /// Returns `[]` on any non-200 response (after one 429 retry).
+  Future<List<StreamingLink>> fetchStreamingLinks(int malId) async {
+    try {
+      await _throttle();
+      final uri = Uri.parse('$_baseUrl/anime/$malId/streaming');
+      final response = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final raw = jsonDecode(response.body)['data'] as List<dynamic>? ?? [];
+        return raw
+            .map((e) => StreamingLink.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else if (response.statusCode == 429) {
+        // Rate limited — wait and retry once
+        await Future.delayed(const Duration(seconds: 2));
+        return fetchStreamingLinks(malId);
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Convenience alias used by the detail screen's FutureBuilder.
+  Future<List<StreamingLink>> getStreamingLinksForAnime(int malId) =>
+      fetchStreamingLinks(malId);
 
   /// Get anime recommendations based on a specific anime (related titles)
   Future<List<Anime>> getSimilarAnime(int malId) async {

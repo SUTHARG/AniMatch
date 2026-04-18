@@ -181,3 +181,40 @@ class DetailShimmer extends StatelessWidget {
     );
   }
 }
+
+class MagazineShimmer extends StatelessWidget {
+  const MagazineShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const ShimmerSkeleton(width: 140, height: 24),
+              const ShimmerSkeleton(width: 80, height: 16),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 220,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 4,
+            physics: const NeverScrollableScrollPhysics(),
+            itemBuilder: (_, __) => Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: ShimmerSkeleton(width: 160, height: 220, borderRadius: 24),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

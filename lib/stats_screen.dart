@@ -12,6 +12,7 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   final FirebaseService _firebase = FirebaseService();
+  int _selectedMode = 0; // 0: Anime, 1: Manga
 
   String _formatMinutes(int totalMinutes) {
     if (totalMinutes < 60) return '$totalMinutes m';
@@ -23,7 +24,9 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<Map<String, dynamic>>(
-      stream: _firebase.getUserStatsStream(),
+      stream: _selectedMode == 0
+          ? _firebase.getUserStatsStream()
+          : _firebase.getUserMangaStatsStream(),
       builder: (context, snapshot) {
         final stats = snapshot.data ?? {};
         final loading = snapshot.connectionState == ConnectionState.waiting;
@@ -73,21 +76,49 @@ class _StatsScreenState extends State<StatsScreen> {
                     ),
                     
                     SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: SegmentedButton<int>(
+                            segments: const [
+                              ButtonSegment(value: 0, label: Text('Anime'), icon: Icon(Icons.movie_filter_rounded)),
+                              ButtonSegment(value: 1, label: Text('Manga'), icon: Icon(Icons.book_rounded)),
+                            ],
+                            selected: {_selectedMode},
+                            onSelectionChanged: (set) => setState(() => _selectedMode = set.first),
+                            style: SegmentedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              selectedBackgroundColor: Colors.amber,
+                              selectedForegroundColor: Colors.black,
+                              foregroundColor: Colors.white70,
+                              side: BorderSide.none,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    SliverToBoxAdapter(
                       child: loading && stats.isEmpty
                           ? const Center(child: Padding(padding: EdgeInsets.all(50), child: CircularProgressIndicator(color: Colors.amber)))
                           : stats.isEmpty
-                          ? const Center(child: Padding(padding: EdgeInsets.all(50), child: Text('No data yet — start tracking anime!', style: TextStyle(color: Colors.white70))))
+                          ? Center(child: Padding(padding: const EdgeInsets.all(50), child: Text('No data yet — start tracking ${_selectedMode == 0 ? "anime" : "manga"}!', style: const TextStyle(color: Colors.white70))))
                           : Padding(
                               padding: const EdgeInsets.all(20),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Hero stat — total anime
+                                  // Hero stat — total 
                                   _GlassHeroStat(
-                                    value: '${stats['totalAnime'] ?? 0}',
-                                    label: 'Anime in your list',
-                                    icon: Icons.collections_bookmark_rounded,
-                                    color: Colors.amber,
+                                    value: '${_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga'] ?? 0}',
+                                    label: '${_selectedMode == 0 ? "Anime" : "Manga"} in your list',
+                                    icon: _selectedMode == 0 ? Icons.collections_bookmark_rounded : Icons.auto_stories_rounded,
+                                    color: _selectedMode == 0 ? Colors.amber : Colors.blueAccent,
                                   ),
                                   const SizedBox(height: 16),
 
@@ -96,9 +127,9 @@ class _StatsScreenState extends State<StatsScreen> {
                                     children: [
                                       Expanded(
                                         child: _GlassStatCard(
-                                          icon: Icons.personal_video_rounded,
-                                          value: '${stats['totalEpisodes'] ?? 0}',
-                                          label: 'Episodes',
+                                          icon: _selectedMode == 0 ? Icons.personal_video_rounded : Icons.menu_book_rounded,
+                                          value: '${_selectedMode == 0 ? stats['totalEpisodes'] : stats['totalChapters'] ?? 0}',
+                                          label: _selectedMode == 0 ? 'Episodes' : 'Chapters',
                                           color: const Color(0xFF00B4DB),
                                         ),
                                       ),
@@ -106,8 +137,10 @@ class _StatsScreenState extends State<StatsScreen> {
                                       Expanded(
                                         child: _GlassStatCard(
                                           icon: Icons.history_rounded,
-                                          value: _formatMinutes(stats['minutesWatched'] as int? ?? 0),
-                                          label: 'Time watched',
+                                          value: _selectedMode == 0 
+                                              ? _formatMinutes(stats['minutesWatched'] as int? ?? 0)
+                                              : '${stats['totalVolumes'] ?? 0} volumes',
+                                          label: _selectedMode == 0 ? 'Time watched' : 'Volumes read',
                                           color: const Color(0xFF6C5CE7),
                                         ),
                                       ),
@@ -155,33 +188,33 @@ class _StatsScreenState extends State<StatsScreen> {
                                             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
                                         const SizedBox(height: 20),
                                         _GlassStatusBar(
-                                          label: 'Watching',
-                                          count: stats['watching'] as int? ?? 0,
-                                          total: stats['totalAnime'] as int? ?? 1,
+                                          label: _selectedMode == 0 ? 'Watching' : 'Reading',
+                                          count: (_selectedMode == 0 ? stats['watching'] : stats['reading']) as int? ?? 0,
+                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
                                           color: const Color(0xFF4CAF50),
                                         ),
                                         _GlassStatusBar(
                                           label: 'Completed',
                                           count: stats['completed'] as int? ?? 0,
-                                          total: stats['totalAnime'] as int? ?? 1,
+                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
                                           color: const Color(0xFF9C27B0),
                                         ),
                                         _GlassStatusBar(
-                                          label: 'Plan to Watch',
-                                          count: stats['planToWatch'] as int? ?? 0,
-                                          total: stats['totalAnime'] as int? ?? 1,
+                                          label: _selectedMode == 0 ? 'Plan to Watch' : 'Plan to Read',
+                                          count: (_selectedMode == 0 ? stats['planToWatch'] : stats['planToRead']) as int? ?? 0,
+                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
                                           color: const Color(0xFF2196F3),
                                         ),
                                         _GlassStatusBar(
                                           label: 'On Hold',
                                           count: stats['onHold'] as int? ?? 0,
-                                          total: stats['totalAnime'] as int? ?? 1,
+                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
                                           color: const Color(0xFFFF9800),
                                         ),
                                         _GlassStatusBar(
                                           label: 'Dropped',
                                           count: stats['dropped'] as int? ?? 0,
-                                          total: stats['totalAnime'] as int? ?? 1,
+                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
                                           color: const Color(0xFFF44336),
                                         ),
                                       ],

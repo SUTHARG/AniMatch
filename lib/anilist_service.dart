@@ -37,6 +37,11 @@ class AiringSchedule {
 
 class AnilistService {
   static const String _baseUrl = 'https://graphql.anilist.co';
+  
+  // Cache storage
+  final Map<String, dynamic> _cache = {};
+  final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheTtl = Duration(minutes: 5);
 
   /// Get airing schedules between two UNIX timestamps
   Future<List<AiringSchedule>> getSchedules(int startTimestamp, int endTimestamp) async {
@@ -94,6 +99,32 @@ class AnilistService {
       query {
         Page(page: 1, perPage: 15) {
           media(type: ANIME, sort: POPULARITY_DESC, status: RELEASING) {
+            idMal
+            id
+            title { english romaji }
+            coverImage { extraLarge large }
+            bannerImage
+            description
+            averageScore
+            episodes
+            status
+            format
+            genres
+            startDate { year month day }
+          }
+        }
+      }
+    ''';
+    final data = await _postQuery(query, {});
+    return List<Map<String, dynamic>>.from(data['Page']?['media'] ?? []);
+  }
+
+  /// Get Top Rated Anime
+  Future<List<Map<String, dynamic>>> getTopRatedAnime() async {
+    const String query = '''
+      query {
+        Page(page: 1, perPage: 15) {
+          media(type: ANIME, sort: SCORE_DESC) {
             idMal
             id
             title { english romaji }
@@ -175,14 +206,31 @@ class AnilistService {
   }
 
   Future<Map<String, dynamic>> _postQuery(String query, Map<String, dynamic> variables) async {
+    final String cacheKey = jsonEncode({'query': query, 'variables': variables});
+    
+    // Check cache
+    if (_cache.containsKey(cacheKey)) {
+      final timestamp = _cacheTimestamps[cacheKey];
+      if (timestamp != null && DateTime.now().difference(timestamp) < _cacheTtl) {
+        return _cache[cacheKey];
+      }
+    }
+
     final response = await http.post(
       Uri.parse(_baseUrl),
       headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
       body: jsonEncode({'query': query, 'variables': variables}),
     );
+    
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
-      return json['data'] ?? {};
+      final data = json['data'] ?? {};
+      
+      // Store in cache
+      _cache[cacheKey] = data;
+      _cacheTimestamps[cacheKey] = DateTime.now();
+      
+      return data;
     }
     throw Exception('AniList API error: ${response.statusCode}');
   }

@@ -5,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:untitled1/anilist_service.dart';
 import 'anime.dart';
+import 'manga.dart';
+import 'media_base.dart';
 import 'jikan_service.dart';
 import 'firebase_service.dart';
 import 'login_screen.dart';
@@ -17,7 +19,8 @@ import 'shimmer_skeletons.dart';
 
 class DetailScreen extends StatefulWidget {
   final int malId;
-  const DetailScreen({super.key, required this.malId});
+  final bool isManga;
+  const DetailScreen({super.key, required this.malId, this.isManga = false});
 
   @override
   State<DetailScreen> createState() => _DetailScreenState();
@@ -28,18 +31,21 @@ class _DetailScreenState extends State<DetailScreen> {
   final FirebaseService _firebase = FirebaseService();
   final AnilistService _anilist = AnilistService();
 
-  Anime? _anime;
+  MediaBase? _media;
   String? _anilistImageUrl;
   bool _loading = true;
   bool _showWhereToWatch = false;
   WatchStatus? _watchStatus;
-  int _episodeProgress = 0;
+  ReadStatus? _readStatus;
+  int _progress = 0; // either episode or chapter
   double? _userRating;
   String? _userReview;
-  List<Anime> _similar = [];
-  List<AnimeCharacter> _characters = [];
+  List<MediaBase> _similar = [];
+  List<dynamic> _characters = []; // AnimeCharacter or MangaCharacter
   String? _error;
   bool _loadingAnilist = false;
+  
+  MediaBase get media => _media!;
 
   late final Future<List<StreamingLink>> _streamingFuture;
   final ScrollController _scrollController = ScrollController();
@@ -53,6 +59,8 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<List<StreamingLink>> _getStreamingLinks() async {
+    if (widget.isManga) return []; // Manga doesn't have streaming links typically through this endpoint
+
     final uid = _firebase.currentUser?.uid;
     if (uid != null) {
       try {
@@ -110,34 +118,57 @@ class _DetailScreenState extends State<DetailScreen> {
   Future<void> _load() async {
     try {
       // 1. Fetch core detail
-      final anime = await _jikan.getAnimeDetail(widget.malId);
-      if (_firebase.isLoggedIn) _firebase.addToHistory(anime);
-      
+      MediaBase media;
+      if (widget.isManga) {
+        final manga = await _jikan.getMangaDetail(widget.malId);
+        media = manga;
+        // if (_firebase.isLoggedIn) _firebase.addToHistory(manga); // History not implemented for manga yet
+      } else {
+        final anime = await _jikan.getAnimeDetail(widget.malId);
+        media = anime;
+        if (_firebase.isLoggedIn) _firebase.addToHistory(anime);
+      }
+
       Map<String, dynamic>? entry;
-      if (_firebase.isLoggedIn) entry = await _firebase.getWatchlistEntry(widget.malId);
+      if (_firebase.isLoggedIn) entry = await _firebase.getWatchlistEntry(widget.malId, isManga: widget.isManga);
 
       if (mounted) {
         setState(() {
-          _anime = anime;
-          _watchStatus = entry != null ? WatchStatus.fromString(entry['status'] as String?) : null;
-          _episodeProgress = entry?['episodeProgress'] as int? ?? 0;
+          _media = media;
+          if (widget.isManga) {
+             _readStatus = entry != null ? ReadStatus.fromString(entry['status'] as String?) : null;
+             _progress = entry?['chapterProgress'] as int? ?? 0;
+          } else {
+             _watchStatus = entry != null ? WatchStatus.fromString(entry['status'] as String?) : null;
+             _progress = entry?['episodeProgress'] as int? ?? 0;
+          }
           _userRating = (entry?['userRating'] as num?)?.toDouble();
           _userReview = entry?['userReview'] as String?;
         });
       }
 
-      // 2. Fetch similar anime (awaited sequentially to prevent 429)
-      final similarList = await _jikan.getSimilarAnime(widget.malId);
-      if (mounted) setState(() => _similar = similarList);
+      // 2. Fetch similar (awaited sequentially to prevent 429)
+      if (widget.isManga) {
+        final similarList = await _jikan.getSimilarManga(widget.malId);
+        if (mounted) setState(() => _similar = similarList);
+      } else {
+        final similarList = await _jikan.getSimilarAnime(widget.malId);
+        if (mounted) setState(() => _similar = similarList);
+      }
 
       // 3. Fetch characters (awaited sequentially)
-      final charList = await _jikan.getCharacters(widget.malId);
-      if (mounted) setState(() => _characters = charList);
+      if (widget.isManga) {
+        final charList = await _jikan.getMangaCharacters(widget.malId);
+        if (mounted) setState(() => _characters = charList);
+      } else {
+        final charList = await _jikan.getCharacters(widget.malId);
+        if (mounted) setState(() => _characters = charList);
+      }
 
       // 4. Fetch CORS-friendly cover from AniList on Web
       if (kIsWeb) {
         setState(() => _loadingAnilist = true);
-        final url = await _anilist.getCoverImageByMalId(widget.malId) ?? await _anilist.getCoverImageByTitle(anime.displayTitle);
+        final url = await _anilist.getCoverImageByMalId(widget.malId) ?? await _anilist.getCoverImageByTitle(media.displayTitle);
         if (mounted) {
           setState(() {
             if (url != null) _anilistImageUrl = url;
@@ -166,8 +197,21 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> _openStatusSheet() async {
     if (!_firebase.isLoggedIn) { _promptLogin(); return; }
-    final result = await showWatchStatusSheet(context, anime: _anime!, currentStatus: _watchStatus);
-    if (mounted) setState(() => _watchStatus = result);
+    final result = await showMediaStatusSheet(
+      context, 
+      media: _media!, 
+      isManga: widget.isManga,
+      currentStatus: widget.isManga ? _readStatus : _watchStatus,
+    );
+    if (mounted) {
+      setState(() {
+        if (widget.isManga) {
+          _readStatus = result;
+        } else {
+          _watchStatus = result;
+        }
+      });
+    }
   }
 
   Future<void> _openRatingSheet() async {
@@ -175,11 +219,12 @@ class _DetailScreenState extends State<DetailScreen> {
     await showRatingSheet(
       context,
       malId: widget.malId,
-      animeTitle: _anime!.displayTitle,
+      title: _media!.displayTitle,
+      isManga: widget.isManga,
       currentRating: _userRating,
       currentReview: _userReview,
     );
-    final data = await _firebase.getRatingAndReview(widget.malId);
+    final data = await _firebase.getRatingAndReview(widget.malId, isManga: widget.isManga);
     if (mounted && data != null) {
       setState(() {
         _userRating = (data['rating'] as num?)?.toDouble();
@@ -188,17 +233,21 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  Future<void> _updateProgress(int ep) async {
+  Future<void> _updateProgress(int val) async {
     if (!_firebase.isLoggedIn) { _promptLogin(); return; }
-    await _firebase.updateEpisodeProgress(widget.malId, ep);
-    if (mounted) setState(() => _episodeProgress = ep);
+    if (widget.isManga) {
+      await _firebase.updateChapterProgress(widget.malId, val);
+    } else {
+      await _firebase.updateEpisodeProgress(widget.malId, val);
+    }
+    if (mounted) setState(() => _progress = val);
   }
 
   void _promptLogin() {
     FloatingNotification.show(
       context,
       title: 'Sign In Required',
-      message: 'Log in to track this anime in your watchlist.',
+      message: 'Log in to track this ${widget.isManga ? 'manga' : 'anime'} in your list.',
       actionLabel: 'Login',
       icon: Icons.account_circle_rounded,
       onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
@@ -206,9 +255,11 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   void _share() {
-    final anime = _anime;
-    if (anime == null) return;
-    final text = 'Check out "${anime.displayTitle}" on AniMatch!\nScore: ${anime.scoreText} · ${anime.episodeText}';
+    final media = _media;
+    if (media == null) return;
+    final type = widget.isManga ? 'Manga' : 'Anime';
+    final progress = media.mediaProgressText;
+    final text = 'Check out "${media.displayTitle}" on AniMatch!\nType: $type · Score: ${media.scoreText} · $progress';
     Clipboard.setData(ClipboardData(text: text));
     
     FloatingNotification.show(
@@ -224,11 +275,17 @@ class _DetailScreenState extends State<DetailScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     if (_loading) return const Scaffold(body: DetailShimmer());
-    if (_error != null || _anime == null) return Scaffold(appBar: AppBar(), body: Center(child: Text(_error ?? 'Failed')));
+    if (_error != null || _media == null) return Scaffold(appBar: AppBar(), body: Center(child: Text(_error ?? 'Failed')));
 
-    final anime = _anime!;
-    final inList = _watchStatus != null;
-    final totalEps = anime.episodes;
+    final media = _media!;
+    final inList = widget.isManga ? _readStatus != null : _watchStatus != null;
+    
+    int? total;
+    if (widget.isManga) {
+      total = (media as Manga).chapters;
+    } else {
+      total = (media as Anime).episodes;
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E1E),
@@ -254,8 +311,8 @@ class _DetailScreenState extends State<DetailScreen> {
                         fit: StackFit.expand,
                         children: [
                           PremiumImage(
-                            imageUrl: _anilistImageUrl ?? anime.displayImageUrl,
-                            title: anime.displayTitle,
+                            imageUrl: _anilistImageUrl ?? media.displayImageUrl,
+                            title: media.displayTitle,
                             fit: BoxFit.cover,
                           ),
                           Container(color: Colors.black.withOpacity(0.4)),
@@ -282,8 +339,8 @@ class _DetailScreenState extends State<DetailScreen> {
                             Container(width: 160, height: 230, color: Colors.black26, child: const Center(child: CircularProgressIndicator()))
                           else
                             PremiumImage(
-                              imageUrl: _anilistImageUrl ?? anime.displayImageUrl,
-                              title: anime.displayTitle,
+                              imageUrl: _anilistImageUrl ?? media.displayImageUrl,
+                              title: media.displayTitle,
                               width: 160,
                               height: 230,
                               fit: BoxFit.cover,
@@ -293,16 +350,16 @@ class _DetailScreenState extends State<DetailScreen> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               color: Colors.black.withOpacity(0.7),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.sensors, size: 14, color: Colors.white),
-                                  SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text('Watch2gether', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-                                  ),
-                                ],
+                                  children: [
+                                    const Icon(Icons.sensors, size: 14, color: Colors.white),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(widget.isManga ? 'Read2gether' : 'Watch2gether', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                                    ),
+                                  ],
                               ),
                             ),
                           ),
@@ -318,19 +375,22 @@ class _DetailScreenState extends State<DetailScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 16),
-                  Text(anime.displayTitle, textAlign: TextAlign.center, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(media.displayTitle, textAlign: TextAlign.center, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      _Badge(label: anime.rating?.split(' ').first ?? 'PG-13', color: Colors.white12),
+                      if (!widget.isManga) _Badge(label: (media as Anime).rating?.split(' ').first ?? 'PG-13', color: Colors.white12),
                       _Badge(label: 'HD', color: Colors.amber),
-                      _Badge(label: 'cc ${anime.episodes ?? "?"}', color: const Color(0xFFB1E5D5), textColor: Colors.black),
-                      _Badge(label: 'mic 1155', color: const Color(0xFFE5B1D5), textColor: Colors.black),
+                      _Badge(label: '${widget.isManga ? 'ch' : 'cc'} ${total ?? "?"}', color: const Color(0xFFB1E5D5), textColor: Colors.black),
+                      if (widget.isManga) _Badge(label: 'vol ${(media as Manga).volumes ?? "?"}', color: const Color(0xFFE5B1D5), textColor: Colors.black),
+                      if (!widget.isManga) _Badge(label: 'mic 1155', color: const Color(0xFFE5B1D5), textColor: Colors.black),
                       Text('•', style: TextStyle(color: Colors.white.withOpacity(0.5))),
-                      Text(anime.type ?? 'TV', style: TextStyle(color: Colors.white.withOpacity(0.5))),
-                      Text('•', style: TextStyle(color: Colors.white.withOpacity(0.5))),
-                      Text(anime.duration?.split(' ').first ?? '24m', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                      Text(media.mediaTypeBadge, style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                      if (!widget.isManga) ...[
+                        Text('•', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                        Text((media as Anime).duration?.split(' ').first ?? '24m', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -338,9 +398,11 @@ class _DetailScreenState extends State<DetailScreen> {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: _scrollToStreaming,
-                          icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
-                          label: const Text('Watch now', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                          onPressed: widget.isManga 
+                            ? () => _launchUrl('https://mangadex.org/search?q=${Uri.encodeComponent(media.displayTitle)}') 
+                            : _scrollToStreaming,
+                          icon: Icon(widget.isManga ? Icons.menu_book_rounded : Icons.play_arrow_rounded, color: Colors.black),
+                          label: Text(widget.isManga ? 'Read now' : 'Watch now', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                           style: FilledButton.styleFrom(backgroundColor: Colors.amber, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
                         ),
                       ),
@@ -349,10 +411,10 @@ class _DetailScreenState extends State<DetailScreen> {
                         child: OutlinedButton.icon(
                           onPressed: _openStatusSheet,
                           icon: const Icon(Icons.edit_note_rounded, color: Colors.white),
-                          label: const Text('Edit Watch List',
+                          label: Text(widget.isManga ? 'Edit Manga List' : 'Edit Watch List',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold)),
                           style: OutlinedButton.styleFrom(
@@ -364,12 +426,12 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                     ],
                   ),
-                  if (anime.trailerUrl != null && anime.trailerUrl!.isNotEmpty) ...[
+                  if (_media is Anime && (_media as Anime).trailerUrl != null && (_media as Anime).trailerUrl!.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => _launchUrl(anime.trailerUrl!),
+                        onPressed: () => _launchUrl((_media as Anime).trailerUrl!),
                         icon: const Icon(Icons.movie_creation_outlined,
                             color: Colors.amber),
                         label: const Text('Watch Trailer',
@@ -390,44 +452,55 @@ class _DetailScreenState extends State<DetailScreen> {
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Share Anime ', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                      Text('Share this ', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
                       Text('to your friends', style: TextStyle(color: Colors.white)),
                     ],
                   ),
                   const SizedBox(height: 32),
                   Align(alignment: Alignment.centerLeft, child: Text('Overview:', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.white))),
                   const SizedBox(height: 12),
-                  Text(anime.synopsis ?? 'No description available.', style: TextStyle(color: Colors.white.withOpacity(0.6), height: 1.5)),
+                  Text(_media?.synopsis ?? 'No description available.', style: TextStyle(color: Colors.white.withOpacity(0.6), height: 1.5)),
                   const SizedBox(height: 24),
-                  _DetailItem(label: 'Japanese:', value: anime.titleJapanese ?? 'N/A'),
-                  _DetailItem(label: 'Synonyms:', value: anime.synonyms.isEmpty ? 'N/A' : anime.synonyms.take(2).join(', ')),
-                  _DetailItem(label: 'Aired:', value: anime.airedString ?? 'N/A'),
-                  _DetailItem(label: 'Premiered:', value: anime.premiered ?? 'N/A'),
-                  _DetailItem(label: 'Duration:', value: anime.duration ?? 'N/A'),
-                  _DetailItem(label: 'Status:', value: anime.status ?? 'N/A'),
-                  _DetailItem(label: 'MAL Score:', value: anime.score?.toString() ?? 'N/A'),
+                  _DetailItem(label: 'Japanese:', value: (widget.isManga ? (media as Manga).titleJapanese : (media as Anime).titleJapanese) ?? 'N/A'),
+                  _DetailItem(label: 'Synonyms:', value: media is Anime ? (media as Anime).synonyms.join(', ') : (media as Manga).synonyms.join(', ')),
+                  _DetailItem(label: widget.isManga ? 'Published:' : 'Aired:', value: (widget.isManga ? (media as Manga).publishedString : (media as Anime).airedString) ?? 'N/A'),
+                  if (!widget.isManga) _DetailItem(label: 'Premiered:', value: (media as Anime).premiered ?? 'N/A'),
+                  if (!widget.isManga) _DetailItem(label: 'Duration:', value: (media as Anime).duration ?? 'N/A'),
+                  _DetailItem(label: 'Status:', value: media.isCompleted ? 'Finished' : (media.isOngoing ? (widget.isManga ? 'Publishing' : 'Currently Airing') : 'N/A')),
+                  _DetailItem(label: 'MAL Score:', value: media.scoreText),
                   const SizedBox(height: 24),
                   Align(alignment: Alignment.centerLeft, child: Text('Genres:', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.white))),
                   const SizedBox(height: 12),
-                  Wrap(spacing: 8, runSpacing: 8, children: anime.genres.map((g) => _GenreChip(label: g)).toList()),
+                  Wrap(spacing: 8, runSpacing: 8, children: _media!.genres.map((g) => _GenreChip(label: g)).toList()),
                   const SizedBox(height: 24),
-                  _DetailItem(label: 'Studios:', value: anime.studios.join(', ').isEmpty ? 'N/A' : anime.studios.join(', ')),
-                  _DetailItem(label: 'Producers:', value: anime.producers.isEmpty ? 'N/A' : anime.producers.take(3).join(', ')),
+                  if (widget.isManga) ...[
+                    _DetailItem(label: 'Authors:', value: (media as Manga).authors.join(', ').isEmpty ? 'N/A' : (media as Manga).authors.join(', ')),
+                    _DetailItem(label: 'Serialization:', value: (media as Manga).serializations.join(', ').isEmpty ? 'N/A' : (media as Manga).serializations.join(', ')),
+                  ] else ...[
+                    _DetailItem(label: 'Studios:', value: (media as Anime).studios.join(', ').isEmpty ? 'N/A' : (media as Anime).studios.join(', ')),
+                    _DetailItem(label: 'Producers:', value: (media as Anime).producers.isEmpty ? 'N/A' : (media as Anime).producers.take(3).join(', ')),
+                  ],
                   const SizedBox(height: 32),
-                  if (inList && _watchStatus == WatchStatus.watching && totalEps != null) ...[
-                    _EpisodeTracker(current: _episodeProgress, total: totalEps, onChanged: _updateProgress),
+                  if (inList && ((!widget.isManga && _watchStatus == WatchStatus.watching) || (widget.isManga && _readStatus == ReadStatus.reading)) && total != null) ...[
+                    _EpisodeTracker(
+                      current: _progress, 
+                      total: total, 
+                      onChanged: _updateProgress, 
+                    ),
                     const SizedBox(height: 24),
                   ],
                   if (_userRating != null) ...[
                     _UserRatingCard(rating: _userRating!, review: _userReview, onEdit: _openRatingSheet),
                     const SizedBox(height: 24),
                   ],
-                  if (_showWhereToWatch) ...[
+                  if (_showWhereToWatch && _media is Anime) ...[
                     _WhereToWatchSection(
                       key: _streamingKey,
-                      anime: anime, streamingFuture: _streamingFuture, showHeader: true,
+                      anime: _media as Anime,
+                      streamingFuture: _streamingFuture,
+                      showHeader: true,
                       onLaunch: (link) => _launchUrl(link.url, platformName: link.name, ctx: context),
-                      onLaunchMal: () => _launchUrl(anime.malUrl ?? ''),
+                      onLaunchMal: () => _launchUrl(_media!.malUrl ?? ''),
                     ),
                     const SizedBox(height: 32),
                   ],
@@ -462,7 +535,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         physics: const BouncingScrollPhysics(),
                         itemBuilder: (context, index) {
                           final item = _similar[index];
-                          return _SimilarAnimeCard(anime: item);
+                          return _SimilarMediaCard(media: item);
                         },
                       ),
                     ),
@@ -732,11 +805,16 @@ class _DetailSectionHeader extends StatelessWidget {
 }
 
 class _CharacterCard extends StatelessWidget {
-  final AnimeCharacter character;
+  final dynamic character;
   const _CharacterCard({required this.character});
 
   @override
   Widget build(BuildContext context) {
+    // Both AnimeCharacter and MangaCharacter have imageUrl, name, and role fields
+    final String imageUrl = character.imageUrl;
+    final String name = character.name;
+    final String role = character.role;
+
     return Container(
       width: 100,
       margin: const EdgeInsets.only(right: 16),
@@ -748,28 +826,28 @@ class _CharacterCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white10),
               image: DecorationImage(
-                image: NetworkImage(ImageUtils.getCORSUrl(character.imageUrl)),
+                image: NetworkImage(ImageUtils.getCORSUrl(imageUrl)),
                 fit: BoxFit.cover,
               ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(character.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-          Text(character.role, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 9)),
+          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(role, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 9)),
         ],
       ),
     );
   }
 }
 
-class _SimilarAnimeCard extends StatelessWidget {
-  final Anime anime;
-  const _SimilarAnimeCard({required this.anime});
+class _SimilarMediaCard extends StatelessWidget {
+  final MediaBase media;
+  const _SimilarMediaCard({required this.media});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId))),
+      onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: media.malId, isManga: media is Manga))),
       child: Container(
         width: 140,
         margin: const EdgeInsets.only(right: 16),
@@ -779,16 +857,16 @@ class _SimilarAnimeCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: PremiumImage(
-                imageUrl: anime.imageUrl,
-                title: anime.title,
+                imageUrl: media.displayImageUrl,
+                title: media.displayTitle,
                 height: 180,
                 width: 140,
                 fit: BoxFit.cover,
               ),
             ),
             const SizedBox(height: 8),
-            Text(anime.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-            Text(anime.genres.take(1).join(''), style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10)),
+            Text(media.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+            Text(media.genres.take(1).join(''), style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10)),
           ],
         ),
       ),

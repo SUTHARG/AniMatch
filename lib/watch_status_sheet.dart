@@ -3,79 +3,122 @@ import 'firebase_service.dart';
 import 'anime.dart';
 import 'floating_notification.dart';
 
-/// Shows a bottom sheet to pick / change watch status.
-/// Returns the chosen [WatchStatus] or null if dismissed.
-Future<WatchStatus?> showWatchStatusSheet(
+import 'media_base.dart';
+import 'manga.dart';
+
+/// Shows a bottom sheet to pick / change watch or read status.
+/// Returns the chosen status enum or null if dismissed.
+Future<dynamic> showMediaStatusSheet(
     BuildContext context, {
-      required Anime anime,
-      WatchStatus? currentStatus,
+      required MediaBase media,
+      bool isManga = false,
+      dynamic currentStatus,
     }) {
-  return showModalBottomSheet<WatchStatus>(
+  return showModalBottomSheet<dynamic>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _WatchStatusSheet(
-      anime: anime,
+    builder: (_) => _MediaStatusSheet(
+      media: media,
+      isManga: isManga,
       currentStatus: currentStatus,
     ),
   );
 }
 
-class _WatchStatusSheet extends StatefulWidget {
-  final Anime anime;
-  final WatchStatus? currentStatus;
-  const _WatchStatusSheet({required this.anime, this.currentStatus});
+class _MediaStatusSheet extends StatefulWidget {
+  final MediaBase media;
+  final bool isManga;
+  final dynamic currentStatus;
+  const _MediaStatusSheet({required this.media, required this.isManga, this.currentStatus});
 
   @override
-  State<_WatchStatusSheet> createState() => _WatchStatusSheetState();
+  State<_MediaStatusSheet> createState() => _MediaStatusSheetState();
 }
 
-class _WatchStatusSheetState extends State<_WatchStatusSheet> {
+class _MediaStatusSheetState extends State<_MediaStatusSheet> {
   final FirebaseService _firebase = FirebaseService();
-  WatchStatus? _selected;
+  dynamic _selected;
   bool _saving = false;
 
   // Config for each status option
-  static const _options = [
-    _StatusOption(
-      status: WatchStatus.watching,
-      color: Color(0xFF4CAF50),
-      icon: Icons.play_circle_filled_rounded,
-      description: 'Currently watching this',
-    ),
-    _StatusOption(
-      status: WatchStatus.planToWatch,
-      color: Color(0xFF2196F3),
-      icon: Icons.bookmark_add_rounded,
-      description: 'Added to your queue',
-    ),
-    _StatusOption(
-      status: WatchStatus.completed,
-      color: Color(0xFF9C27B0),
-      icon: Icons.check_circle_rounded,
-      description: 'Finished watching',
-    ),
-    _StatusOption(
-      status: WatchStatus.onHold,
-      color: Color(0xFFFF9800),
-      icon: Icons.pause_circle_filled_rounded,
-      description: 'Taking a break',
-    ),
-    _StatusOption(
-      status: WatchStatus.dropped,
-      color: Color(0xFFF44336),
-      icon: Icons.cancel_rounded,
-      description: 'Stopped watching',
-    ),
-  ];
+  late final List<_StatusOption> _options;
 
   @override
   void initState() {
     super.initState();
     _selected = widget.currentStatus;
+    
+    if (widget.isManga) {
+      _options = [
+        const _StatusOption(
+          readStatus: ReadStatus.reading,
+          color: Color(0xFF4CAF50),
+          icon: Icons.menu_book_rounded,
+          description: 'Currently reading this',
+        ),
+        const _StatusOption(
+          readStatus: ReadStatus.planToRead,
+          color: Color(0xFF2196F3),
+          icon: Icons.bookmark_add_rounded,
+          description: 'Added to your reading list',
+        ),
+        const _StatusOption(
+          readStatus: ReadStatus.completed,
+          color: Color(0xFF9C27B0),
+          icon: Icons.check_circle_rounded,
+          description: 'Finished reading',
+        ),
+        const _StatusOption(
+          readStatus: ReadStatus.onHold,
+          color: Color(0xFFFF9800),
+          icon: Icons.pause_circle_filled_rounded,
+          description: 'Taking a break',
+        ),
+        const _StatusOption(
+          readStatus: ReadStatus.dropped,
+          color: Color(0xFFF44336),
+          icon: Icons.cancel_rounded,
+          description: 'Stopped reading',
+        ),
+      ];
+    } else {
+      _options = [
+        const _StatusOption(
+          watchStatus: WatchStatus.watching,
+          color: Color(0xFF4CAF50),
+          icon: Icons.play_circle_filled_rounded,
+          description: 'Currently watching this',
+        ),
+        const _StatusOption(
+          watchStatus: WatchStatus.planToWatch,
+          color: Color(0xFF2196F3),
+          icon: Icons.bookmark_add_rounded,
+          description: 'Added to your queue',
+        ),
+        const _StatusOption(
+          watchStatus: WatchStatus.completed,
+          color: Color(0xFF9C27B0),
+          icon: Icons.check_circle_rounded,
+          description: 'Finished watching',
+        ),
+        const _StatusOption(
+          watchStatus: WatchStatus.onHold,
+          color: Color(0xFFFF9800),
+          icon: Icons.pause_circle_filled_rounded,
+          description: 'Taking a break',
+        ),
+        const _StatusOption(
+          watchStatus: WatchStatus.dropped,
+          color: Color(0xFFF44336),
+          icon: Icons.cancel_rounded,
+          description: 'Stopped watching',
+        ),
+      ];
+    }
   }
 
-  Future<void> _save(WatchStatus status) async {
+  Future<void> _save(dynamic status) async {
     if (!_firebase.isLoggedIn) {
       Navigator.pop(context);
       return;
@@ -84,11 +127,19 @@ class _WatchStatusSheetState extends State<_WatchStatusSheet> {
     setState(() { _selected = status; _saving = true; });
 
     try {
-      final alreadyIn = await _firebase.isInWatchlist(widget.anime.malId);
-      if (alreadyIn) {
-        await _firebase.updateWatchStatus(widget.anime.malId, status);
+      final alreadyIn = await _firebase.isInWatchlist(widget.media.malId, isManga: widget.isManga);
+      if (widget.isManga) {
+        if (alreadyIn) {
+          await _firebase.updateMangaWatchStatus(widget.media.malId, status as ReadStatus);
+        } else {
+          await _firebase.addMangaToWatchlist(widget.media as Manga, status: status as ReadStatus);
+        }
       } else {
-        await _firebase.addToWatchlist(widget.anime, status: status);
+        if (alreadyIn) {
+          await _firebase.updateWatchStatus(widget.media.malId, status as WatchStatus);
+        } else {
+          await _firebase.addToWatchlist(widget.media as Anime, status: status as WatchStatus);
+        }
       }
       if (mounted) Navigator.pop(context, status);
     } catch (e) {
@@ -107,7 +158,7 @@ class _WatchStatusSheetState extends State<_WatchStatusSheet> {
   Future<void> _remove() async {
     setState(() => _saving = true);
     try {
-      await _firebase.removeFromWatchlist(widget.anime.malId);
+      await _firebase.removeFromWatchlist(widget.media.malId, isManga: widget.isManga);
       if (mounted) Navigator.pop(context, null);
     } catch (_) {
       if (mounted) setState(() => _saving = false);
@@ -144,7 +195,7 @@ class _WatchStatusSheetState extends State<_WatchStatusSheet> {
 
           // Anime title
           Text(
-            widget.anime.displayTitle,
+            widget.media.displayTitle,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -153,7 +204,7 @@ class _WatchStatusSheetState extends State<_WatchStatusSheet> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Select watch status',
+            widget.isManga ? 'Select reading status' : 'Select watch status',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -171,13 +222,15 @@ class _WatchStatusSheetState extends State<_WatchStatusSheet> {
           else
             Column(
               children: _options.map((opt) {
-                final isSelected = _selected == opt.status;
+                final status = widget.isManga ? opt.readStatus : opt.watchStatus;
+                final isSelected = _selected == status;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _StatusTile(
                     option: opt,
                     isSelected: isSelected,
-                    onTap: () => _save(opt.status),
+                    isManga: widget.isManga,
+                    onTap: () => _save(status),
                   ),
                 );
               }).toList(),
@@ -211,25 +264,31 @@ class _WatchStatusSheetState extends State<_WatchStatusSheet> {
 }
 
 class _StatusOption {
-  final WatchStatus status;
+  final WatchStatus? watchStatus;
+  final ReadStatus? readStatus;
   final Color color;
   final IconData icon;
   final String description;
   const _StatusOption({
-    required this.status,
+    this.watchStatus,
+    this.readStatus,
     required this.color,
     required this.icon,
     required this.description,
   });
+
+  String get label => watchStatus?.label ?? readStatus?.label ?? '';
 }
 
 class _StatusTile extends StatelessWidget {
   final _StatusOption option;
   final bool isSelected;
+  final bool isManga;
   final VoidCallback onTap;
   const _StatusTile({
     required this.option,
     required this.isSelected,
+    required this.isManga,
     required this.onTap,
   });
 
@@ -269,7 +328,7 @@ class _StatusTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    option.status.label,
+                    option.label,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,

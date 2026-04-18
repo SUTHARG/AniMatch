@@ -6,7 +6,8 @@ import 'floating_notification.dart';
 Future<void> showRatingSheet(
     BuildContext context, {
       required int malId,
-      required String animeTitle,
+      required String title,
+      bool isManga = false,
       double? currentRating,
       String? currentReview,
     }) {
@@ -16,7 +17,8 @@ Future<void> showRatingSheet(
     backgroundColor: Colors.transparent,
     builder: (_) => _RatingSheet(
       malId: malId,
-      animeTitle: animeTitle,
+      title: title,
+      isManga: isManga,
       currentRating: currentRating,
       currentReview: currentReview,
     ),
@@ -25,12 +27,14 @@ Future<void> showRatingSheet(
 
 class _RatingSheet extends StatefulWidget {
   final int malId;
-  final String animeTitle;
+  final String title;
+  final bool isManga;
   final double? currentRating;
   final String? currentReview;
   const _RatingSheet({
     required this.malId,
-    required this.animeTitle,
+    required this.title,
+    required this.isManga,
     this.currentRating,
     this.currentReview,
   });
@@ -93,6 +97,7 @@ class _RatingSheetState extends State<_RatingSheet> {
         widget.malId,
         rating: _rating,
         review: _reviewController.text.trim(),
+        isManga: widget.isManga,
       );
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -143,7 +148,7 @@ class _RatingSheetState extends State<_RatingSheet> {
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(widget.animeTitle,
+            Text(widget.title,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: colorScheme.onSurfaceVariant),
                 maxLines: 1,

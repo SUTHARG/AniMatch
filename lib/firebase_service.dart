@@ -3,6 +3,44 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'anime.dart';
+import 'manga.dart';
+
+enum ReadStatus {
+  reading,
+  completed,
+  onHold,
+  dropped,
+  planToRead;
+
+  String get label {
+    switch (this) {
+      case ReadStatus.reading:    return 'Reading';
+      case ReadStatus.completed:   return 'Completed';
+      case ReadStatus.onHold:      return 'On Hold';
+      case ReadStatus.dropped:     return 'Dropped';
+      case ReadStatus.planToRead: return 'Plan to Read';
+    }
+  }
+
+  String get emoji {
+    switch (this) {
+      case ReadStatus.reading:    return '📖';
+      case ReadStatus.completed:   return '✅';
+      case ReadStatus.onHold:      return '⏸️';
+      case ReadStatus.dropped:     return '🗑️';
+      case ReadStatus.planToRead: return '📋';
+    }
+  }
+
+  String get value => name;
+
+  static ReadStatus fromString(String? s) {
+    return ReadStatus.values.firstWhere(
+      (e) => e.name == s,
+      orElse: () => ReadStatus.planToRead,
+    );
+  }
+}
 
 enum WatchStatus {
   watching,
@@ -66,8 +104,28 @@ class FirebaseService {
         'email': user.email,
         'createdAt': FieldValue.serverTimestamp(),
         'displayName': user.displayName,
+        'preferences': {
+          'appMode': 'anime',
+        },
       }, SetOptions(merge: true));
     }
+  }
+
+  // ── Preferences ──────────────────────────────────────────────────────────
+
+  Future<void> updateUserPreferences(Map<String, dynamic> prefs) async {
+    if (_uid == null) return;
+    await _db.collection('users').doc(_uid).set({
+      'preferences': prefs,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<Map<String, dynamic>?> getUserPreferences() async {
+    if (_uid == null) return null;
+    final doc = await _db.collection('users').doc(_uid).get();
+    if (!doc.exists) return null;
+    return doc.data()?['preferences'] as Map<String, dynamic>?;
   }
 
   Future<UserCredential> signInWithEmail(String email, String password) async {
@@ -119,6 +177,11 @@ class FirebaseService {
     return _db.collection('users').doc(_uid).collection('watchlist');
   }
 
+  CollectionReference<Map<String, dynamic>> get _mangaWatchlistRef {
+    if (_uid == null) throw Exception('User not logged in');
+    return _db.collection('users').doc(_uid).collection('manga_watchlist');
+  }
+
   Future<void> addToWatchlist(Anime anime,
       {WatchStatus status = WatchStatus.planToWatch}) async {
     await _watchlistRef.doc(anime.malId.toString()).set({
@@ -137,8 +200,34 @@ class FirebaseService {
     });
   }
 
+  Future<void> addMangaToWatchlist(Manga manga,
+      {ReadStatus status = ReadStatus.planToRead}) async {
+    await _mangaWatchlistRef.doc(manga.malId.toString()).set({
+      'malId': manga.malId,
+      'title': manga.displayTitle,
+      'imageUrl': manga.imageUrl,
+      'score': manga.score,
+      'chapters': manga.chapters,
+      'volumes': manga.volumes,
+      'genres': manga.genres,
+      'status': status.value,
+      'chapterProgress': 0,
+      'userRating': null,
+      'userReview': null,
+      'addedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> updateWatchStatus(int malId, WatchStatus status) async {
     await _watchlistRef.doc(malId.toString()).update({
+      'status': status.value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateMangaWatchStatus(int malId, ReadStatus status) async {
+    await _mangaWatchlistRef.doc(malId.toString()).update({
       'status': status.value,
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -153,20 +242,29 @@ class FirebaseService {
     });
   }
 
+  Future<void> updateChapterProgress(int malId, int chapter) async {
+    await _mangaWatchlistRef.doc(malId.toString()).update({
+      'chapterProgress': chapter,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // ── Ratings & Reviews ─────────────────────────────────────────────────────
 
   Future<void> saveRatingAndReview(int malId,
-      {required double rating, String? review}) async {
-    await _watchlistRef.doc(malId.toString()).update({
+      {required double rating, String? review, bool isManga = false}) async {
+    final ref = isManga ? _mangaWatchlistRef : _watchlistRef;
+    await ref.doc(malId.toString()).update({
       'userRating': rating,
       'userReview': review ?? '',
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<Map<String, dynamic>?> getRatingAndReview(int malId) async {
+  Future<Map<String, dynamic>?> getRatingAndReview(int malId, {bool isManga = false}) async {
     try {
-      final doc = await _watchlistRef.doc(malId.toString()).get();
+      final ref = isManga ? _mangaWatchlistRef : _watchlistRef;
+      final doc = await ref.doc(malId.toString()).get();
       if (!doc.exists) return null;
       final data = doc.data()!;
       return {
@@ -186,27 +284,47 @@ class FirebaseService {
     } catch (_) { return null; }
   }
 
-  Future<Map<String, dynamic>?> getWatchlistEntry(int malId) async {
+  Future<ReadStatus?> getMangaWatchStatus(int malId) async {
     try {
-      final doc = await _watchlistRef.doc(malId.toString()).get();
+      final doc = await _mangaWatchlistRef.doc(malId.toString()).get();
+      if (!doc.exists) return null;
+      return ReadStatus.fromString(doc.data()?['status'] as String?);
+    } catch (_) { return null; }
+  }
+
+  Future<Map<String, dynamic>?> getWatchlistEntry(int malId, {bool isManga = false}) async {
+    try {
+      final doc = await (isManga ? _mangaWatchlistRef : _watchlistRef).doc(malId.toString()).get();
       return doc.exists ? doc.data() : null;
     } catch (_) { return null; }
   }
 
-  Future<bool> isInWatchlist(int malId) async {
+  Future<bool> isInWatchlist(int malId, {bool isManga = false}) async {
     try {
-      final doc = await _watchlistRef.doc(malId.toString()).get();
+      final doc = await (isManga ? _mangaWatchlistRef : _watchlistRef).doc(malId.toString()).get();
       return doc.exists;
     } catch (_) { return false; }
   }
 
-  Future<void> removeFromWatchlist(int malId) async {
-    await _watchlistRef.doc(malId.toString()).delete();
+  Future<void> removeFromWatchlist(int malId, {bool isManga = false}) async {
+    await (isManga ? _mangaWatchlistRef : _watchlistRef).doc(malId.toString()).delete();
   }
 
   Stream<List<Map<String, dynamic>>> watchlistStream({WatchStatus? filter}) {
     Query<Map<String, dynamic>> query =
     _watchlistRef.orderBy('updatedAt', descending: true);
+    return query.snapshots().map((snap) {
+      final docs = snap.docs.map((d) => d.data()).toList();
+      if (filter != null) {
+        return docs.where((d) => d['status'] == filter.value).toList();
+      }
+      return docs;
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> mangaWatchlistStream({ReadStatus? filter}) {
+    Query<Map<String, dynamic>> query =
+    _mangaWatchlistRef.orderBy('updatedAt', descending: true);
     return query.snapshots().map((snap) {
       final docs = snap.docs.map((d) => d.data()).toList();
       if (filter != null) {
@@ -225,11 +343,11 @@ class FirebaseService {
       final docs = snap.docs.map((d) => d.data()).toList();
 
       int totalAnime = docs.length;
-      int completed = docs.where((d) => d['status'] == 'completed').length;
-      int watching  = docs.where((d) => d['status'] == 'watching').length;
-      int dropped   = docs.where((d) => d['status'] == 'dropped').length;
-      int planToWatch = docs.where((d) => d['status'] == 'planToWatch').length;
-      int onHold    = docs.where((d) => d['status'] == 'onHold').length;
+      int completed = docs.where((d) => d['status'] == WatchStatus.completed.value).length;
+      int watching  = docs.where((d) => d['status'] == WatchStatus.watching.value).length;
+      int dropped   = docs.where((d) => d['status'] == WatchStatus.dropped.value).length;
+      int planToWatch = docs.where((d) => d['status'] == WatchStatus.planToWatch.value).length;
+      int onHold    = docs.where((d) => d['status'] == WatchStatus.onHold.value).length;
 
       int totalEpisodes = 0;
       for (final d in docs) {
@@ -265,6 +383,59 @@ class FirebaseService {
         'onHold': onHold,
         'totalEpisodes': totalEpisodes,
         'minutesWatched': totalEpisodes * 24,
+        'avgRating': avgRating,
+        'topGenres': topGenres,
+        'ratingsGiven': ratings.length,
+      };
+    });
+  }
+
+  Stream<Map<String, dynamic>> getUserMangaStatsStream() {
+    if (_uid == null) return Stream.value({});
+    
+    return _mangaWatchlistRef.snapshots().map((snap) {
+      final docs = snap.docs.map((d) => d.data()).toList();
+
+      int totalManga = docs.length;
+      int completed = docs.where((d) => d['status'] == ReadStatus.completed.value).length;
+      int reading  = docs.where((d) => d['status'] == ReadStatus.reading.value).length;
+      int dropped   = docs.where((d) => d['status'] == ReadStatus.dropped.value).length;
+      int planToRead = docs.where((d) => d['status'] == ReadStatus.planToRead.value).length;
+      int onHold    = docs.where((d) => d['status'] == ReadStatus.onHold.value).length;
+
+      int totalChapters = 0;
+      for (final d in docs) {
+        totalChapters += (d['chapterProgress'] as int? ?? 0);
+      }
+
+      final ratings = docs
+          .map((d) => d['userRating'])
+          .whereType<num>()
+          .map((r) => r.toDouble())
+          .toList();
+      final avgRating = ratings.isEmpty
+          ? 0.0
+          : ratings.reduce((a, b) => a + b) / ratings.length;
+
+      final genreCount = <String, int>{};
+      for (final d in docs) {
+        final genres = (d['genres'] as List<dynamic>? ?? []).cast<String>();
+        for (final g in genres) {
+          genreCount[g] = (genreCount[g] ?? 0) + 1;
+        }
+      }
+      final sortedGenres = genreCount.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final topGenres = sortedGenres.take(3).map((e) => e.key).toList();
+
+      return {
+        'totalManga': totalManga,
+        'completed': completed,
+        'reading': reading,
+        'dropped': dropped,
+        'planToRead': planToRead,
+        'onHold': onHold,
+        'totalChapters': totalChapters,
         'avgRating': avgRating,
         'topGenres': topGenres,
         'ratingsGiven': ratings.length,

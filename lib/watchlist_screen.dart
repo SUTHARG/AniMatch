@@ -1,12 +1,14 @@
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
 import 'detail_screen.dart';
 import 'login_screen.dart';
 import 'image_utils.dart';
+import 'app_state.dart';
+import 'media_base.dart';
+import 'manga.dart';
+import 'anime.dart';
 import 'shimmer_skeletons.dart';
 
 class WatchlistScreen extends StatefulWidget {
@@ -21,19 +23,28 @@ class _WatchlistScreenState extends State<WatchlistScreen>
   final FirebaseService _firebase = FirebaseService();
   late TabController _tabController;
 
-  static const _tabs = [
-    _TabConfig(label: 'All',           status: null,                      emoji: '📚'),
-    _TabConfig(label: 'Watching',      status: WatchStatus.watching,      emoji: '▶️'),
-    _TabConfig(label: 'Completed',     status: WatchStatus.completed,     emoji: '✅'),
-    _TabConfig(label: 'Plan to Watch', status: WatchStatus.planToWatch,   emoji: '📋'),
-    _TabConfig(label: 'On Hold',       status: WatchStatus.onHold,        emoji: '⏸️'),
-    _TabConfig(label: 'Dropped',       status: WatchStatus.dropped,       emoji: '🗑️'),
+  static const _animeTabs = [
+    _TabConfig(label: 'All',           watchStatus: null,                      emoji: '📚'),
+    _TabConfig(label: 'Watching',      watchStatus: WatchStatus.watching,      emoji: '▶️'),
+    _TabConfig(label: 'Completed',     watchStatus: WatchStatus.completed,     emoji: '✅'),
+    _TabConfig(label: 'Plan to Watch', watchStatus: WatchStatus.planToWatch,   emoji: '📋'),
+    _TabConfig(label: 'On Hold',       watchStatus: WatchStatus.onHold,        emoji: '⏸️'),
+    _TabConfig(label: 'Dropped',       watchStatus: WatchStatus.dropped,       emoji: '🗑️'),
+  ];
+
+  static const _mangaTabs = [
+    _TabConfig(label: 'All',           readStatus: null,                       emoji: '📚'),
+    _TabConfig(label: 'Reading',       readStatus: ReadStatus.reading,         emoji: '📖'),
+    _TabConfig(label: 'Completed',      readStatus: ReadStatus.completed,       emoji: '✅'),
+    _TabConfig(label: 'Plan to Read', readStatus: ReadStatus.planToRead,      emoji: '📋'),
+    _TabConfig(label: 'On Hold',       readStatus: ReadStatus.onHold,          emoji: '⏸️'),
+    _TabConfig(label: 'Dropped',       readStatus: ReadStatus.dropped,         emoji: '🗑️'),
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(length: _animeTabs.length, vsync: this);
   }
 
   @override
@@ -53,68 +64,83 @@ class _WatchlistScreenState extends State<WatchlistScreen>
           return _NotLoggedIn();
         }
 
-        return Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            title: const Text('My Watchlist', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout_rounded, color: Colors.white70),
-                tooltip: 'Log out',
-                onPressed: () => _firebase.signOut(),
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(48),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  dividerColor: Colors.transparent,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  indicator: BoxDecoration(
-                    borderRadius: BorderRadius.circular(25),
-                    color: Colors.amber,
+        return ValueListenableBuilder<AppMode>(
+          valueListenable: appState.modeNotifier,
+          builder: (context, mode, child) {
+            final tabs = mode == AppMode.manga ? _mangaTabs : _animeTabs;
+            
+            // Ensure TabController is in sync if tabs length changed (though they are same here)
+            if (_tabController.length != tabs.length) {
+              _tabController.dispose();
+              _tabController = TabController(length: tabs.length, vsync: this);
+            }
+
+            return Scaffold(
+              backgroundColor: Colors.black,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                title: Text(mode == AppMode.manga ? 'My Manga List' : 'My Watchlist', style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: Colors.white70),
+                    tooltip: 'Log out',
+                    onPressed: () => _firebase.signOut(),
                   ),
-                  labelColor: Colors.black,
-                  unselectedLabelColor: Colors.white70,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                  tabs: _tabs
-                      .map((t) => Tab(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(t.emoji, style: const TextStyle(fontSize: 14)),
-                          const SizedBox(width: 8),
-                          Text(t.label),
-                        ],
-                      ),
+                ],
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(48),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(25),
                     ),
-                  ))
-                      .toList(),
+                    child: TabBar(
+                      controller: _tabController,
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      dividerColor: Colors.transparent,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      indicator: BoxDecoration(
+                        borderRadius: BorderRadius.circular(25),
+                        color: Colors.amber,
+                      ),
+                      labelColor: Colors.black,
+                      unselectedLabelColor: Colors.white70,
+                      labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                      tabs: tabs
+                          .map((t) => Tab(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(t.emoji, style: const TextStyle(fontSize: 14)),
+                              const SizedBox(width: 8),
+                              Text(t.label),
+                            ],
+                          ),
+                        ),
+                      ))
+                          .toList(),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          body: TabBarView(
-            controller: _tabController,
-            children: _tabs
-                .map((t) => _WatchlistTab(
-              firebase: _firebase,
-              statusFilter: t.status,
-            ))
-                .toList(),
-          ),
+              body: TabBarView(
+                controller: _tabController,
+                children: tabs
+                    .map((t) => _WatchlistTab(
+                  firebase: _firebase,
+                  isManga: mode == AppMode.manga,
+                  watchStatus: t.watchStatus,
+                  readStatus: t.readStatus,
+                ))
+                    .toList(),
+              ),
+            );
+          },
         );
       },
     );
@@ -123,21 +149,26 @@ class _WatchlistScreenState extends State<WatchlistScreen>
 
 class _TabConfig {
   final String label;
-  final WatchStatus? status;
+  final WatchStatus? watchStatus;
+  final ReadStatus? readStatus;
   final String emoji;
-  const _TabConfig({required this.label, required this.status, required this.emoji});
+  const _TabConfig({required this.label, this.watchStatus, this.readStatus, required this.emoji});
 }
 
 class _WatchlistTab extends StatelessWidget {
   final FirebaseService firebase;
-  final WatchStatus? statusFilter;
-  const _WatchlistTab({required this.firebase, this.statusFilter});
+  final bool isManga;
+  final WatchStatus? watchStatus;
+  final ReadStatus? readStatus;
+  const _WatchlistTab({required this.firebase, required this.isManga, this.watchStatus, this.readStatus});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: firebase.watchlistStream(filter: statusFilter),
+      stream: isManga 
+          ? firebase.mangaWatchlistStream(filter: readStatus) 
+          : firebase.watchlistStream(filter: watchStatus),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const WatchlistShimmer();
@@ -146,11 +177,10 @@ class _WatchlistTab extends StatelessWidget {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         final items = snapshot.data ?? [];
-        if (items.isEmpty) return _EmptyTab(statusFilter: statusFilter);
+        if (items.isEmpty) return _EmptyTab(isManga: isManga, watchStatus: watchStatus, readStatus: readStatus);
 
         return RefreshIndicator(
           onRefresh: () async {
-            // Re-trigger the stream by forcing a rebuild or just waiting
             await Future.delayed(const Duration(seconds: 1));
           },
           color: Colors.amber,
@@ -164,7 +194,7 @@ class _WatchlistTab extends StatelessWidget {
               childAspectRatio: 0.60,
             ),
             itemCount: items.length,
-            itemBuilder: (_, i) => _WatchlistCard(item: items[i]),
+            itemBuilder: (_, i) => _WatchlistCard(item: items[i], isManga: isManga),
           ),
         );
       },
@@ -174,30 +204,44 @@ class _WatchlistTab extends StatelessWidget {
 
 class _WatchlistCard extends StatelessWidget {
   final Map<String, dynamic> item;
-  const _WatchlistCard({required this.item});
+  final bool isManga;
+  const _WatchlistCard({required this.item, required this.isManga});
 
-  Color _statusColor(WatchStatus s) {
-    switch (s) {
-      case WatchStatus.watching:    return const Color(0xFF4CAF50);
-      case WatchStatus.completed:   return const Color(0xFF9C27B0);
-      case WatchStatus.onHold:      return const Color(0xFFFF9800);
-      case WatchStatus.dropped:     return const Color(0xFFF44336);
-      case WatchStatus.planToWatch: return const Color(0xFF2196F3);
+  Color _statusColor(dynamic s) {
+    if (s is WatchStatus) {
+      switch (s) {
+        case WatchStatus.watching:    return const Color(0xFF4CAF50);
+        case WatchStatus.completed:   return const Color(0xFF9C27B0);
+        case WatchStatus.onHold:      return const Color(0xFFFF9800);
+        case WatchStatus.dropped:     return const Color(0xFFF44336);
+        case WatchStatus.planToWatch: return const Color(0xFF2196F3);
+      }
+    } else if (s is ReadStatus) {
+      switch (s) {
+        case ReadStatus.reading:      return const Color(0xFF4CAF50);
+        case ReadStatus.completed:    return const Color(0xFF9C27B0);
+        case ReadStatus.onHold:       return const Color(0xFFFF9800);
+        case ReadStatus.dropped:      return const Color(0xFFF44336);
+        case ReadStatus.planToRead:   return const Color(0xFF2196F3);
+      }
     }
+    return Colors.amber;
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final malId = item['malId'] as int;
-    final status = WatchStatus.fromString(item['status'] as String?);
+    final dynamic status = isManga 
+        ? ReadStatus.fromString(item['status'] as String?)
+        : WatchStatus.fromString(item['status'] as String?);
 
     final imageUrl = item['imageUrl'] as String? ?? '';
 
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => DetailScreen(malId: malId)),
+        MaterialPageRoute(builder: (_) => DetailScreen(malId: malId, isManga: isManga)),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -324,6 +368,15 @@ class _WatchlistCard extends StatelessWidget {
                       shadows: [Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1))],
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isManga ? '${item['chapterProgress'] ?? 0} chapters' : '${item['episodeProgress'] ?? 0} eps',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -335,8 +388,10 @@ class _WatchlistCard extends StatelessWidget {
 }
 
 class _EmptyTab extends StatelessWidget {
-  final WatchStatus? statusFilter;
-  const _EmptyTab({this.statusFilter});
+  final bool isManga;
+  final WatchStatus? watchStatus;
+  final ReadStatus? readStatus;
+  const _EmptyTab({required this.isManga, this.watchStatus, this.readStatus});
 
   @override
   Widget build(BuildContext context) {
@@ -365,20 +420,20 @@ class _EmptyTab extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white.withOpacity(0.1)),
                   ),
-                  child: Text(statusFilter?.emoji ?? '📚', style: const TextStyle(fontSize: 64)),
+                  child: Text(isManga ? (readStatus?.emoji ?? '📚') : (watchStatus?.emoji ?? '📚'), style: const TextStyle(fontSize: 64)),
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  statusFilter == null ? 'Your journey is waiting' : 'No anime found here',
+                  (!isManga && watchStatus == null) || (isManga && readStatus == null) ? 'Your journey is waiting' : 'No ${isManga ? "manga" : "anime"} found here',
                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  statusFilter == null
-                      ? 'Start exploring worlds and track your favorite anime right here.'
-                      : 'You haven\'t marked any anime as "${statusFilter!.label}" yet.',
-                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16, height: 1.5),
+                  (!isManga && watchStatus == null) || (isManga && readStatus == null)
+                      ? 'Start exploring worlds and track your favorite ${isManga ? "manga" : "anime"} right here.'
+                      : 'You haven\'t marked any ${isManga ? "manga" : "anime"} as "${isManga ? readStatus!.label : watchStatus!.label}" yet.',
+                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16, height: 1.6),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -439,7 +494,7 @@ class _NotLoggedIn extends StatelessWidget {
                         BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 40, spreadRadius: 5),
                       ],
                     ),
-                    child: const Icon(Icons.bookmark_outline_rounded, size: 80, color: Colors.amber),
+                    child: Icon(Icons.bookmark_outline_rounded, size: 80, color: Colors.amber),
                   ),
                   const SizedBox(height: 48),
                   
@@ -464,7 +519,7 @@ class _NotLoggedIn extends StatelessWidget {
                         context,
                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                       ),
-                      icon: const Icon(Icons.login_rounded, weight: 700),
+                      icon: const Icon(Icons.login_rounded),
                       label: const Text('JOIN THE WORLD OF ANIME', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
@@ -483,7 +538,7 @@ class _NotLoggedIn extends StatelessWidget {
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
             left: 20,
-            child: const Text('Watchlist', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
+            child: Text('Watchlist', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
           ),
         ],
       ),

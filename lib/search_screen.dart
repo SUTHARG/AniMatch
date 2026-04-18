@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:untitled1/anilist_service.dart';
+import 'app_state.dart';
+import 'media_base.dart';
+import 'manga.dart';
 import 'anime.dart';
 import 'jikan_service.dart';
+import 'firebase_service.dart';
+import 'anilist_service.dart';
 import 'detail_screen.dart';
 import 'image_utils.dart';
-import 'firebase_service.dart';
 import 'shimmer_skeletons.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -22,7 +25,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _controller = TextEditingController();
   Timer? _debounce;
 
-  List<Anime> _results = [];
+  List<MediaBase> _results = [];
   bool _loading = false;
   String _lastQuery = '';
 
@@ -47,7 +50,13 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _loading = true);
     
     try {
-      final results = await _jikan.searchAnime(query);
+      final List<MediaBase> results;
+      if (appState.currentMode == AppMode.manga) {
+        results = await _jikan.searchManga(query);
+      } else {
+        results = await _jikan.searchAnime(query);
+      }
+      
       if (mounted && _lastQuery == query) {
         setState(() {
           _results = results;
@@ -86,14 +95,14 @@ class _SearchScreenState extends State<SearchScreen> {
             }
           },
           autofocus: false,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white),
           decoration: InputDecoration(
-            hintText: 'Search anime...',
-            hintStyle: const TextStyle(color: Colors.white38),
+            hintText: appState.currentMode == AppMode.manga ? 'Search manga...' : 'Search anime...',
+            hintStyle: TextStyle(color: Colors.white38),
             border: InputBorder.none,
             suffixIcon: _controller.text.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.white70),
+                    icon: Icon(Icons.clear, color: Colors.white70),
                     onPressed: () {
                       _controller.clear();
                       setState(() {
@@ -102,7 +111,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       });
                     },
                   )
-                : const Icon(Icons.search, color: Colors.white24),
+                : Icon(Icons.search, color: Colors.white24),
           ),
         ),
       ),
@@ -116,8 +125,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   itemCount: _results.length,
                   padding: const EdgeInsets.only(top: 8),
                   itemBuilder: (_, i) {
-                    return _SearchAnimeCard(
-                      anime: _results[i],
+                    return _SearchMediaCard(
+                      media: _results[i],
+                      isManga: appState.currentMode == AppMode.manga,
                       onTap: () {
                         // Save query when user explicitly clicks a result
                         if (_controller.text.trim().isNotEmpty) {
@@ -135,7 +145,7 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('🔍', style: TextStyle(fontSize: 48)),
+          Text('🔍', style: TextStyle(fontSize: 48)),
           const SizedBox(height: 12),
           Text(
             'No results for "$_lastQuery"',
@@ -160,7 +170,7 @@ class _SearchScreenState extends State<SearchScreen> {
               children: [
                 Icon(Icons.search_rounded, size: 64, color: Colors.white.withOpacity(0.05)),
                 const SizedBox(height: 16),
-                const Text('Search for your favorite anime', style: TextStyle(color: Colors.white38)),
+                Text('Search for your favorite ${appState.currentMode == AppMode.manga ? "manga" : "anime"}', style: const TextStyle(color: Colors.white38)),
               ],
             ),
           );
@@ -184,7 +194,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   const Spacer(),
                   TextButton(
                     onPressed: () => _firebase.clearSearchHistory(),
-                    child: const Text('Clear All', style: TextStyle(color: Colors.amber, fontSize: 13)),
+                    child: Text('Clear All', style: TextStyle(color: Colors.amber, fontSize: 13)),
                   ),
                 ],
               ),
@@ -207,16 +217,16 @@ class _SearchScreenState extends State<SearchScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           child: Row(
                             children: [
-                              const Icon(Icons.history, color: Colors.white38, size: 18),
+                              Icon(Icons.history, color: Colors.white38, size: 18),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Text(
                                   query,
-                                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                                  style: TextStyle(color: Colors.white, fontSize: 15),
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.close, color: Colors.white24, size: 18),
+                                icon: Icon(Icons.close, color: Colors.white24, size: 18),
                                 onPressed: () => _firebase.removeSearchQuery(query),
                               ),
                             ],
@@ -235,16 +245,17 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 }
 
-class _SearchAnimeCard extends StatefulWidget {
-  final Anime anime;
+class _SearchMediaCard extends StatefulWidget {
+  final MediaBase media;
+  final bool isManga;
   final VoidCallback onTap;
-  const _SearchAnimeCard({required this.anime, required this.onTap});
+  const _SearchMediaCard({required this.media, required this.isManga, required this.onTap});
 
   @override
-  State<_SearchAnimeCard> createState() => _SearchAnimeCardState();
+  State<_SearchMediaCard> createState() => _SearchMediaCardState();
 }
 
-class _SearchAnimeCardState extends State<_SearchAnimeCard> {
+class _SearchMediaCardState extends State<_SearchMediaCard> {
   final AnilistService _anilist = AnilistService();
   String? _anilistImageUrl;
   bool _loadingAnilist = false;
@@ -260,11 +271,11 @@ class _SearchAnimeCardState extends State<_SearchAnimeCard> {
     setState(() => _loadingAnilist = true);
     
     // Stage 1: Try by MAL ID
-    String? url = await _anilist.getCoverImageByMalId(widget.anime.malId);
+    String? url = await _anilist.getCoverImageByMalId(widget.media.malId).timeout(const Duration(seconds: 2), onTimeout: () => null);
     
     // Stage 2: Try by Title if ID fails
     if (url == null && mounted) {
-      url = await _anilist.getCoverImageByTitle(widget.anime.displayTitle);
+      url = await _anilist.getCoverImageByTitle(widget.media.displayTitle).timeout(const Duration(seconds: 2), onTimeout: () => null);
     }
 
     if (mounted) {
@@ -278,7 +289,7 @@ class _SearchAnimeCardState extends State<_SearchAnimeCard> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final anime = widget.anime;
+    final media = widget.media;
 
     return ListTile(
       leading: ClipRRect(
@@ -290,20 +301,20 @@ class _SearchAnimeCardState extends State<_SearchAnimeCard> {
           child: (_loadingAnilist && _anilistImageUrl == null)
               ? const ShimmerSkeleton(width: double.infinity, height: double.infinity, borderRadius: 0)
               : PremiumImage(
-                  imageUrl: _anilistImageUrl ?? anime.displayImageUrl,
-                  title: anime.displayTitle,
+                  imageUrl: _anilistImageUrl ?? media.displayImageUrl,
+                  title: media.displayTitle,
                   fit: BoxFit.cover,
                 ),
         ),
       ),
-      title: Text(anime.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Text(media.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        '${anime.scoreText} · ${anime.episodeText}',
+        '${media.scoreText} · ${media.mediaProgressText}',
         style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
       ),
-      trailing: anime.genres.isNotEmpty
+      trailing: media.genres.isNotEmpty
           ? Chip(
-              label: Text(anime.genres.first, style: const TextStyle(fontSize: 10)),
+              label: Text(media.genres.first, style: TextStyle(fontSize: 10)),
               padding: EdgeInsets.zero,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             )
@@ -313,7 +324,7 @@ class _SearchAnimeCardState extends State<_SearchAnimeCard> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => DetailScreen(malId: anime.malId),
+            builder: (_) => DetailScreen(malId: media.malId, isManga: widget.isManga),
           ),
         );
       },

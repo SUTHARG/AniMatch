@@ -160,40 +160,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.all(20),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
+                    // Anime Stats Section
+                    Text('Anime Statistics',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          letterSpacing: 1,
+                        )),
+                    const SizedBox(height: 12),
                     StreamBuilder<Map<String, dynamic>>(
                       stream: _firebase.getUserStatsStream(),
                       builder: (context, snapshot) {
                         final stats = snapshot.data ?? {};
-                        final loading = snapshot.connectionState == ConnectionState.waiting;
-                        
-                        if (loading && stats.isEmpty) {
-                          return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
-                        }
+                        return _StatsCard(
+                          icon: '🎌',
+                          title: 'Anime',
+                          stats: [
+                            _MiniStat(label: 'Total', value: '${stats['totalAnime'] ?? 0}'),
+                            _MiniStat(label: 'Episodes', value: '${stats['totalEpisodes'] ?? 0}'),
+                            _MiniStat(label: 'Avg Score', value: (stats['avgRating'] as double? ?? 0) == 0 ? '—' : (stats['avgRating'] as double).toStringAsFixed(1)),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
 
-                        return Row(
-                          children: [
-                            _QuickStat(
-                              value: '${stats['totalAnime'] ?? 0}',
-                              label: 'Anime',
-                              icon: '🎌',
-                            ),
-                            _QuickStat(
-                              value: '${stats['totalEpisodes'] ?? 0}',
-                              label: 'Episodes',
-                              icon: '📺',
-                            ),
-                            _QuickStat(
-                              value: _formatMinutes(stats['minutesWatched'] as int? ?? 0),
-                              label: 'Watched',
-                              icon: '⏱️',
-                            ),
-                            _QuickStat(
-                              value: (stats['avgRating'] as double? ?? 0) == 0
-                                  ? '—'
-                                  : (stats['avgRating'] as double).toStringAsFixed(1),
-                              label: 'Avg score',
-                              icon: '⭐',
-                            ),
+                    // Manga Stats Section
+                    Text('Manga Statistics',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          letterSpacing: 1,
+                        )),
+                    const SizedBox(height: 12),
+                    StreamBuilder<Map<String, dynamic>>(
+                      stream: _firebase.getUserMangaStatsStream(),
+                      builder: (context, snapshot) {
+                        final stats = snapshot.data ?? {};
+                        return _StatsCard(
+                          icon: '📖',
+                          title: 'Manga',
+                          stats: [
+                            _MiniStat(label: 'Total', value: '${stats['totalManga'] ?? 0}'),
+                            _MiniStat(label: 'Chapters', value: '${stats['totalChapters'] ?? 0}'),
+                            _MiniStat(label: 'Avg Score', value: (stats['avgRating'] as double? ?? 0) == 0 ? '—' : (stats['avgRating'] as double).toStringAsFixed(1)),
                           ],
                         );
                       },
@@ -299,41 +307,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _QuickStat extends StatelessWidget {
-  final String value;
-  final String label;
+class _StatsCard extends StatelessWidget {
   final String icon;
-  const _QuickStat({required this.value, required this.label, required this.icon});
+  final String title;
+  final List<_MiniStat> stats;
+  const _StatsCard({required this.icon, required this.title, required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: Column(
-              children: [
-                Text(icon, style: const TextStyle(fontSize: 18)),
-                const SizedBox(height: 8),
-                Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                const SizedBox(height: 2),
-                Text(label, style: const TextStyle(fontSize: 10, color: Colors.white54, fontWeight: FontWeight.w500)),
-              ],
-            ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70)),
+              const Spacer(),
+              const Icon(Icons.chevron_right_rounded, color: Colors.white24),
+            ],
           ),
-        ),
+          const SizedBox(height: 16),
+          Row(
+            children: stats.map((s) => Expanded(
+              child: Column(
+                children: [
+                  Text(s.value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const SizedBox(height: 4),
+                  Text(s.label, style: const TextStyle(fontSize: 10, color: Colors.white54)),
+                ],
+              ),
+            )).toList(),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _MiniStat {
+  final String label;
+  final String value;
+  _MiniStat({required this.label, required this.value});
 }
 
 class _MenuItem extends StatelessWidget {

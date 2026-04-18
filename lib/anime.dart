@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'media_base.dart';
 
 // ---------------------------------------------------------------------------
 // StreamingLink — a single streaming platform entry
@@ -23,7 +24,7 @@ class StreamingLink {
 // Anime model
 // ---------------------------------------------------------------------------
 
-class Anime {
+class Anime implements MediaBase {
   final int malId;
   final String title;
   final String? titleEnglish;
@@ -82,6 +83,27 @@ class Anime {
     this.producers = const [],
     this.premiered,
   });
+
+  @override
+  String get displayTitle => titleEnglish?.isNotEmpty == true ? titleEnglish! : title;
+
+  @override
+  String get displayImageUrl => imageUrl;
+
+  @override
+  String get scoreText => score != null ? score!.toStringAsFixed(1) : 'N/A';
+
+  @override
+  String get mediaProgressText => '${type ?? 'TV'} (${episodes?.toString() ?? '?'} eps)';
+
+  @override
+  String get mediaTypeBadge => type ?? 'TV';
+
+  @override
+  bool get isCompleted => status?.toLowerCase() == 'completed' || status?.toLowerCase() == 'finished';
+
+  @override
+  bool get isOngoing => status?.toLowerCase() == 'airing' || status?.toLowerCase() == 'ongoing';
 
   factory Anime.fromJson(Map<String, dynamic> json) {
     final images = json['images']?['jpg'];
@@ -163,27 +185,7 @@ class Anime {
     );
   }
 
-  String get displayTitle => titleEnglish?.isNotEmpty == true ? titleEnglish! : title;
-
-  String get episodeText {
-    if (episodes == null) return 'Unknown eps';
-    if (episodes == 1) return '1 episode';
-    return '$episodes episodes';
-  }
-
-  String get scoreText => score != null ? score!.toStringAsFixed(1) : 'N/A';
-
-  /// Convenience getter — always returns a valid MAL URL, even if [malUrl] was
-  /// not parsed from JSON (e.g. lightweight `Anime` objects from search).
   String get malPageUrl => malUrl ?? 'https://myanimelist.net/anime/$malId';
-
-  bool get isCompleted => status?.toLowerCase() == 'finished airing';
-  bool get isOngoing => status?.toLowerCase() == 'currently airing';
-
-  /// Returns the image URL for display.
-  String get displayImageUrl {
-    return imageUrl;
-  }
 
   static String? _parseTrailerUrl(Map<String, dynamic>? trailer) {
     if (trailer == null) return null;
@@ -221,12 +223,16 @@ class QuizAnswers {
   final List<String> genres;
   final String episodeRange;
   final String status;
+  final String? typeParam;
+  final bool isManga;
 
   const QuizAnswers({
     required this.mood,
     required this.genres,
     required this.episodeRange,
     required this.status,
+    this.typeParam,
+    this.isManga = false,
   });
 
   // Map mood to MyAnimeList genre IDs
@@ -308,6 +314,17 @@ class QuizAnswers {
   }
 
   String get statusParam {
+    if (isManga) {
+      switch (status) {
+        case 'ongoing':
+          return 'publishing';
+        case 'completed':
+          return 'complete';
+        default:
+          return '';
+      }
+    }
+    
     switch (status) {
       case 'ongoing':
         return 'airing';

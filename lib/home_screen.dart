@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'app_state.dart';
+import 'manga.dart';
 import 'anime.dart';
 import 'anilist_service.dart';
 import 'jikan_service.dart';
@@ -13,6 +15,8 @@ import 'watchlist_screen.dart';
 import 'profile_screen.dart';
 import 'image_utils.dart';
 import 'shimmer_skeletons.dart';
+import 'media_base.dart';
+import 'browse_magazines_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,11 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
   };
 
-  final List<Widget> _pages = const [
-    _HomeTab(),
-    WatchlistScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -39,7 +38,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       extendBody: true, // Allows content to flow behind the glass bar
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      body: ValueListenableBuilder<AppMode>(
+        valueListenable: appState.modeNotifier,
+        builder: (context, mode, child) {
+          return IndexedStack(index: _currentIndex, children: const [
+            _HomeTab(),
+            WatchlistScreen(),
+          ]);
+        },
+      ),
       bottomNavigationBar: SafeArea(
         bottom: true,
         child: Container(
@@ -285,30 +292,69 @@ class _HomeTab extends StatefulWidget {
 class _HomeTabState extends State<_HomeTab> {
   final JikanService _jikan = JikanService();
   final AnilistService _anilist = AnilistService();
-  List<Anime> _spotlight = [];
-  List<Anime> _trending = [];
-  List<Anime> _topUpcoming = [];
+  List<Anime> _spotlightAnime = [];
+  List<Anime> _trendingAnime = [];
+  List<Anime> _topUpcomingAnime = [];
+
+  List<Manga> _spotlightManga = [];
+  List<Manga> _trendingManga = [];
+  List<Manga> _topUpcomingManga = [];
+  
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    appState.modeNotifier.addListener(_onModeChanged);
     _load();
   }
 
-  Future<void> _load() async {
-    try {
-      final trendingData = await _anilist.getTrendingAnime();
-      final seasonalData = await _anilist.getSeasonalAnime();
-      final upcomingData = await _anilist.getTopUpcomingAnime();
+  @override
+  void dispose() {
+    appState.modeNotifier.removeListener(_onModeChanged);
+    super.dispose();
+  }
 
-      if (mounted) {
-        setState(() {
-          _spotlight = seasonalData.take(10).map((e) => Anime.fromAniList(e)).toList();
-          _trending = trendingData.take(10).map((e) => Anime.fromAniList(e)).toList();
-          _topUpcoming = upcomingData.map((e) => Anime.fromAniList(e)).toList();
-          _loading = false;
-        });
+  void _onModeChanged() {
+    if ((appState.currentMode == AppMode.anime && _spotlightAnime.isEmpty) ||
+        (appState.currentMode == AppMode.manga && _spotlightManga.isEmpty)) {
+      _load();
+    } else {
+      setState(() {});
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    
+    try {
+      if (appState.currentMode == AppMode.anime) {
+        final trendingData = await _anilist.getTrendingAnime();
+        final seasonalData = await _anilist.getSeasonalAnime();
+        final upcomingData = await _anilist.getTopUpcomingAnime();
+
+        if (mounted) {
+          setState(() {
+            _spotlightAnime = seasonalData.take(10).map((e) => Anime.fromAniList(e)).toList();
+            _trendingAnime = trendingData.take(10).map((e) => Anime.fromAniList(e)).toList();
+            _topUpcomingAnime = upcomingData.map((e) => Anime.fromAniList(e)).toList();
+            _loading = false;
+          });
+        }
+      } else {
+        // Load Manga Data
+        final trendingMangaData = await _jikan.getTopManga(filter: 'publishing'); // Current top publishing
+        final topMangaData = await _jikan.getTopManga(); // All-time top
+
+        if (mounted) {
+          setState(() {
+            // Using publishing manga as spotlight to mirror seasonal anime
+            _spotlightManga = trendingMangaData.take(10).toList();
+            _trendingManga = topMangaData.take(10).toList();
+            _topUpcomingManga = []; // Maybe leave upcoming blank or use something else
+            _loading = false;
+          });
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -348,13 +394,29 @@ class _HomeTabState extends State<_HomeTab> {
     );
 
     try {
-      final anime = await _jikan.getRandomAnime();
-      if (context.mounted) {
-        Navigator.pop(context); // Remove loading
-        Navigator.push(
-          context, 
-          MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId)),
-        );
+      if (appState.currentMode == AppMode.anime) {
+        final anime = await _jikan.getRandomAnime();
+        if (context.mounted) {
+          Navigator.pop(context); // Remove loading
+          Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId, isManga: false)),
+          );
+        }
+      } else {
+        // Random Manga
+        // Jikan v4 has a random manga endpoint
+        final mangaData = await _jikan.getTopManga(filter: 'bypopularity'); // Fallback if random isn't handy, but let's assume we can pick random from top
+        if (context.mounted) {
+          Navigator.pop(context);
+          if (mangaData.isNotEmpty) {
+             mangaData.shuffle();
+             Navigator.push(
+               context,
+               MaterialPageRoute(builder: (_) => DetailScreen(malId: mangaData.first.malId, isManga: true)),
+             );
+          }
+        }
       }
     } catch (e) {
       if (context.mounted) {
@@ -416,22 +478,90 @@ class _HomeTabState extends State<_HomeTab> {
           surfaceTintColor: Colors.transparent,
         ),
 
+        // ── Media Type Toggle ──
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => appState.setMode(AppMode.anime),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: appState.currentMode == AppMode.anime ? Colors.amber : Colors.transparent,
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Anime',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: appState.currentMode == AppMode.anime ? Colors.black : Colors.white70,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => appState.setMode(AppMode.manga),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: appState.currentMode == AppMode.manga ? Colors.amber : Colors.transparent,
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Manga',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: appState.currentMode == AppMode.manga ? Colors.black : Colors.white70,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
         if (_loading)
           const SliverFillRemaining(
               child: HomeShimmer())
         else ...[
           // Spotlight Carousel
-          if (_spotlight.isNotEmpty)
+          if (appState.currentMode == AppMode.anime && _spotlightAnime.isNotEmpty)
             SliverToBoxAdapter(
-              child: _SpotlightCarousel(spotlightAnime: _spotlight),
+              child: _SpotlightCarousel(spotlightItems: _spotlightAnime, isManga: false),
+            ),
+          if (appState.currentMode == AppMode.manga && _spotlightManga.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _SpotlightCarousel(spotlightItems: _spotlightManga, isManga: true),
             ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-          if (_trending.isNotEmpty) ...[
+          if (appState.currentMode == AppMode.anime && _trendingAnime.isNotEmpty) ...[
             const SliverToBoxAdapter(child: _SectionHeader(title: 'Trending')),
             SliverToBoxAdapter(
-              child: _TrendingList(trendingAnime: _trending),
+              child: _TrendingList(trendingItems: _trendingAnime, isManga: false),
+            ),
+          ],
+          if (appState.currentMode == AppMode.manga && _trendingManga.isNotEmpty) ...[
+            const SliverToBoxAdapter(child: _SectionHeader(title: 'Trending')),
+            SliverToBoxAdapter(
+              child: _TrendingList(trendingItems: _trendingManga, isManga: true),
             ),
           ],
 
@@ -442,23 +572,39 @@ class _HomeTabState extends State<_HomeTab> {
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
-          // Schedule Section
-          SliverToBoxAdapter(child: _ScheduleSection(jikanService: _jikan)),
+          // Schedule Section (Anime Only)
+          if (appState.currentMode == AppMode.anime)
+            SliverToBoxAdapter(child: _ScheduleSection(jikanService: _jikan)),
+
+          // Magazines Section (Manga Only)
+          if (appState.currentMode == AppMode.manga)
+            SliverToBoxAdapter(child: _MagazineSection(jikanService: _jikan)),
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
           // Top Upcoming List
-          if (_topUpcoming.isNotEmpty) 
+          if (appState.currentMode == AppMode.anime && _topUpcomingAnime.isNotEmpty) 
             SliverToBoxAdapter(
-              child: _TopUpcomingSection(upcomingAnime: _topUpcoming),
+              child: _TopUpcomingSection(upcomingItems: _topUpcomingAnime, isManga: false),
+            ),
+          if (appState.currentMode == AppMode.manga && _topUpcomingManga.isNotEmpty) 
+            SliverToBoxAdapter(
+              child: _TopUpcomingSection(upcomingItems: _topUpcomingManga, isManga: true),
             ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
           // Top 10 List
-          SliverToBoxAdapter(child: _TopTenSection(anilistService: _anilist)),
+          if (appState.currentMode == AppMode.anime) ...[
+            SliverToBoxAdapter(child: _TopTenSection(anilistService: _anilist, isManga: false)),
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          ],
+          if (appState.currentMode == AppMode.manga) ...[
+            SliverToBoxAdapter(child: _TopTenSection(jikanService: _jikan, isManga: true)),
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
       ],
     );
@@ -474,8 +620,9 @@ class _HomeTabState extends State<_HomeTab> {
 
 // ── Spotlight Carousel ────────────────────────────────────────────────────────
 class _SpotlightCarousel extends StatefulWidget {
-  final List<Anime> spotlightAnime;
-  const _SpotlightCarousel({required this.spotlightAnime});
+  final List<MediaBase> spotlightItems;
+  final bool isManga;
+  const _SpotlightCarousel({required this.spotlightItems, this.isManga = false});
 
   @override
   State<_SpotlightCarousel> createState() => _SpotlightCarouselState();
@@ -491,9 +638,9 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
   void initState() {
     super.initState();
     // Start in the middle to allow infinite scrolling in both directions
-    final initialPage = (_infinitePages ~/ 2) - ((_infinitePages ~/ 2) % (widget.spotlightAnime.isEmpty ? 1 : widget.spotlightAnime.length));
+    final initialPage = (_infinitePages ~/ 2) - ((_infinitePages ~/ 2) % (widget.spotlightItems.isEmpty ? 1 : widget.spotlightItems.length));
     _pageController = PageController(initialPage: initialPage);
-    _currentIndex = initialPage % (widget.spotlightAnime.isEmpty ? 1 : widget.spotlightAnime.length);
+    _currentIndex = initialPage % (widget.spotlightItems.isEmpty ? 1 : widget.spotlightItems.length);
     _startTimer();
   }
 
@@ -518,7 +665,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.spotlightAnime.isEmpty) return const SizedBox.shrink();
+    if (widget.spotlightItems.isEmpty) return const SizedBox.shrink();
     
     return SizedBox(
       height: 520, // Slightly taller for the card padding
@@ -527,14 +674,14 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
           PageView.builder(
             controller: _pageController,
             onPageChanged: (idx) {
-              setState(() => _currentIndex = idx % widget.spotlightAnime.length);
+              setState(() => _currentIndex = idx % widget.spotlightItems.length);
               // Reset timer on page change (manual or auto)
               _startTimer();
             },
             itemCount: _infinitePages,
             itemBuilder: (context, index) {
-              final isCurrent = (index % widget.spotlightAnime.length) == _currentIndex;
-              final anime = widget.spotlightAnime[index % widget.spotlightAnime.length];
+              final isCurrent = (index % widget.spotlightItems.length) == _currentIndex;
+              final item = widget.spotlightItems[index % widget.spotlightItems.length];
               
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -542,7 +689,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => DetailScreen(malId: anime.malId))),
+                          builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga))),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 400),
                     decoration: BoxDecoration(
@@ -563,7 +710,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                         fit: StackFit.expand,
                         children: [
                           PremiumImage(
-                            imageUrl: anime.displayImageUrl,
+                            imageUrl: item.displayImageUrl,
                             fit: BoxFit.cover,
                           ),
                           // Premium Multi-gradient System
@@ -604,25 +751,41 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.amber.withOpacity(0.5)),
-                                  ),
-                                  child: Text(
-                                    '#${(index % widget.spotlightAnime.length) + 1} Spotlight',
-                                    style: const TextStyle(
-                                      color: Colors.amber,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                                      ),
+                                      child: Text(
+                                        '#${(index % widget.spotlightItems.length) + 1} Spotlight',
+                                        style: const TextStyle(
+                                          color: Colors.amber,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    const Spacer(),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white24,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        '⭐ ${item.scoreText}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
-                                  anime.displayTitle,
+                                  item.displayTitle,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 28,
@@ -643,7 +806,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                                             context,
                                             MaterialPageRoute(
                                                 builder: (_) => DetailScreen(
-                                                    malId: anime.malId)));
+                                                    malId: item.malId, isManga: widget.isManga)));
                                       },
                                       icon: const Icon(Icons.play_circle_fill_rounded,
                                           color: Colors.black, size: 20),
@@ -666,7 +829,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                                                 context,
                                                 MaterialPageRoute(
                                                     builder: (_) => DetailScreen(
-                                                        malId: anime.malId)));
+                                                        malId: item.malId, isManga: widget.isManga)));
                                           },
                                           icon: const Icon(Icons.info_outline_rounded,
                                               color: Colors.white, size: 20),
@@ -701,7 +864,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                widget.spotlightAnime.length.clamp(0, 10), // Limit dots for layout
+                widget.spotlightItems.length.clamp(0, 10), // Limit dots for layout
                 (index) => AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   margin: const EdgeInsets.symmetric(vertical: 5),
@@ -725,8 +888,9 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
 
 // ── Trending List ─────────────────────────────────────────────────────────────
 class _TrendingList extends StatelessWidget {
-  final List<Anime> trendingAnime;
-  const _TrendingList({required this.trendingAnime});
+  final List<MediaBase> trendingItems;
+  final bool isManga;
+  const _TrendingList({required this.trendingItems, this.isManga = false});
 
   @override
   Widget build(BuildContext context) {
@@ -735,86 +899,93 @@ class _TrendingList extends StatelessWidget {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: trendingAnime.length,
+        itemCount: trendingItems.length,
         itemBuilder: (context, index) {
-          final anime = trendingAnime[index];
+          final item = trendingItems[index];
           final String numStr = (index + 1).toString().padLeft(2, '0');
 
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => DetailScreen(malId: anime.malId),
-                ),
-              );
-            },
-            child: Container(
-              width: 140,
-              margin: const EdgeInsets.only(right: 12),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    PremiumImage(
-                      imageUrl: anime.displayImageUrl,
-                      fit: BoxFit.cover,
+          return Container(
+            width: 140,
+            margin: const EdgeInsets.only(right: 12),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  PremiumImage(
+                    imageUrl: item.displayImageUrl,
+                    fit: BoxFit.cover,
+                  ),
+                  // Rank Overlay
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.only(
+                            bottomRight: Radius.circular(12)),
+                      ),
+                      child: Text(
+                        numStr,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
-                    // Rank Overlay
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: const BoxDecoration(
+                  ),
+                  // Title Overlay at bottom
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.8),
+                          ],
+                        ),
+                      ),
+                      child: Text(
+                        item.displayTitle,
+                        style: const TextStyle(
                           color: Colors.white,
-                          borderRadius: BorderRadius.only(
-                              bottomRight: Radius.circular(12)),
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
-                        child: Text(
-                          numStr,
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Title Overlay at bottom
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.8),
-                            ],
-                          ),
-                        ),
-                        child: Text(
-                          anime.displayTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                  ),
+                  
+                  // Top-level InkWell to ensure click-ability on Web
+                  Positioned.fill(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DetailScreen(malId: item.malId, isManga: isManga),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );
@@ -934,6 +1105,7 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
   bool _loading = false;
   bool _isExpanded = false;
   Timer? _timer;
+  final ScrollController _dayScrollController = ScrollController();
 
   @override
   void initState() {
@@ -950,6 +1122,7 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
   @override
   void dispose() {
     _timer?.cancel();
+    _dayScrollController.dispose();
     super.dispose();
   }
 
@@ -996,116 +1169,180 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
     }
   }
 
+  void _scrollDays(bool right) {
+    final offset = right ? _dayScrollController.offset + 150 : _dayScrollController.offset - 150;
+    _dayScrollController.animateTo(
+      offset.clamp(0.0, _dayScrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Top fake time
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
-          child: Center(
-            child: Text(
-              _formatCurrentTime(),
-              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Days scroller
-        SizedBox(
-          height: 80,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _days.length,
-            itemBuilder: (context, index) {
-              final day = _days[index];
-              final isSelected = _selectedDay == day;
-              final baseDate = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
-              final dateForDay = baseDate.add(Duration(days: index));
-              final suffixStr = '${_formatMonth(dateForDay.month)} ${dateForDay.day}';
-
-              return GestureDetector(
-                onTap: () => _fetchSchedule(day),
-                child: Container(
-                  width: 80,
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.amber[200] : colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _formatDayForUI(day),
-                        style: TextStyle(
-                          color: isSelected ? Colors.black : Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        suffixStr,
-                        style: TextStyle(
-                          color: isSelected ? Colors.black54 : Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+        // Header: Title and Live Clock
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Estimated Schedule',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber[200],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _formatCurrentTime(),
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
                   ),
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+
+        // Day Selector with Arrows
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              height: 70,
+              child: ListView.builder(
+                controller: _dayScrollController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 48),
+                itemCount: _days.length,
+                itemBuilder: (context, index) {
+                  final day = _days[index];
+                  final isSelected = _selectedDay == day;
+                  final now = DateTime.now();
+                  final baseDate = now.subtract(Duration(days: now.weekday - 1));
+                  final dateForDay = baseDate.add(Duration(days: index));
+                  final suffixStr = '${_formatMonth(dateForDay.month)} ${dateForDay.day}';
+
+                  return GestureDetector(
+                    onTap: () => _fetchSchedule(day),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 90,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.amber : colorScheme.surfaceVariant.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _formatDayForUI(day),
+                            style: TextStyle(
+                              color: isSelected ? Colors.black : Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            suffixStr,
+                            style: TextStyle(
+                              color: isSelected ? Colors.black54 : Colors.white54,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Arrows
+            Positioned(
+              left: 8,
+              child: _ScrollArrow(onTap: () => _scrollDays(false), icon: Icons.chevron_left_rounded),
+            ),
+            Positioned(
+              right: 8,
+              child: _ScrollArrow(onTap: () => _scrollDays(true), icon: Icons.chevron_right_rounded),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
         // Schedule List
         if (_loading)
           const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
+        else if (_scheduledAnime.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: Text('No programs scheduled for this day.', style: TextStyle(color: Colors.white54))),
+          )
         else
           Column(
             children: [
-              AnimatedSize(
-                duration: const Duration(milliseconds: 300),
-                alignment: Alignment.topCenter,
-                curve: Curves.easeInOut,
-                child: ListView.separated(
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _isExpanded ? _scheduledAnime.length : _scheduledAnime.take(6).length,
-                  separatorBuilder: (_, __) => Divider(color: Colors.white.withOpacity(0.05), height: 32),
-                  itemBuilder: (context, index) {
-                    final anime = _scheduledAnime[index];
-                    final timeObj = DateTime.fromMillisecondsSinceEpoch(anime.airingAt * 1000);
-                    final timeStr = '${timeObj.hour.toString().padLeft(2, '0')}:${timeObj.minute.toString().padLeft(2, '0')}';
+              ListView.separated(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _isExpanded ? _scheduledAnime.length : _scheduledAnime.take(7).length,
+                separatorBuilder: (_, __) => Divider(color: Colors.white.withOpacity(0.05), height: 1),
+                itemBuilder: (context, index) {
+                  final anime = _scheduledAnime[index];
+                  final timeObj = DateTime.fromMillisecondsSinceEpoch(anime.airingAt * 1000);
+                  final timeStr = '${timeObj.hour.toString().padLeft(2, '0')}:${timeObj.minute.toString().padLeft(2, '0')}';
 
-                    return GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.idMal))),
+                  return InkWell(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.idMal))),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Row(
                         children: [
                           SizedBox(
-                            width: 55,
-                            child: Text(timeStr, style: const TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
+                            width: 60,
+                            child: Text(timeStr, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                           ),
                           Expanded(
-                            child: Text(anime.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              anime.title, 
+                              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15, color: Colors.white),
+                              maxLines: 2, 
+                              overflow: TextOverflow.ellipsis
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          Text('▶ Ep ${anime.episode}', style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold)),
+                          const SizedBox(width: 12),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.play_arrow_rounded, color: Colors.white54, size: 16),
+                              const SizedBox(width: 4),
+                              Text('Episode ${anime.episode}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
                         ],
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
-              if (_scheduledAnime.length > 6)
+              if (_scheduledAnime.length > 7)
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
                   child: TextButton.icon(
@@ -1122,7 +1359,9 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
 
   String _formatCurrentTime() {
     final now = DateTime.now();
-    return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
+    final h = now.hour == 0 ? 12 : (now.hour > 12 ? now.hour - 12 : now.hour);
+    final amPm = now.hour >= 12 ? 'PM' : 'AM';
+    return '${h.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} $amPm';
   }
 
   String _formatMonth(int m) {
@@ -1131,10 +1370,268 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
   }
 }
 
+class _ScrollArrow extends StatelessWidget {
+  final VoidCallback onTap;
+  final IconData icon;
+  const _ScrollArrow({required this.onTap, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Icon(icon, color: Colors.black, size: 20),
+      ),
+    );
+  }
+}
+
+// ── Magazine Section (Manga Home) ──────────────────────────────────────────────
+class _MagazineSection extends StatefulWidget {
+  final JikanService jikanService;
+  const _MagazineSection({required this.jikanService});
+
+  @override
+  State<_MagazineSection> createState() => _MagazineSectionState();
+}
+
+class _MagazineSectionState extends State<_MagazineSection> {
+  List<MangaMagazine> _magazines = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMagazines();
+  }
+
+  Future<void> _fetchMagazines() async {
+    try {
+      final list = await widget.jikanService.getMagazines();
+      if (mounted) {
+        setState(() {
+          _magazines = list.take(8).toList(); // Reduced for faster, more reliable load
+        });
+        
+        // Fetch covers sequentially to avoid Jikan 429 Rate Limits
+        for (final mag in _magazines) {
+          if (!mounted || appState.currentMode != AppMode.manga) break;
+          
+          final cover = await widget.jikanService.getMagazineCover(mag.malId);
+          if (mounted) {
+            setState(() {
+              mag.imageUrl = cover;
+            });
+          }
+          // Small staggered delay between magazines to stay under Jikan's 3req/sec limit
+          await Future.delayed(const Duration(milliseconds: 600));
+        }
+        
+        if (mounted) setState(() => _loading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8, bottom: 32),
+        child: MagazineShimmer(),
+      );
+    }
+    if (_magazines.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: _SectionHeader(title: 'Top Magazines'),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 220, // Increased height for the new aspect ratio
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _magazines.length,
+            itemBuilder: (context, index) {
+              final mag = _magazines[index];
+              // Use different gradients to simulate unique magazine covers
+              final gradients = [
+                [const Color(0xFF6448FE), const Color(0xFF5FC6FF)],
+                [const Color(0xFFFE485B), const Color(0xFFFE9A5F)],
+                [const Color(0xFF48FE9B), const Color(0xFF5FFF9B)],
+                [const Color(0xFF9048FE), const Color(0xFFE55FFF)],
+              ];
+              final gradient = gradients[index % gradients.length];
+
+              return Container(
+                width: 160, 
+                margin: const EdgeInsets.only(right: 16),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Stack(
+                    children: [
+                      // Background Cover
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: mag.imageUrl != null 
+                          ? PremiumImage(
+                              imageUrl: mag.imageUrl!,
+                              title: mag.name,
+                              height: double.infinity,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: gradient,
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: Opacity(
+                                opacity: 0.15,
+                                child: Center(
+                                  child: Icon(Icons.auto_stories_rounded, size: 80, color: Colors.white.withOpacity(0.5)),
+                                ),
+                              ),
+                            ),
+                      ),
+                      
+                      // Subtle dynamic overlay for better text legibility
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withOpacity(0.1),
+                              Colors.black.withOpacity(0.4),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      // Top Right Arrow Button
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.north_east_rounded, size: 14, color: Colors.white),
+                        ),
+                      ),
+  
+                      // Frosted Glass Footer
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3),
+                                border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Stars
+                                  Row(
+                                    children: List.generate(5, (i) => Icon(
+                                      Icons.star_rounded, 
+                                      size: 10, 
+                                      color: i < 4 ? Colors.amber : Colors.white24
+                                    )),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    mag.name,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    '${mag.count} titles',
+                                    style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.6)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Click Overlay (Ensures reactivity on Web/CORS images)
+                      Positioned.fill(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MagazineBrowseScreen(
+                                  magazineId: mag.malId,
+                                  magazineName: mag.name,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Top Upcoming Section ──────────────────────────────────────────────────────
 class _TopUpcomingSection extends StatefulWidget {
-  final List<Anime> upcomingAnime;
-  const _TopUpcomingSection({required this.upcomingAnime});
+  final List<MediaBase> upcomingItems;
+  final bool isManga;
+  const _TopUpcomingSection({required this.upcomingItems, this.isManga = false});
 
   @override
   State<_TopUpcomingSection> createState() => _TopUpcomingSectionState();
@@ -1145,7 +1642,7 @@ class _TopUpcomingSectionState extends State<_TopUpcomingSection> {
 
   @override
   Widget build(BuildContext context) {
-    final itemsToShow = _isExpanded ? widget.upcomingAnime : widget.upcomingAnime.take(4).toList();
+    final itemsToShow = _isExpanded ? widget.upcomingItems : widget.upcomingItems.take(4).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1168,36 +1665,48 @@ class _TopUpcomingSectionState extends State<_TopUpcomingSection> {
             child: Wrap(
               spacing: 12,
               runSpacing: 16,
-              children: itemsToShow.map((anime) {
+              children: itemsToShow.map((item) {
                 final width = (MediaQuery.of(context).size.width - 32 - 12) / 2;
-                return GestureDetector(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId))),
-                  child: SizedBox(
-                    width: width,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                return SizedBox(
+                  width: width,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Stack(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: PremiumImage(
-                            imageUrl: anime.displayImageUrl,
-                            title: anime.displayTitle,
-                            height: width * 1.4,
-                            width: width,
-                            fit: BoxFit.cover,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            PremiumImage(
+                              imageUrl: item.displayImageUrl,
+                              title: item.displayTitle,
+                              height: width * 1.4,
+                              width: width,
+                              fit: BoxFit.cover,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              item.displayTitle,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              item.mediaProgressText,
+                              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        // Transparent InkWell overlay
+                        Positioned.fill(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga))),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          anime.displayTitle,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${anime.type ?? 'TV'} (${anime.episodes?.toString() ?? '?'} eps)',
-                          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
                         ),
                       ],
                     ),
@@ -1214,8 +1723,10 @@ class _TopUpcomingSectionState extends State<_TopUpcomingSection> {
 
 // ── Top 10 Section ───────────────────────────────────────────────────────────
 class _TopTenSection extends StatefulWidget {
-  final AnilistService anilistService;
-  const _TopTenSection({required this.anilistService});
+  final AnilistService? anilistService;
+  final JikanService? jikanService;
+  final bool isManga;
+  const _TopTenSection({this.anilistService, this.jikanService, this.isManga = false});
 
   @override
   State<_TopTenSection> createState() => _TopTenSectionState();
@@ -1223,7 +1734,7 @@ class _TopTenSection extends StatefulWidget {
 
 class _TopTenSectionState extends State<_TopTenSection> {
   String _activeTab = 'Today';
-  List<Anime> _topList = [];
+  List<MediaBase> _topList = [];
   bool _loading = false;
 
   @override
@@ -1238,20 +1749,35 @@ class _TopTenSectionState extends State<_TopTenSection> {
       _loading = true;
     });
     try {
-      List<Map<String, dynamic>> rawList;
-      if (tab == 'Today') {
-        rawList = await widget.anilistService.getTrendingAnime(); 
-      } else if (tab == 'Week') {
-        rawList = await widget.anilistService.getSeasonalAnime();
+      if (widget.isManga) {
+        String? filter;
+        if (tab == 'Today') filter = 'bypopularity';
+        if (tab == 'Week') filter = 'publishing';
+        if (tab == 'Month') filter = 'favorite';
+        
+        final list = await widget.jikanService!.getTopManga(filter: filter);
+        if (mounted) {
+          setState(() {
+            _topList = list;
+            _loading = false;
+          });
+        }
       } else {
-        rawList = await widget.anilistService.getTopUpcomingAnime();
-      }
+        List<Map<String, dynamic>> rawList;
+        if (tab == 'Today') {
+          rawList = await widget.anilistService!.getTrendingAnime(); 
+        } else if (tab == 'Week') {
+          rawList = await widget.anilistService!.getSeasonalAnime();
+        } else {
+          rawList = await widget.anilistService!.getTopRatedAnime();
+        }
 
-      if (mounted) {
-        setState(() {
-          _topList = rawList.map((e) => Anime.fromAniList(e)).toList();
-          _loading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _topList = rawList.map((e) => Anime.fromAniList(e)).toList();
+            _loading = false;
+          });
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -1267,6 +1793,7 @@ class _TopTenSectionState extends State<_TopTenSection> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
@@ -1305,6 +1832,7 @@ class _TopTenSectionState extends State<_TopTenSection> {
              const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
           else
              ListView.builder(
+               padding: EdgeInsets.zero,
                physics: const NeverScrollableScrollPhysics(),
                shrinkWrap: true,
                itemCount: _topList.take(10).length,
@@ -1314,7 +1842,7 @@ class _TopTenSectionState extends State<_TopTenSection> {
                  return GestureDetector(
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId))),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Row(
                         children: [
                           // Large rank text
@@ -1361,7 +1889,7 @@ class _TopTenSectionState extends State<_TopTenSection> {
                                          children: [
                                            const Icon(Icons.closed_caption, size: 12, color: Colors.black),
                                            const SizedBox(width: 4),
-                                           Text('${anime.episodes ?? '?'}', style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
+                                           Text('${anime.mediaProgressText.split(' ').first}', style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
                                          ],
                                        )
                                      ),
@@ -1388,7 +1916,7 @@ class _TopTenSectionState extends State<_TopTenSection> {
                  );
                }
              ),
-             const SizedBox(height: 16),
+             const SizedBox(height: 8),
         ],
       )
     );

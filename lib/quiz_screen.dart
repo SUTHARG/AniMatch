@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'anime.dart';           // ← was 'lib/models/anime.dart'
-import 'jikan_service.dart';   // ← was '../services/jikan_service.dart'
-import 'firebase_service.dart';// ← was '../services/firebase_service.dart'
+import 'app_state.dart';
+import 'media_base.dart';
+import 'anime.dart';
+import 'manga.dart';
+import 'jikan_service.dart';
+import 'firebase_service.dart';
 import 'results_screen.dart';
 import 'floating_notification.dart';
 
@@ -59,15 +62,28 @@ class _QuizScreenState extends State<QuizScreen>
   ];
 
   static const _episodeRanges = [
-    {'value': 'short', 'label': 'Short', 'sub': 'Under 13 episodes', 'emoji': '⚡'},
-    {'value': 'medium', 'label': 'Medium', 'sub': '13 - 50 episodes', 'emoji': '📺'},
-    {'value': 'long', 'label': 'Long', 'sub': '50+ episodes', 'emoji': '🔥'},
+    {'value': 'short', 'label': 'Short', 'sub': 'Under 13 eps', 'emoji': '⚡'},
+    {'value': 'medium', 'label': 'Medium', 'sub': '13 - 50 eps', 'emoji': '📚'},
+    {'value': 'long', 'label': 'Long', 'sub': '50+ eps', 'emoji': '🔥'},
     {'value': 'any', 'label': 'Any length', 'sub': "I don't mind", 'emoji': '🎲'},
   ];
 
-  static const _statuses = [
-    {'value': 'completed', 'label': 'Completed', 'sub': 'Fully released', 'emoji': '✅'},
+  static const _chapterRanges = [
+    {'value': 'short', 'label': 'Short', 'sub': 'Under 20 chapters', 'emoji': '⚡'},
+    {'value': 'medium', 'label': 'Medium', 'sub': '20 - 100 chapters', 'emoji': '📚'},
+    {'value': 'long', 'label': 'Long', 'sub': '100+ chapters', 'emoji': '🔥'},
+    {'value': 'any', 'label': 'Any length', 'sub': "I don't mind", 'emoji': '🎲'},
+  ];
+
+  static const _animeStatuses = [
+    {'value': 'completed', 'label': 'Completed', 'sub': 'Fully aired', 'emoji': '✅'},
     {'value': 'ongoing', 'label': 'Ongoing', 'sub': 'Currently airing', 'emoji': '📡'},
+    {'value': 'any', 'label': 'Either', 'sub': "Doesn't matter", 'emoji': '🎯'},
+  ];
+
+  static const _mangaStatuses = [
+    {'value': 'completed', 'label': 'Completed', 'sub': 'Finished publishing', 'emoji': '✅'},
+    {'value': 'ongoing', 'label': 'Ongoing', 'sub': 'Still publishing', 'emoji': '📡'},
     {'value': 'any', 'label': 'Either', 'sub': "Doesn't matter", 'emoji': '🎯'},
   ];
 
@@ -129,20 +145,29 @@ class _QuizScreenState extends State<QuizScreen>
       genres: _selectedGenres,
       episodeRange: _selectedEpisodeRange!,
       status: _selectedStatus!,
+      isManga: appState.currentMode == AppMode.manga,
     );
 
     // Save to Firebase (non-blocking)
     _firebase.saveQuizAnswers(answers).catchError((_) {});
 
     try {
-      final results = await _jikan.getRecommendations(answers);
+      final isManga = appState.currentMode == AppMode.manga;
+      final List<MediaBase> results;
+      if (isManga) {
+        results = await _jikan.getMangaRecommendations(answers);
+      } else {
+        results = await _jikan.getRecommendations(answers);
+      }
+      
       if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ResultsScreen(
-            anime: results,
+            media: results,
             quizAnswers: answers,
+            isManga: isManga,
           ),
         ),
       );
@@ -167,7 +192,7 @@ class _QuizScreenState extends State<QuizScreen>
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Find Your Anime'),
+        title: Text(appState.currentMode == AppMode.manga ? 'Find Your Manga' : 'Find Your Anime'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: _currentStep > 0
@@ -245,17 +270,17 @@ class _QuizScreenState extends State<QuizScreen>
         );
       case 2:
         return _OptionStep(
-          question: 'How long do you want it?',
-          subtitle: 'Pick a series length',
-          options: _episodeRanges,
+          question: appState.currentMode == AppMode.manga ? 'How long should the journey be?' : 'How long do you want it?',
+          subtitle: appState.currentMode == AppMode.manga ? 'Pick a chapter count preference' : 'Pick a series length',
+          options: appState.currentMode == AppMode.manga ? _chapterRanges : _episodeRanges,
           selected: _selectedEpisodeRange,
           onSelect: (v) => setState(() => _selectedEpisodeRange = v),
         );
       case 3:
         return _OptionStep(
           question: 'Completed or ongoing?',
-          subtitle: 'Do you prefer finished series?',
-          options: _statuses,
+          subtitle: appState.currentMode == AppMode.manga ? 'Do you prefer finished manga?' : 'Do you prefer finished series?',
+          options: appState.currentMode == AppMode.manga ? _mangaStatuses : _animeStatuses,
           selected: _selectedStatus,
           onSelect: (v) => setState(() => _selectedStatus = v),
         );

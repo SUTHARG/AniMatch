@@ -1,21 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:untitled1/anilist_service.dart';
+import 'media_base.dart';
+import 'manga.dart';
 import 'anime.dart';
 import 'firebase_service.dart';
+import 'anilist_service.dart';
 import 'detail_screen.dart';
 import 'login_screen.dart';
 import 'floating_notification.dart';
-import 'image_utils.dart';
+import 'image_utils.dart'; // For PremiumImage
 
-class ResultsScreen extends StatelessWidget {
-  final List<Anime> anime;
+class ResultsScreen extends StatefulWidget {
+  final List<MediaBase> media;
   final QuizAnswers quizAnswers;
+  final bool isManga;
 
   const ResultsScreen({
     super.key,
-    required this.anime,
+    required this.media,
     required this.quizAnswers,
+    this.isManga = false,
   });
+
+  @override
+  State<ResultsScreen> createState() => _ResultsScreenState();
+}
+
+class _ResultsScreenState extends State<ResultsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _saveQuiz();
+  }
+
+  Future<void> _saveQuiz() async {
+    await FirebaseService().saveQuizAnswers(widget.quizAnswers);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,22 +55,22 @@ class ResultsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: anime.isEmpty
-          ? _EmptyState(mood: quizAnswers.mood)
+      body: widget.media.isEmpty
+          ? _EmptyState(mood: widget.quizAnswers.mood, isManga: widget.isManga)
           : Column(
               children: [
                 // Summary chip row
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: _SummaryChips(answers: quizAnswers),
+                  child: _SummaryChips(answers: widget.quizAnswers),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '${anime.length} anime found',
+                      '${widget.media.length} ${widget.isManga ? 'manga' : 'anime'} found',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -63,15 +82,14 @@ class ResultsScreen extends StatelessWidget {
                   child: GridView.builder(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 4),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                       childAspectRatio: 0.58,
                     ),
-                    itemCount: anime.length,
-                    itemBuilder: (_, i) => _AnimeCard(anime: anime[i]),
+                    itemCount: widget.media.length,
+                    itemBuilder: (_, i) => _MediaCard(media: widget.media[i], isManga: widget.isManga),
                   ),
                 ),
               ],
@@ -112,25 +130,26 @@ class _SummaryChips extends StatelessWidget {
   }
 }
 
-class _AnimeCard extends StatefulWidget {
-  final Anime anime;
-  const _AnimeCard({required this.anime});
+class _MediaCard extends StatefulWidget {
+  final MediaBase media;
+  final bool isManga;
+  const _MediaCard({required this.media, required this.isManga});
 
   @override
-  State<_AnimeCard> createState() => _AnimeCardState();
+  State<_MediaCard> createState() => _MediaCardState();
 }
 
-class _AnimeCardState extends State<_AnimeCard> {
+class _MediaCardState extends State<_MediaCard> {
   final FirebaseService _firebase = FirebaseService();
   final AnilistService _anilist = AnilistService();
-  bool _inWatchlist = false;
+  bool _inList = false;
   String? _anilistImageUrl;
   bool _loadingAnilist = false;
 
   @override
   void initState() {
     super.initState();
-    _checkWatchlist();
+    _checkInList();
     _loadAnilistImage();
   }
 
@@ -139,11 +158,11 @@ class _AnimeCardState extends State<_AnimeCard> {
     setState(() => _loadingAnilist = true);
     
     // Stage 1: Try by MAL ID
-    String? url = await _anilist.getCoverImageByMalId(widget.anime.malId);
+    String? url = await _anilist.getCoverImageByMalId(widget.media.malId).timeout(const Duration(seconds: 2), onTimeout: () => null);
     
     // Stage 2: Try by Title if ID fails
     if (url == null && mounted) {
-      url = await _anilist.getCoverImageByTitle(widget.anime.displayTitle);
+      url = await _anilist.getCoverImageByTitle(widget.media.displayTitle).timeout(const Duration(seconds: 2), onTimeout: () => null);
     }
 
     if (mounted) {
@@ -154,18 +173,18 @@ class _AnimeCardState extends State<_AnimeCard> {
     }
   }
 
-  Future<void> _checkWatchlist() async {
+  Future<void> _checkInList() async {
     if (!_firebase.isLoggedIn) return;
-    final result = await _firebase.isInWatchlist(widget.anime.malId);
-    if (mounted) setState(() => _inWatchlist = result);
+    final result = await _firebase.isInWatchlist(widget.media.malId, isManga: widget.isManga);
+    if (mounted) setState(() => _inList = result);
   }
 
-  Future<void> _toggleWatchlist() async {
+  Future<void> _toggleList() async {
     if (!_firebase.isLoggedIn) {
       FloatingNotification.show(
         context,
         title: 'Authentication Required',
-        message: 'Log in to save this anime to your watchlist',
+        message: 'Log in to save this ${widget.isManga ? "manga" : "anime"} to your list',
         icon: Icons.lock_outline_rounded,
         actionLabel: 'Login',
         onAction: () {
@@ -177,12 +196,16 @@ class _AnimeCardState extends State<_AnimeCard> {
       );
       return;
     }
-    if (_inWatchlist) {
-      await _firebase.removeFromWatchlist(widget.anime.malId);
+    if (_inList) {
+      await _firebase.removeFromWatchlist(widget.media.malId, isManga: widget.isManga);
     } else {
-      await _firebase.addToWatchlist(widget.anime);
+      if (widget.isManga) {
+        await _firebase.addMangaToWatchlist(widget.media as Manga);
+      } else {
+        await _firebase.addToWatchlist(widget.media as Anime);
+      }
     }
-    if (mounted) setState(() => _inWatchlist = !_inWatchlist);
+    if (mounted) setState(() => _inList = !_inList);
   }
 
   @override
@@ -194,7 +217,7 @@ class _AnimeCardState extends State<_AnimeCard> {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => DetailScreen(malId: widget.anime.malId),
+          builder: (_) => DetailScreen(malId: widget.media.malId, isManga: widget.isManga),
         ),
       ),
       child: Container(
@@ -224,12 +247,12 @@ class _AnimeCardState extends State<_AnimeCard> {
                     )
                   else
                     PremiumImage(
-                      imageUrl: _anilistImageUrl ?? widget.anime.displayImageUrl,
-                      title: widget.anime.displayTitle,
+                      imageUrl: _anilistImageUrl ?? widget.media.displayImageUrl,
+                      title: widget.media.displayTitle,
                       fit: BoxFit.cover,
                     ),
                   // Score badge
-                  if (widget.anime.score != null)
+                  if (widget.media.score != null)
                     Positioned(
                       top: 8,
                       left: 8,
@@ -243,12 +266,12 @@ class _AnimeCardState extends State<_AnimeCard> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.star_rounded,
+                            Icon(Icons.star_rounded,
                                 size: 12, color: Color(0xFFFFD700)),
                             const SizedBox(width: 3),
                             Text(
-                              widget.anime.scoreText,
-                              style: const TextStyle(
+                              widget.media.scoreText,
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
@@ -258,12 +281,12 @@ class _AnimeCardState extends State<_AnimeCard> {
                         ),
                       ),
                     ),
-                  // Watchlist button
+                  // List button
                   Positioned(
                     top: 6,
                     right: 6,
                     child: GestureDetector(
-                      onTap: _toggleWatchlist,
+                      onTap: _toggleList,
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
@@ -271,11 +294,11 @@ class _AnimeCardState extends State<_AnimeCard> {
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          _inWatchlist
+                          _inList
                               ? Icons.bookmark_rounded
                               : Icons.bookmark_border_rounded,
                           size: 16,
-                          color: _inWatchlist
+                          color: _inList
                               ? colorScheme.primary
                               : Colors.white,
                         ),
@@ -292,7 +315,7 @@ class _AnimeCardState extends State<_AnimeCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.anime.displayTitle,
+                    widget.media.displayTitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -302,15 +325,15 @@ class _AnimeCardState extends State<_AnimeCard> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    widget.anime.episodeText,
+                    widget.media.mediaProgressText,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  if (widget.anime.genres.isNotEmpty) ...[
+                  if (widget.media.genres.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
-                      widget.anime.genres.take(2).join(' · '),
+                      widget.media.genres.take(2).join(' · '),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.primary,
                         fontSize: 11,
@@ -331,7 +354,8 @@ class _AnimeCardState extends State<_AnimeCard> {
 
 class _EmptyState extends StatelessWidget {
   final String mood;
-  const _EmptyState({required this.mood});
+  final bool isManga;
+  const _EmptyState({required this.mood, required this.isManga});
 
   @override
   Widget build(BuildContext context) {
@@ -344,14 +368,14 @@ class _EmptyState extends StatelessWidget {
             const Text('😔', style: TextStyle(fontSize: 64)),
             const SizedBox(height: 16),
             Text(
-              'No anime found',
+              'No ${isManga ? "manga" : "anime"} found',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Try broadening your genre selection or changing the episode range.',
+              'Try broadening your genre selection or changing the length preference.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

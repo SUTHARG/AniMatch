@@ -16,14 +16,14 @@ class ShimmerSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: Colors.white.withOpacity(0.1),
-      highlightColor: Colors.white.withOpacity(0.2),
+      baseColor: Colors.white.withValues(alpha: 0.4),
+      highlightColor: Colors.white.withValues(alpha: 0.8),
       period: const Duration(milliseconds: 1500),
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(borderRadius),
         ),
       ),
@@ -202,15 +202,15 @@ class MagazineShimmer extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 220,
+          height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: 4,
             physics: const NeverScrollableScrollPhysics(),
             itemBuilder: (_, __) => Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: ShimmerSkeleton(width: 160, height: 220, borderRadius: 24),
+              padding: const EdgeInsets.only(right: 12),
+              child: ShimmerSkeleton(width: 140, height: 200, borderRadius: 12),
             ),
           ),
         ),

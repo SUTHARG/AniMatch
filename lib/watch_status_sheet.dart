@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
-import 'anime.dart';
-import 'floating_notification.dart';
-
 import 'media_base.dart';
-import 'manga.dart';
+import 'utils/snackbar_utils.dart' as snacks;
 
 /// Shows a bottom sheet to pick / change watch or read status.
 /// Returns the chosen status enum or null if dismissed.
@@ -41,8 +39,9 @@ class _MediaStatusSheetState extends State<_MediaStatusSheet> {
   dynamic _selected;
   bool _saving = false;
 
-  // Config for each status option
   late final List<_StatusOption> _options;
+
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
   @override
   void initState() {
@@ -119,7 +118,9 @@ class _MediaStatusSheetState extends State<_MediaStatusSheet> {
   }
 
   Future<void> _save(dynamic status) async {
-    if (!_firebase.isLoggedIn) {
+    final uid = _uid;
+    if (uid == null) {
+      snacks.showError(context, 'Please sign in to save');
       Navigator.pop(context);
       return;
     }
@@ -127,38 +128,56 @@ class _MediaStatusSheetState extends State<_MediaStatusSheet> {
     setState(() { _selected = status; _saving = true; });
 
     try {
-      final alreadyIn = await _firebase.isInWatchlist(widget.media.malId, isManga: widget.isManga);
       if (widget.isManga) {
+        final alreadyIn = await _firebase.isInMangaWatchlist(uid, widget.media.malId);
         if (alreadyIn) {
-          await _firebase.updateMangaWatchStatus(widget.media.malId, status as ReadStatus);
+          await _firebase.updateMangaWatchStatus(uid, widget.media.malId, (status as ReadStatus).name);
         } else {
-          await _firebase.addMangaToWatchlist(widget.media as Manga, status: status as ReadStatus);
+          final Map<String, dynamic> data = {
+            'malId': widget.media.malId,
+            'title': widget.media.displayTitle,
+            'imageUrl': widget.media.displayImageUrl,
+            'score': widget.media.score,
+            'status': (status as ReadStatus).name,
+            'type': 'manga',
+          };
+          await _firebase.addToMangaWatchlist(uid, data);
         }
       } else {
+        final alreadyIn = await _firebase.isInWatchlist(uid, widget.media.malId);
         if (alreadyIn) {
-          await _firebase.updateWatchStatus(widget.media.malId, status as WatchStatus);
+          await _firebase.updateWatchStatus(uid, widget.media.malId, (status as WatchStatus).name);
         } else {
-          await _firebase.addToWatchlist(widget.media as Anime, status: status as WatchStatus);
+          final Map<String, dynamic> data = {
+            'malId': widget.media.malId,
+            'title': widget.media.displayTitle,
+            'imageUrl': widget.media.displayImageUrl,
+            'score': widget.media.score,
+            'status': (status as WatchStatus).name,
+            'type': 'anime',
+          };
+          await _firebase.addToWatchlist(uid, data);
         }
       }
       if (mounted) Navigator.pop(context, status);
     } catch (e) {
       if (mounted) {
-        FloatingNotification.show(
-          context,
-          title: 'Update Failed',
-          message: 'Could not update your watchlist. Try again.',
-          icon: Icons.sync_problem_rounded,
-        );
+        snacks.showError(context, 'Could not update your watchlist. Try again.');
         setState(() => _saving = false);
       }
     }
   }
 
   Future<void> _remove() async {
+    final uid = _uid;
+    if (uid == null) return;
     setState(() => _saving = true);
     try {
-      await _firebase.removeFromWatchlist(widget.media.malId, isManga: widget.isManga);
+      if (widget.isManga) {
+        await _firebase.removeFromMangaWatchlist(uid, widget.media.malId);
+      } else {
+        await _firebase.removeFromWatchlist(uid, widget.media.malId);
+      }
       if (mounted) Navigator.pop(context, null);
     } catch (_) {
       if (mounted) setState(() => _saving = false);
@@ -303,8 +322,8 @@ class _StatusTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isSelected
-              ? option.color.withOpacity(0.12)
-              : colorScheme.surfaceVariant.withOpacity(0.4),
+              ? option.color.withValues(alpha: 0.12)
+              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected ? option.color : Colors.transparent,
@@ -317,7 +336,7 @@ class _StatusTile extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: option.color.withOpacity(0.15),
+                color: option.color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(option.icon, color: option.color, size: 22),

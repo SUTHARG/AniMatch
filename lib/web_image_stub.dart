@@ -1,21 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-class WebImageWidget extends StatelessWidget {
-  final String imageUrl;
-  final BoxFit fit;
-
-  const WebImageWidget({
-    super.key,
-    required this.imageUrl,
-    this.fit = BoxFit.cover,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox.shrink(); // No-op on mobile
-  }
-}
-
-void registerWebImageFactory() {
-  // No-op on mobile
+Widget buildWebImage({required String imageUrl, BoxFit fit = BoxFit.cover}) {
+  return CachedNetworkImage(
+    imageUrl: imageUrl,
+    fit: fit,
+    placeholder: (context, url) => Container(color: Colors.grey[900]),
+    errorWidget: (context, url, error) => const Icon(Icons.error),
+  );
 }

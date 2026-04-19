@@ -172,10 +172,11 @@ class AnilistService {
   }
 
   /// Get CORS-friendly cover image from AniList by MAL ID
-  Future<String?> getCoverImageByMalId(int idMal) async {
-    const String query = '''
+  Future<String?> getCoverImageByMalId(int idMal, {bool isManga = false}) async {
+    final String typeStr = isManga ? 'MANGA' : 'ANIME';
+    final String query = '''
       query (\$id: Int) {
-        Media(idMal: \$id, type: ANIME) {
+        Media(idMal: \$id, type: $typeStr) {
           coverImage { extraLarge large }
         }
       }
@@ -189,10 +190,11 @@ class AnilistService {
   }
 
   /// Get CORS-friendly cover image from AniList by Title (fallback for new MAL IDs)
-  Future<String?> getCoverImageByTitle(String title) async {
-    const String query = '''
+  Future<String?> getCoverImageByTitle(String title, {bool isManga = false}) async {
+    final String typeStr = isManga ? 'MANGA' : 'ANIME';
+    final String query = '''
       query (\$q: String) {
-        Media(search: \$q, type: ANIME) {
+        Media(search: \$q, type: $typeStr) {
           coverImage { extraLarge large }
         }
       }

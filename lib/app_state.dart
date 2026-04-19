@@ -1,66 +1,68 @@
+// lib/app_state.dart
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_service.dart';
 
 enum AppMode { anime, manga }
 
-class AppState {
-  static final AppState _instance = AppState._internal();
-  factory AppState() => _instance;
-  AppState._internal();
-
-  final FirebaseService _firebase = FirebaseService();
-  final ValueNotifier<AppMode> modeNotifier = ValueNotifier(AppMode.anime);
+class AppState extends ChangeNotifier {
+  AppMode _mode = AppMode.anime;
+  User? _user;
   
-  static const String _modeKey = 'app_mode_pref';
+  static const String _modeKey = 'app_mode';
 
-  AppMode get currentMode => modeNotifier.value;
+  AppMode get mode => _mode;
+  User? get user => _user;
+  bool get isAnimeMode => _mode == AppMode.anime;
+  bool get isMangaMode => _mode == AppMode.manga;
+  AppMode get currentMode => _mode;
+
+  final FirebaseService _firebaseService = FirebaseService();
 
   Future<void> init() async {
-    // 1. Initial load from local SharedPreferences (instant UI)
+    // Load local choice first
     final prefs = await SharedPreferences.getInstance();
-    final savedMode = prefs.getString(_modeKey);
-    if (savedMode == AppMode.manga.name) {
-      modeNotifier.value = AppMode.manga;
+    final local = prefs.getString(_modeKey);
+    if (local != null) {
+      _mode = local == 'manga' ? AppMode.manga : AppMode.anime;
+      notifyListeners();
     }
 
-    // 2. Setup Auth Listener for Cloud Sync
-    _firebase.authStateChanges.listen((user) async {
+    FirebaseAuth.instance.authStateChanges().listen((user) async {
+      _user = user;
       if (user != null) {
-        // Logged in: Sync with Cloud
-        final cloudPrefs = await _firebase.getUserPreferences();
-        if (cloudPrefs != null && cloudPrefs['appMode'] != null) {
-          final cloudMode = cloudPrefs['appMode'] == 'manga' ? AppMode.manga : AppMode.anime;
-          if (modeNotifier.value != cloudMode) {
-            modeNotifier.value = cloudMode;
-            // Update local cache as well
-            final p = await SharedPreferences.getInstance();
-            await p.setString(_modeKey, cloudMode.name);
+        final savedMode = await _firebaseService.getAppMode(user.uid);
+        if (savedMode != null) {
+          final newMode = savedMode == 'manga' ? AppMode.manga : AppMode.anime;
+          if (_mode != newMode) {
+            _mode = newMode;
+            notifyListeners();
           }
-        } else {
-          // New user or no cloud prefs: Push local to Cloud
-          await _firebase.updateUserPreferences({'appMode': currentMode.name});
         }
       }
+      notifyListeners();
     });
   }
 
   Future<void> setMode(AppMode mode) async {
-    if (modeNotifier.value == mode) return;
-    modeNotifier.value = mode;
+    if (_mode == mode) return;
+    _mode = mode;
+    notifyListeners();
     
     // Save locally
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_modeKey, mode.name);
 
     // Sync to Cloud if logged in
-    if (_firebase.isLoggedIn) {
-      await _firebase.updateUserPreferences({'appMode': mode.name});
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await _firebaseService.saveAppMode(uid, mode.name);
     }
   }
 
   Future<void> toggleMode() async {
-    final newMode = currentMode == AppMode.anime ? AppMode.manga : AppMode.anime;
+    final newMode = _mode == AppMode.anime ? AppMode.manga : AppMode.anime;
     await setMode(newMode);
   }
 }

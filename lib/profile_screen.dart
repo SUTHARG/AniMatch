@@ -5,6 +5,7 @@ import 'firebase_service.dart';
 import 'login_screen.dart';
 import 'stats_screen.dart';
 import 'image_utils.dart';
+import 'utils/snackbar_utils.dart' as snacks;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,17 +16,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseService _firebase = FirebaseService();
-  Map<String, dynamic> _stats = {};
-  bool _loadingStats = true;
-
-  // Preset anime avatars (emoji-based, no copyright issues)
-  static const _avatars = [
-    '🧑‍🦱', '👩‍🦰', '🧑‍🦳', '👨‍🦲', '🧕', '🧔',
-    '🥷', '🧙', '🧝', '🧚', '🧜', '🦊',
-    '🐉', '⚔️', '🌸', '🎭', '🌙', '⭐',
-  ];
-
-  // No longer needed: using real-time StreamBuilder in the UI
 
   Future<void> _pickAvatar(String current) async {
     final picked = await showDialog<String>(
@@ -39,12 +29,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  String _formatMinutes(int m) {
-    if (m < 60) return '${m}m';
-    final h = m ~/ 60;
-    if (h < 24) return '${h}h';
-    return '${h ~/ 24}d';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               center: const Alignment(0.7, -0.6),
                               radius: 1.5,
                               colors: [
-                                Colors.amber.withOpacity(0.3),
+                                Colors.amber.withValues(alpha: 0.3),
                                 Colors.black,
                               ],
                             ),
@@ -100,9 +84,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                Colors.white.withOpacity(0.05),
+                                Colors.white.withValues(alpha: 0.05),
                                 Colors.transparent,
-                                Colors.white.withOpacity(0.02),
+                                Colors.white.withValues(alpha: 0.02),
                               ],
                             ),
                           ),
@@ -122,9 +106,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.amber.withOpacity(0.5), width: 2),
+                                    border: Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 2),
                                     boxShadow: [
-                                      BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 20, spreadRadius: 2),
+                                      BoxShadow(color: Colors.amber.withValues(alpha: 0.2), blurRadius: 20, spreadRadius: 2),
                                     ],
                                   ),
                                   child: CircleAvatar(
@@ -301,8 +285,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (result != null && result.isNotEmpty) {
-      await _firebase.updateDisplayName(result);
-      setState(() {});
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await _firebase.updateDisplayName(uid, result);
+        setState(() {});
+      }
     }
   }
 }
@@ -318,9 +305,9 @@ class _StatsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
@@ -377,9 +364,9 @@ class _MenuItem extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.03),
+          color: Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Row(
           children: [
@@ -387,7 +374,7 @@ class _MenuItem extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 22),
@@ -451,11 +438,9 @@ class _NotLoggedInProfile extends StatelessWidget {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Same Cinematic Background as Login for continuity
           Positioned.fill(
-            child: Image.asset(
-              ImageUtils.resolveAsset('assets/images/login_bg.png'),
-              fit: BoxFit.cover,
+            child: ImageUtils.safeBackground(
+              'assets/images/login_bg.png',
             ),
           ),
           Positioned.fill(
@@ -466,7 +451,7 @@ class _NotLoggedInProfile extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.black.withOpacity(0.3), Colors.black],
+                    colors: [Colors.black.withValues(alpha: 0.3), Colors.black],
                   ),
                 ),
               ),
@@ -478,13 +463,28 @@ class _NotLoggedInProfile extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.05),
+                  Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            blurRadius: 40,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: Image.asset(
+                          'assets/images/final_app_logo.png',
+                          height: 90,
+                          width: 90,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                     ),
-                    child: const Icon(Icons.account_circle_outlined, size: 80, color: Colors.white24),
                   ),
                   const SizedBox(height: 32),
                   const Text(
@@ -510,7 +510,44 @@ class _NotLoggedInProfile extends StatelessWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                       ),
-                      child: const Text('Get Started', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: const Text('Sign In with Email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.1))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('OR', style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 12)),
+                      ),
+                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.1))),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await FirebaseService().signInWithGoogle();
+                        } catch (e) {
+                          if (context.mounted) {
+                            snacks.showError(context, 'Google Sign-In failed');
+                          }
+                        }
+                      },
+                      icon: Image.network(
+                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
+                        height: 24,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.login_rounded, color: Colors.white),
+                      ),
+                      label: const Text('Continue with Google', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
                     ),
                   ),
                 ],

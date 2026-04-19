@@ -1,22 +1,26 @@
-import 'package:flutter/foundation.dart';
 import 'media_base.dart';
 
 class Manga implements MediaBase {
+  @override
   final int malId;
   final String title;
   final String? titleEnglish;
   final String imageUrl;
+  @override
   final String? synopsis;
+  @override
   final double? score;
   final int? chapters;
   final int? volumes;
   final String? status;
   final String? type; // Manga, Novel, Light Novel, One-shot, Doujinshi, Manhwa, Manhua, OEL
+  @override
   final List<String> genres;
   final int? rank;
   final int? members;
 
   /// Direct link to this manga's page on MyAnimeList.
+  @override
   final String? malUrl;
 
   final String? titleJapanese;
@@ -93,7 +97,11 @@ class Manga implements MediaBase {
   String get displayTitle => titleEnglish?.isNotEmpty == true ? titleEnglish! : title;
 
   String get chapterText {
-    if (chapters == null) return 'Unknown chapters';
+    if (chapters == null) {
+      if (isOngoing) return 'Serialized';
+      if (status?.toLowerCase() == 'on hiatus') return 'On Hiatus';
+      return 'Unknown Chapters';
+    }
     if (chapters == 1) return '1 chapter';
     return '$chapters chapters';
   }

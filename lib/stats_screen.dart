@@ -38,9 +38,8 @@ class _StatsScreenState extends State<StatsScreen> {
             children: [
               // Background Atmosphere
               Positioned.fill(
-                child: Image.asset(
-                  ImageUtils.resolveAsset('assets/images/login_bg.png'),
-                  fit: BoxFit.cover,
+                child: ImageUtils.safeBackground(
+                  'assets/images/login_bg.png',
                 ),
               ),
               Positioned.fill(
@@ -52,8 +51,8 @@ class _StatsScreenState extends State<StatsScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withOpacity(0.5),
-                          Colors.black.withOpacity(0.8),
+                          Colors.black.withValues(alpha: 0.5),
+                          Colors.black.withValues(alpha: 0.8),
                         ],
                       ),
                     ),
@@ -80,7 +79,7 @@ class _StatsScreenState extends State<StatsScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: SegmentedButton<int>(
@@ -177,9 +176,9 @@ class _StatsScreenState extends State<StatsScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(20),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.04),
+                                      color: Colors.white.withValues(alpha: 0.04),
                                       borderRadius: BorderRadius.circular(24),
-                                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                                     ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,9 +246,9 @@ class _StatsScreenState extends State<StatsScreen> {
                                             child: Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                               decoration: BoxDecoration(
-                                                color: Colors.white.withOpacity(0.05),
+                                                color: Colors.white.withValues(alpha: 0.05),
                                                 borderRadius: BorderRadius.circular(12),
-                                                border: Border.all(color: iconColor.withOpacity(0.3)),
+                                                border: Border.all(color: iconColor.withValues(alpha: 0.3)),
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
@@ -304,16 +303,16 @@ class _GlassHeroStat extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
+            color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: color.withOpacity(0.2)),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: 40, color: color),
@@ -333,7 +332,7 @@ class _GlassHeroStat extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Colors.white.withOpacity(0.5))),
+                            color: Colors.white.withValues(alpha: 0.5))),
                   ],
                 ),
               ),
@@ -364,9 +363,9 @@ class _GlassStatCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.04),
+            color: Colors.white.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +382,7 @@ class _GlassStatCard extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Colors.white.withOpacity(0.4))),
+                      color: Colors.white.withValues(alpha: 0.4))),
             ],
           ),
         ),
@@ -425,7 +424,7 @@ class _GlassStatusBar extends StatelessWidget {
             child: Container(
               height: 10,
               width: double.infinity,
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               child: Stack(
                 children: [
                   AnimatedFractionallySizedBox(
@@ -434,7 +433,7 @@ class _GlassStatusBar extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [color.withOpacity(0.6), color],
+                          colors: [color.withValues(alpha: 0.6), color],
                         ),
                         borderRadius: BorderRadius.circular(6),
                       ),

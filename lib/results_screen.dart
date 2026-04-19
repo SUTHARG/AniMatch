@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'media_base.dart';
-import 'manga.dart';
 import 'anime.dart';
 import 'firebase_service.dart';
 import 'anilist_service.dart';
 import 'detail_screen.dart';
 import 'login_screen.dart';
-import 'floating_notification.dart';
+import 'utils/snackbar_utils.dart' as snacks;
 import 'image_utils.dart'; // For PremiumImage
 
 class ResultsScreen extends StatefulWidget {
@@ -33,7 +33,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   Future<void> _saveQuiz() async {
-    await FirebaseService().saveQuizAnswers(widget.quizAnswers);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await FirebaseService().saveQuizAnswers(uid, widget.quizAnswers);
+    }
   }
 
   @override
@@ -105,12 +108,18 @@ class _SummaryChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final chips = [
+    final rawChips = [
       answers.mood,
       ...answers.genres.take(2),
+      if (answers.typeParam != null && answers.typeParam != 'any') answers.typeParam!,
       answers.episodeRange,
       answers.status,
     ];
+
+    final chips = rawChips
+        .where((c) => c != 'any')
+        .map((c) => c[0].toUpperCase() + c.substring(1))
+        .toList();
 
     return Wrap(
       spacing: 6,
@@ -158,11 +167,11 @@ class _MediaCardState extends State<_MediaCard> {
     setState(() => _loadingAnilist = true);
     
     // Stage 1: Try by MAL ID
-    String? url = await _anilist.getCoverImageByMalId(widget.media.malId).timeout(const Duration(seconds: 2), onTimeout: () => null);
+    String? url = await _anilist.getCoverImageByMalId(widget.media.malId, isManga: widget.isManga).timeout(const Duration(seconds: 2), onTimeout: () => null);
     
     // Stage 2: Try by Title if ID fails
     if (url == null && mounted) {
-      url = await _anilist.getCoverImageByTitle(widget.media.displayTitle).timeout(const Duration(seconds: 2), onTimeout: () => null);
+      url = await _anilist.getCoverImageByTitle(widget.media.displayTitle, isManga: widget.isManga).timeout(const Duration(seconds: 2), onTimeout: () => null);
     }
 
     if (mounted) {
@@ -174,18 +183,18 @@ class _MediaCardState extends State<_MediaCard> {
   }
 
   Future<void> _checkInList() async {
-    if (!_firebase.isLoggedIn) return;
-    final result = await _firebase.isInWatchlist(widget.media.malId, isManga: widget.isManga);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final result = await _firebase.isInWatchlist(uid, widget.media.malId);
     if (mounted) setState(() => _inList = result);
   }
 
   Future<void> _toggleList() async {
-    if (!_firebase.isLoggedIn) {
-      FloatingNotification.show(
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      snacks.showError(
         context,
-        title: 'Authentication Required',
-        message: 'Log in to save this ${widget.isManga ? "manga" : "anime"} to your list',
-        icon: Icons.lock_outline_rounded,
+        'Log in to save this ${widget.isManga ? "manga" : "anime"}',
         actionLabel: 'Login',
         onAction: () {
           Navigator.push(
@@ -196,14 +205,28 @@ class _MediaCardState extends State<_MediaCard> {
       );
       return;
     }
+    
+    final data = {
+      'malId': widget.media.malId,
+      'title': widget.media.displayTitle,
+      'imageUrl': widget.media.displayImageUrl,
+      'score': widget.media.score,
+    };
+
     if (_inList) {
-      await _firebase.removeFromWatchlist(widget.media.malId, isManga: widget.isManga);
+      if (widget.isManga) {
+        await _firebase.removeFromMangaWatchlist(uid, widget.media.malId);
+      } else {
+        await _firebase.removeFromWatchlist(uid, widget.media.malId);
+      }
+      if (mounted) snacks.showError(context, 'Removed from list');
     } else {
       if (widget.isManga) {
-        await _firebase.addMangaToWatchlist(widget.media as Manga);
+        await _firebase.addToMangaWatchlist(uid, data);
       } else {
-        await _firebase.addToWatchlist(widget.media as Anime);
+        await _firebase.addToWatchlist(uid, data);
       }
+      if (mounted) snacks.showSuccess(context, 'Saved to watchlist!');
     }
     if (mounted) setState(() => _inList = !_inList);
   }
@@ -222,7 +245,7 @@ class _MediaCardState extends State<_MediaCard> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.4),
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(14),
         ),
         clipBehavior: Clip.antiAlias,
@@ -236,7 +259,7 @@ class _MediaCardState extends State<_MediaCard> {
                 children: [
                   if (_loadingAnilist && _anilistImageUrl == null)
                     Container(
-                      color: colorScheme.surfaceVariant,
+                      color: colorScheme.surfaceContainerHighest,
                       child: const Center(
                         child: SizedBox(
                           width: 20,
@@ -260,7 +283,7 @@ class _MediaCardState extends State<_MediaCard> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
+                          color: Colors.black.withValues(alpha: 0.7),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
@@ -290,7 +313,7 @@ class _MediaCardState extends State<_MediaCard> {
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
+                          color: Colors.black.withValues(alpha: 0.6),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -324,19 +347,44 @@ class _MediaCardState extends State<_MediaCard> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    widget.media.mediaProgressText,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          widget.media.mediaTypeBadge.toUpperCase(),
+                          style: TextStyle(
+                            color: colorScheme.primary,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.media.mediaProgressText,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                   if (widget.media.genres.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       widget.media.genres.take(2).join(' · '),
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.primary,
-                        fontSize: 11,
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        fontSize: 10,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -383,12 +431,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: () => FloatingNotification.show(
-                context,
-                title: 'Action Shared',
-                message: 'This feature is coming soon!',
-                icon: Icons.celebration_rounded,
-              ),
+              onPressed: () => Navigator.pop(context),
               child: const Text('Try again'),
             ),
           ],

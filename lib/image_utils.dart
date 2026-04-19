@@ -26,6 +26,29 @@ class ImageUtils {
     // Using simple relative mapping for Web is often more reliable.
     return path.startsWith('assets/') ? path.replaceFirst('assets/', '') : path;
   }
+
+  /// Loads an asset image with a resilient fallback if the asset is missing or fails.
+  static Widget safeBackground(String path, {BoxFit fit = BoxFit.cover}) {
+    return Image.asset(
+      resolveAsset(path),
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        // Fallback: A beautiful premium gradient if the asset is missing
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF1E1E2E).withValues(alpha: 1.0),
+                const Color(0xFF11111B).withValues(alpha: 1.0),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// A high-fidelity, resilient image widget that handles CORS on Web and
@@ -36,6 +59,7 @@ class PremiumImage extends StatelessWidget {
   final double? width;
   final double? height;
   final BoxFit fit;
+  final Alignment alignment;
   final BorderRadius? borderRadius;
 
   const PremiumImage({
@@ -45,6 +69,7 @@ class PremiumImage extends StatelessWidget {
     this.width,
     this.height,
     this.fit = BoxFit.cover,
+    this.alignment = Alignment.center,
     this.borderRadius,
   });
 
@@ -58,7 +83,7 @@ class PremiumImage extends StatelessWidget {
       image = SizedBox(
         width: width,
         height: height,
-        child: WebImageWidget(
+        child: buildWebImage(
           imageUrl: imageUrl, 
           fit: fit,
         ),
@@ -69,6 +94,7 @@ class PremiumImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        alignment: alignment,
         placeholder: (context, url) => _buildPlaceholder(),
         errorWidget: (context, url, error) => _buildError(),
       );
@@ -86,7 +112,7 @@ class PremiumImage extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
       ),
       child: Stack(
         alignment: Alignment.center,

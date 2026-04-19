@@ -6,9 +6,6 @@ import 'detail_screen.dart';
 import 'login_screen.dart';
 import 'image_utils.dart';
 import 'app_state.dart';
-import 'media_base.dart';
-import 'manga.dart';
-import 'anime.dart';
 import 'shimmer_skeletons.dart';
 
 class WatchlistScreen extends StatefulWidget {
@@ -19,9 +16,10 @@ class WatchlistScreen extends StatefulWidget {
 }
 
 class _WatchlistScreenState extends State<WatchlistScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final FirebaseService _firebase = FirebaseService();
   late TabController _tabController;
+  AppMode _viewMode = AppMode.anime;
 
   static const _animeTabs = [
     _TabConfig(label: 'All',           watchStatus: null,                      emoji: '📚'),
@@ -48,6 +46,23 @@ class _WatchlistScreenState extends State<WatchlistScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Sync view mode with global app state on entry or state change
+    setState(() {
+      _viewMode = appState.mode;
+    });
+  }
+
+  void _setViewMode(AppMode mode) {
+    if (_viewMode == mode) return;
+    setState(() {
+      _viewMode = mode;
+      _tabController.index = 0; // Reset to "All" when switching modes
+    });
+  }
+
+  @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
@@ -64,36 +79,74 @@ class _WatchlistScreenState extends State<WatchlistScreen>
           return _NotLoggedIn();
         }
 
-        return ValueListenableBuilder<AppMode>(
-          valueListenable: appState.modeNotifier,
-          builder: (context, mode, child) {
-            final tabs = mode == AppMode.manga ? _mangaTabs : _animeTabs;
-            
-            // Ensure TabController is in sync if tabs length changed (though they are same here)
-            if (_tabController.length != tabs.length) {
-              _tabController.dispose();
-              _tabController = TabController(length: tabs.length, vsync: this);
-            }
+        final tabs = _viewMode == AppMode.manga ? _mangaTabs : _animeTabs;
 
-            return Scaffold(
-              backgroundColor: Colors.black,
-              appBar: AppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                title: Text(mode == AppMode.manga ? 'My Manga List' : 'My Watchlist', style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white70),
-                    tooltip: 'Log out',
-                    onPressed: () => _firebase.signOut(),
+        return Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0,
+            title: const Text('My Library', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout_rounded, color: Colors.white70),
+                tooltip: 'Log out',
+                onPressed: () => _firebase.signOut(),
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(100),
+              child: Column(
+                children: [
+                  // Anime/Manga Switcher
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _setViewMode(AppMode.anime),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                decoration: BoxDecoration(
+                                  color: _viewMode == AppMode.anime ? Colors.amber : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text('ANIME', style: TextStyle(color: _viewMode == AppMode.anime ? Colors.black : Colors.white60, fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _setViewMode(AppMode.manga),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                decoration: BoxDecoration(
+                                  color: _viewMode == AppMode.manga ? Colors.amber : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text('MANGA', style: TextStyle(color: _viewMode == AppMode.manga ? Colors.black : Colors.white60, fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ],
-                bottom: PreferredSize(
-                  preferredSize: const Size.fromHeight(48),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                  // Sub-tabs (Watching, Reading, etc)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: TabBar(
@@ -104,11 +157,12 @@ class _WatchlistScreenState extends State<WatchlistScreen>
                       indicatorSize: TabBarIndicatorSize.tab,
                       indicator: BoxDecoration(
                         borderRadius: BorderRadius.circular(25),
-                        color: Colors.amber,
+                        color: Colors.amber.withValues(alpha: 0.2),
+                        border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
                       ),
-                      labelColor: Colors.black,
-                      unselectedLabelColor: Colors.white70,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                      labelColor: Colors.amber,
+                      unselectedLabelColor: Colors.white60,
+                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       tabs: tabs
                           .map((t) => Tab(
                         child: Padding(
@@ -126,21 +180,22 @@ class _WatchlistScreenState extends State<WatchlistScreen>
                           .toList(),
                     ),
                   ),
-                ),
+                ],
               ),
-              body: TabBarView(
-                controller: _tabController,
-                children: tabs
-                    .map((t) => _WatchlistTab(
-                  firebase: _firebase,
-                  isManga: mode == AppMode.manga,
-                  watchStatus: t.watchStatus,
-                  readStatus: t.readStatus,
-                ))
-                    .toList(),
-              ),
-            );
-          },
+            ),
+          ),
+          body: TabBarView(
+            controller: _tabController,
+            key: ValueKey(_viewMode), // Force rebuild when switching Anime/Manga
+            children: tabs
+                .map((t) => _WatchlistTab(
+              firebase: _firebase,
+              isManga: _viewMode == AppMode.manga,
+              watchStatus: t.watchStatus,
+              readStatus: t.readStatus,
+            ))
+                .toList(),
+          ),
         );
       },
     );
@@ -164,11 +219,11 @@ class _WatchlistTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final uid = firebase.currentUser?.uid ?? '';
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: isManga 
-          ? firebase.mangaWatchlistStream(filter: readStatus) 
-          : firebase.watchlistStream(filter: watchStatus),
+          ? firebase.mangaWatchlistStream(uid: uid, filter: readStatus) 
+          : firebase.watchlistStream(uid: uid, filter: watchStatus),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const WatchlistShimmer();
@@ -176,7 +231,11 @@ class _WatchlistTab extends StatelessWidget {
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
+        
+        // The stream is already collection-specific (mangaWatchlist vs watchlist), 
+        // so we can trust the items returned by the firebase service.
         final items = snapshot.data ?? [];
+
         if (items.isEmpty) return _EmptyTab(isManga: isManga, watchStatus: watchStatus, readStatus: readStatus);
 
         return RefreshIndicator(
@@ -186,6 +245,7 @@ class _WatchlistTab extends StatelessWidget {
           color: Colors.amber,
           backgroundColor: Colors.black,
           child: GridView.builder(
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
@@ -230,7 +290,6 @@ class _WatchlistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final malId = item['malId'] as int;
     final dynamic status = isManga 
         ? ReadStatus.fromString(item['status'] as String?)
@@ -248,7 +307,7 @@ class _WatchlistCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -275,7 +334,7 @@ class _WatchlistCard extends StatelessWidget {
                     stops: const [0.6, 1.0],
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.9),
+                      Colors.black.withValues(alpha: 0.9),
                     ],
                   ),
                 ),
@@ -293,9 +352,9 @@ class _WatchlistCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _statusColor(status).withOpacity(0.85),
+                      color: _statusColor(status).withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -329,9 +388,9 @@ class _WatchlistCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                     ),
                     child: Row(
                       children: [
@@ -372,7 +431,7 @@ class _WatchlistCard extends StatelessWidget {
                   Text(
                     isManga ? '${item['chapterProgress'] ?? 0} chapters' : '${item['episodeProgress'] ?? 0} eps',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -395,15 +454,13 @@ class _EmptyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Stack(
       children: [
         Positioned.fill(
           child: Opacity(
             opacity: 0.3,
-            child: Image.asset(
-              ImageUtils.resolveAsset('assets/images/login_bg.png'),
-              fit: BoxFit.cover,
+            child: ImageUtils.safeBackground(
+              'assets/images/login_bg.png',
             ),
           ),
         ),
@@ -416,9 +473,9 @@ class _EmptyTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
                   child: Text(isManga ? (readStatus?.emoji ?? '📚') : (watchStatus?.emoji ?? '📚'), style: const TextStyle(fontSize: 64)),
                 ),
@@ -433,7 +490,7 @@ class _EmptyTab extends StatelessWidget {
                   (!isManga && watchStatus == null) || (isManga && readStatus == null)
                       ? 'Start exploring worlds and track your favorite ${isManga ? "manga" : "anime"} right here.'
                       : 'You haven\'t marked any ${isManga ? "manga" : "anime"} as "${isManga ? readStatus!.label : watchStatus!.label}" yet.',
-                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16, height: 1.6),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16, height: 1.6),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -448,16 +505,13 @@ class _EmptyTab extends StatelessWidget {
 class _NotLoggedIn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background Atmosphere
           Positioned.fill(
-            child: Image.asset(
-              ImageUtils.resolveAsset('assets/images/login_bg.png'),
-              fit: BoxFit.cover,
+            child: ImageUtils.safeBackground(
+              'assets/images/login_bg.png',
             ),
           ),
           Positioned.fill(
@@ -469,8 +523,8 @@ class _NotLoggedIn extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.4),
-                      Colors.black.withOpacity(0.9),
+                      Colors.black.withValues(alpha: 0.4),
+                      Colors.black.withValues(alpha: 0.9),
                     ],
                   ),
                 ),
@@ -488,10 +542,10 @@ class _NotLoggedIn extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.1),
+                      color: Colors.amber.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                       boxShadow: [
-                        BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 40, spreadRadius: 5),
+                        BoxShadow(color: Colors.amber.withValues(alpha: 0.2), blurRadius: 40, spreadRadius: 5),
                       ],
                     ),
                     child: Icon(Icons.bookmark_outline_rounded, size: 80, color: Colors.amber),
@@ -506,7 +560,7 @@ class _NotLoggedIn extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     'Login to sync your watchlist across all devices and never lose track of your progress.',
-                    style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.6), height: 1.6),
+                    style: TextStyle(fontSize: 16, color: Colors.white.withValues(alpha: 0.6), height: 1.6),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),

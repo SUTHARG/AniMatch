@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
-import 'floating_notification.dart';
+import 'utils/snackbar_utils.dart' as snacks;
 
 /// Shows a bottom sheet to rate and review an anime.
 Future<void> showRatingSheet(
@@ -82,32 +83,30 @@ class _RatingSheetState extends State<_RatingSheet> {
   }
 
   Future<void> _save() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      snacks.showError(context, 'Please sign in to rate');
+      Navigator.pop(context);
+      return;
+    }
+    
     if (_rating == 0) {
-      FloatingNotification.show(
-        context,
-        title: 'Rating Required',
-        message: 'Please select a rating first',
-        icon: Icons.star_outline_rounded,
-      );
+      snacks.showError(context, 'Please select a rating first');
       return;
     }
     setState(() => _saving = true);
     try {
-      await _firebase.saveRatingAndReview(
+      await _firebase.saveRating(
+        uid,
         widget.malId,
-        rating: _rating,
-        review: _reviewController.text.trim(),
+        _rating,
+        _reviewController.text.trim(),
         isManga: widget.isManga,
       );
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        FloatingNotification.show(
-          context,
-          title: 'Save Failed',
-          message: 'Failed to save rating. Please try again.',
-          icon: Icons.error_outline_rounded,
-        );
+        snacks.showError(context, 'Failed to save rating. Please try again.');
         setState(() => _saving = false);
       }
     }
@@ -225,7 +224,7 @@ class _RatingSheetState extends State<_RatingSheet> {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 filled: true,
-                fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               ),
             ),
             const SizedBox(height: 16),

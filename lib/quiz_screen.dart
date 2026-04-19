@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'app_state.dart';
 import 'media_base.dart';
 import 'anime.dart';
-import 'manga.dart';
 import 'jikan_service.dart';
 import 'firebase_service.dart';
 import 'results_screen.dart';
-import 'floating_notification.dart';
+import 'utils/snackbar_utils.dart' as snacks;
 
 class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key});
+  final bool isManga;
+  const QuizScreen({super.key, this.isManga = false});
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -28,6 +29,7 @@ class _QuizScreenState extends State<QuizScreen>
   final List<String> _selectedGenres = [];
   String? _selectedEpisodeRange;
   String? _selectedStatus;
+  String? _selectedType;
 
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -86,6 +88,14 @@ class _QuizScreenState extends State<QuizScreen>
     {'value': 'ongoing', 'label': 'Ongoing', 'sub': 'Still publishing', 'emoji': '📡'},
     {'value': 'any', 'label': 'Either', 'sub': "Doesn't matter", 'emoji': '🎯'},
   ];
+  
+  static const _mangaTypes = [
+    {'value': 'manga', 'label': 'Traditional Manga', 'sub': 'Japanese comics', 'emoji': '🇯🇵'},
+    {'value': 'manhwa', 'label': 'Manhwa', 'sub': 'Korean webtoons/comics', 'emoji': '🇰🇷'},
+    {'value': 'manhua', 'label': 'Manhua', 'sub': 'Chinese comics', 'emoji': '🇨🇳'},
+    {'value': 'lightnovel', 'label': 'Light Novel', 'sub': 'Japanese prose novels', 'emoji': '📖'},
+    {'value': 'any', 'label': 'Any Type', 'sub': 'Bring me anything', 'emoji': '🎲'},
+  ];
 
   @override
   void initState() {
@@ -129,8 +139,16 @@ class _QuizScreenState extends State<QuizScreen>
       case 1:
         return _selectedGenres.isNotEmpty;
       case 2:
+        if (widget.isManga) {
+          return _selectedType != null;
+        }
         return _selectedEpisodeRange != null;
       case 3:
+        if (widget.isManga) {
+          return _selectedEpisodeRange != null;
+        }
+        return _selectedStatus != null;
+      case 4:
         return _selectedStatus != null;
       default:
         return true;
@@ -145,14 +163,18 @@ class _QuizScreenState extends State<QuizScreen>
       genres: _selectedGenres,
       episodeRange: _selectedEpisodeRange!,
       status: _selectedStatus!,
+      typeParam: _selectedType == 'any' ? null : _selectedType,
       isManga: appState.currentMode == AppMode.manga,
     );
 
     // Save to Firebase (non-blocking)
-    _firebase.saveQuizAnswers(answers).catchError((_) {});
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      _firebase.saveQuizAnswers(uid, answers).catchError((_) {});
+    }
 
     try {
-      final isManga = appState.currentMode == AppMode.manga;
+      final isManga = widget.isManga;
       final List<MediaBase> results;
       if (isManga) {
         results = await _jikan.getMangaRecommendations(answers);
@@ -173,12 +195,7 @@ class _QuizScreenState extends State<QuizScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      FloatingNotification.show(
-        context,
-        title: 'Quiz Error',
-        message: 'Could not load your recommendations. Please try again.',
-        icon: Icons.error_outline_rounded,
-      );
+      snacks.showError(context, 'Could not load recommendations. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -192,7 +209,7 @@ class _QuizScreenState extends State<QuizScreen>
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: Text(appState.currentMode == AppMode.manga ? 'Find Your Manga' : 'Find Your Anime'),
+        title: Text(widget.isManga ? 'Find Your Manga' : 'Find Your Anime'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: _currentStep > 0
@@ -205,7 +222,10 @@ class _QuizScreenState extends State<QuizScreen>
       body: Column(
         children: [
           // Progress bar
-          _ProgressBar(step: _currentStep, total: 4),
+          _ProgressBar(
+            step: _currentStep, 
+            total: widget.isManga ? 5 : 4
+          ),
           const SizedBox(height: 8),
 
           // Step label
@@ -214,7 +234,7 @@ class _QuizScreenState extends State<QuizScreen>
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Step ${_currentStep + 1} of 4',
+                'Step ${_currentStep + 1} of ${widget.isManga ? 5 : 4}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -269,18 +289,44 @@ class _QuizScreenState extends State<QuizScreen>
           }),
         );
       case 2:
+        if (widget.isManga) {
+          return _OptionStep(
+            question: 'Pick your source type',
+            subtitle: 'Traditional manga, webtoons, or novels?',
+            options: _mangaTypes,
+            selected: _selectedType,
+            onSelect: (v) => setState(() => _selectedType = v),
+          );
+        }
         return _OptionStep(
-          question: appState.currentMode == AppMode.manga ? 'How long should the journey be?' : 'How long do you want it?',
-          subtitle: appState.currentMode == AppMode.manga ? 'Pick a chapter count preference' : 'Pick a series length',
-          options: appState.currentMode == AppMode.manga ? _chapterRanges : _episodeRanges,
+          question: 'How long do you want it?',
+          subtitle: 'Pick a series length',
+          options: _episodeRanges,
           selected: _selectedEpisodeRange,
           onSelect: (v) => setState(() => _selectedEpisodeRange = v),
         );
       case 3:
+        if (widget.isManga) {
+          return _OptionStep(
+            question: 'How many chapters?',
+            subtitle: 'Pick a length preference',
+            options: _chapterRanges,
+            selected: _selectedEpisodeRange,
+            onSelect: (v) => setState(() => _selectedEpisodeRange = v),
+          );
+        }
         return _OptionStep(
           question: 'Completed or ongoing?',
-          subtitle: appState.currentMode == AppMode.manga ? 'Do you prefer finished manga?' : 'Do you prefer finished series?',
-          options: appState.currentMode == AppMode.manga ? _mangaStatuses : _animeStatuses,
+          subtitle: 'Do you prefer finished series?',
+          options: _animeStatuses,
+          selected: _selectedStatus,
+          onSelect: (v) => setState(() => _selectedStatus = v),
+        );
+      case 4:
+        return _OptionStep(
+          question: 'Completed or ongoing?',
+          subtitle: 'Do you prefer finished stories?',
+          options: widget.isManga ? _mangaStatuses : _animeStatuses,
           selected: _selectedStatus,
           onSelect: (v) => setState(() => _selectedStatus = v),
         );
@@ -290,7 +336,8 @@ class _QuizScreenState extends State<QuizScreen>
   }
 
   Widget _buildBottomButton(ColorScheme colorScheme) {
-    final isLast = _currentStep == 3;
+    final totalSteps = widget.isManga ? 5 : 4;
+    final isLast = _currentStep == totalSteps - 1;
     final enabled = _canProceed() && !_isLoading;
 
     return SizedBox(
@@ -342,7 +389,7 @@ class _ProgressBar extends StatelessWidget {
         child: LinearProgressIndicator(
           value: (step + 1) / total,
           minHeight: 5,
-          backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
       ),
     );
@@ -545,7 +592,7 @@ class _SelectCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? colorScheme.primaryContainer
-              : colorScheme.surfaceVariant.withOpacity(0.5),
+              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected
@@ -583,7 +630,7 @@ class _SelectCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       color: isSelected
-                          ? colorScheme.onPrimaryContainer.withOpacity(0.75)
+                          ? colorScheme.onPrimaryContainer.withValues(alpha: 0.75)
                           : colorScheme.onSurfaceVariant,
                     ),
                   ),

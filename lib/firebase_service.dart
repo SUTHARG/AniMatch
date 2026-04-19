@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'media_base.dart';
 import 'anime.dart';
-import 'manga.dart';
 
 enum ReadStatus {
   reading,
@@ -15,9 +16,9 @@ enum ReadStatus {
   String get label {
     switch (this) {
       case ReadStatus.reading:    return 'Reading';
-      case ReadStatus.completed:   return 'Completed';
-      case ReadStatus.onHold:      return 'On Hold';
-      case ReadStatus.dropped:     return 'Dropped';
+      case ReadStatus.completed:  return 'Completed';
+      case ReadStatus.onHold:     return 'On Hold';
+      case ReadStatus.dropped:    return 'Dropped';
       case ReadStatus.planToRead: return 'Plan to Read';
     }
   }
@@ -25,9 +26,9 @@ enum ReadStatus {
   String get emoji {
     switch (this) {
       case ReadStatus.reading:    return '📖';
-      case ReadStatus.completed:   return '✅';
-      case ReadStatus.onHold:      return '⏸️';
-      case ReadStatus.dropped:     return '🗑️';
+      case ReadStatus.completed:  return '✅';
+      case ReadStatus.onHold:     return '⏸️';
+      case ReadStatus.dropped:    return '🗑️';
       case ReadStatus.planToRead: return '📋';
     }
   }
@@ -80,524 +81,464 @@ enum WatchStatus {
 }
 
 class FirebaseService {
-  FirebaseFirestore get _db => FirebaseFirestore.instance;
-  FirebaseAuth get _auth => FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  String? get _uid {
-    try { return _auth.currentUser?.uid; } catch (_) { return null; }
+  // ── Auth ──────────────────────────────
+  User? get currentUser => FirebaseAuth.instance.currentUser;
+  bool get isLoggedIn => currentUser != null;
+
+  Future<UserCredential?> signInWithEmail(String email, String password) async {
+    return await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
   }
 
-  bool get isLoggedIn {
-    try { return _auth.currentUser != null; } catch (_) { return false; }
-  }
-
-  User? get currentUser => _auth.currentUser;
-
-  // ── Auth ──────────────────────────────────────────────────────────────────
-
-  Future<void> _ensureUserInitialized(User user) async {
-    final doc = _db.collection('users').doc(user.uid);
-    final snap = await doc.get();
-    if (!snap.exists) {
-      await doc.set({
-        'email': user.email,
-        'createdAt': FieldValue.serverTimestamp(),
-        'displayName': user.displayName,
-        'preferences': {
-          'appMode': 'anime',
-        },
-      }, SetOptions(merge: true));
-    }
-  }
-
-  // ── Preferences ──────────────────────────────────────────────────────────
-
-  Future<void> updateUserPreferences(Map<String, dynamic> prefs) async {
-    if (_uid == null) return;
-    await _db.collection('users').doc(_uid).set({
-      'preferences': prefs,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
-
-  Future<Map<String, dynamic>?> getUserPreferences() async {
-    if (_uid == null) return null;
-    final doc = await _db.collection('users').doc(_uid).get();
-    if (!doc.exists) return null;
-    return doc.data()?['preferences'] as Map<String, dynamic>?;
-  }
-
-  Future<UserCredential> signInWithEmail(String email, String password) async {
-    final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
-    if (cred.user != null) await _ensureUserInitialized(cred.user!);
-    return cred;
-  }
-
-  Future<UserCredential> registerWithEmail(String email, String password) async {
-    final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-    if (cred.user != null) await _ensureUserInitialized(cred.user!);
-    return cred;
-  }
-
-  Future<UserCredential?> signInWithGoogle() async {
+  Future<UserCredential?> registerWithEmail(String email, String password, {String? displayName}) async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-
-      final cred = await _auth.signInWithCredential(credential);
-      if (cred.user != null) await _ensureUserInitialized(cred.user!);
+      if (cred.user != null && displayName != null) {
+        await updateDisplayName(cred.user!.uid, displayName);
+      }
       return cred;
     } catch (e) {
-      debugPrint('Google Sign-In error: $e');
+      debugPrint('Registration error: $e');
       rethrow;
     }
   }
 
-  Future<void> updateDisplayName(String name) =>
-      _auth.currentUser!.updateDisplayName(name);
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      final googleSignIn = GoogleSignIn(
+        serverClientId: '630393329450-snc00v3ch5rbe23jdiq7ln2qgjj9r4oo.apps.googleusercontent.com',
+      );
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return null;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      return await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (e) {
+      debugPrint('CRITICAL Google Sign-In error: $e');
+      if (e is PlatformException) {
+        debugPrint('Error Details: ${e.details}');
+        debugPrint('Error Message: ${e.message}');
+      }
+      return null;
+    }
+  }
 
   Future<void> signOut() async {
-    await _auth.signOut();
-    await _googleSignIn.signOut();
+    await FirebaseAuth.instance.signOut();
+    await GoogleSignIn().signOut();
   }
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // ── Watchlist ─────────────────────────────────────────────────────────────
-
-  CollectionReference<Map<String, dynamic>> get _watchlistRef {
-    if (_uid == null) throw Exception('User not logged in');
-    return _db.collection('users').doc(_uid).collection('watchlist');
+  Future<void> updateDisplayName(String uid, String name) async {
+    await FirebaseAuth.instance.currentUser?.updateDisplayName(name);
+    await _db.collection('users').doc(uid).set({
+      'displayName': name,
+    }, SetOptions(merge: true));
   }
 
-  CollectionReference<Map<String, dynamic>> get _mangaWatchlistRef {
-    if (_uid == null) throw Exception('User not logged in');
-    return _db.collection('users').doc(_uid).collection('manga_watchlist');
+  // ── App Mode ─────────────────────────
+  Future<void> saveAppMode(String uid, String mode) async {
+    await _db.collection('users').doc(uid).set({
+      'appMode': mode,
+    }, SetOptions(merge: true));
   }
 
-  Future<void> addToWatchlist(Anime anime,
-      {WatchStatus status = WatchStatus.planToWatch}) async {
-    await _watchlistRef.doc(anime.malId.toString()).set({
-      'malId': anime.malId,
-      'title': anime.displayTitle,
-      'imageUrl': anime.imageUrl,
-      'score': anime.score,
-      'episodes': anime.episodes,
-      'genres': anime.genres,
-      'status': status.value,
-      'episodeProgress': 0,
-      'userRating': null,
-      'userReview': null,
-      'addedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
+  Future<String?> getAppMode(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
+    return doc.data()?['appMode'] as String?;
+  }
+
+  // ── Watchlist (Anime) ─────────────────
+  Future<void> addToWatchlist(String uid, Map<String, dynamic> animeData) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('watchlist')
+        .doc(animeData['malId'].toString())
+        .set(animeData);
+  }
+
+  Future<void> removeFromWatchlist(String uid, int malId) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('watchlist')
+        .doc(malId.toString())
+        .delete();
+  }
+
+  Future<void> updateWatchStatus(String uid, int malId, String status) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('watchlist')
+        .doc(malId.toString())
+        .update({'status': status});
+  }
+
+  Future<void> updateMangaWatchStatus(String uid, int malId, String status) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('mangaWatchlist')
+        .doc(malId.toString())
+        .update({'status': status});
+  }
+
+  Future<void> updateEpisodeProgress(String uid, int malId, int episode) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('watchlist')
+        .doc(malId.toString())
+        .update({'episodeProgress': episode});
+  }
+
+  Future<void> saveRating(String uid, int malId, double rating, String review, {bool isManga = false}) async {
+    final collection = isManga ? 'mangaWatchlist' : 'watchlist';
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection(collection)
+        .doc(malId.toString())
+        .update({
+      'rating': rating,
+      'review': review,
     });
   }
 
-  Future<void> addMangaToWatchlist(Manga manga,
-      {ReadStatus status = ReadStatus.planToRead}) async {
-    await _mangaWatchlistRef.doc(manga.malId.toString()).set({
-      'malId': manga.malId,
-      'title': manga.displayTitle,
-      'imageUrl': manga.imageUrl,
-      'score': manga.score,
-      'chapters': manga.chapters,
-      'volumes': manga.volumes,
-      'genres': manga.genres,
-      'status': status.value,
-      'chapterProgress': 0,
-      'userRating': null,
-      'userReview': null,
-      'addedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  Stream<List<Map<String, dynamic>>> watchlistStream({String? uid, WatchStatus? filter}) {
+    final effectiveUid = uid ?? currentUser?.uid;
+    if (effectiveUid == null) return Stream.value([]);
+    
+    Query<Map<String, dynamic>> query = _db
+        .collection('users')
+        .doc(effectiveUid)
+        .collection('watchlist');
+
+    if (filter != null) {
+      query = query.where('status', isEqualTo: filter.name);
+    }
+    
+    return query.snapshots().map((snap) =>
+        snap.docs.map((doc) => doc.data()).toList());
   }
 
-  Future<void> updateWatchStatus(int malId, WatchStatus status) async {
-    await _watchlistRef.doc(malId.toString()).update({
-      'status': status.value,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  // ── Manga Watchlist ───────────────────
+  Future<void> addToMangaWatchlist(String uid, Map<String, dynamic> mangaData) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('mangaWatchlist')
+        .doc(mangaData['malId'].toString())
+        .set(mangaData);
   }
 
-  Future<void> updateMangaWatchStatus(int malId, ReadStatus status) async {
-    await _mangaWatchlistRef.doc(malId.toString()).update({
-      'status': status.value,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> removeFromMangaWatchlist(String uid, int malId) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('mangaWatchlist')
+        .doc(malId.toString())
+        .delete();
   }
 
-  // ── Episode Progress ──────────────────────────────────────────────────────
-
-  Future<void> updateEpisodeProgress(int malId, int episode) async {
-    await _watchlistRef.doc(malId.toString()).update({
-      'episodeProgress': episode,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> updateChapterProgress(String uid, int malId, int progress) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('mangaWatchlist')
+        .doc(malId.toString())
+        .update({'chapterProgress': progress});
   }
 
-  Future<void> updateChapterProgress(int malId, int chapter) async {
-    await _mangaWatchlistRef.doc(malId.toString()).update({
-      'chapterProgress': chapter,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  // ── History ────────────────────────────
+  Future<void> addToHistory(String uid, MediaBase media) async {
+    final Map<String, dynamic> data = {
+      'malId': media.malId,
+      'title': media.displayTitle,
+      'imageUrl': media.displayImageUrl,
+      'timestamp': FieldValue.serverTimestamp(),
+    };
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('history')
+        .doc(media.malId.toString())
+        .set(data);
   }
 
-  // ── Ratings & Reviews ─────────────────────────────────────────────────────
-
-  Future<void> saveRatingAndReview(int malId,
-      {required double rating, String? review, bool isManga = false}) async {
-    final ref = isManga ? _mangaWatchlistRef : _watchlistRef;
-    await ref.doc(malId.toString()).update({
-      'userRating': rating,
-      'userReview': review ?? '',
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  // ── Entry Retrieval ───────────────────
+  Future<Map<String, dynamic>?> getWatchlistEntry(String uid, int malId, {bool isManga = false}) async {
+    final collection = isManga ? 'mangaWatchlist' : 'watchlist';
+    final doc = await _db
+        .collection('users')
+        .doc(uid)
+        .collection(collection)
+        .doc(malId.toString())
+        .get();
+    return doc.exists ? doc.data() : null;
   }
 
-  Future<Map<String, dynamic>?> getRatingAndReview(int malId, {bool isManga = false}) async {
-    try {
-      final ref = isManga ? _mangaWatchlistRef : _watchlistRef;
-      final doc = await ref.doc(malId.toString()).get();
-      if (!doc.exists) return null;
-      final data = doc.data()!;
-      return {
-        'rating': data['userRating'],
-        'review': data['userReview'],
-      };
-    } catch (_) { return null; }
+  Future<Map<String, dynamic>?> getRatingAndReview(String uid, int malId, {bool isManga = false}) async {
+    return await getWatchlistEntry(uid, malId, isManga: isManga);
   }
 
-  // ── Watchlist queries ─────────────────────────────────────────────────────
+  Stream<List<Map<String, dynamic>>> mangaWatchlistStream({String? uid, ReadStatus? filter}) {
+    final effectiveUid = uid ?? currentUser?.uid;
+    if (effectiveUid == null) return Stream.value([]);
+    
+    Query<Map<String, dynamic>> query = _db
+        .collection('users')
+        .doc(effectiveUid)
+        .collection('mangaWatchlist');
 
-  Future<WatchStatus?> getWatchStatus(int malId) async {
-    try {
-      final doc = await _watchlistRef.doc(malId.toString()).get();
-      if (!doc.exists) return null;
-      return WatchStatus.fromString(doc.data()?['status'] as String?);
-    } catch (_) { return null; }
+    if (filter != null) {
+      query = query.where('status', isEqualTo: filter.name);
+    }
+    
+    return query.snapshots().map((snap) =>
+        snap.docs.map((doc) => doc.data()).toList());
   }
 
-  Future<ReadStatus?> getMangaWatchStatus(int malId) async {
-    try {
-      final doc = await _mangaWatchlistRef.doc(malId.toString()).get();
-      if (!doc.exists) return null;
-      return ReadStatus.fromString(doc.data()?['status'] as String?);
-    } catch (_) { return null; }
+  Future<bool> toggleWatchlist(String uid, Map<String, dynamic> animeData) async {
+    final malId = animeData['malId'];
+    final doc = _db.collection('users').doc(uid).collection('watchlist').doc(malId.toString());
+    final snap = await doc.get();
+    if (snap.exists) {
+      await doc.delete();
+      return false; // Removed
+    } else {
+      await doc.set(animeData);
+      return true; // Added
+    }
   }
 
-  Future<Map<String, dynamic>?> getWatchlistEntry(int malId, {bool isManga = false}) async {
-    try {
-      final doc = await (isManga ? _mangaWatchlistRef : _watchlistRef).doc(malId.toString()).get();
-      return doc.exists ? doc.data() : null;
-    } catch (_) { return null; }
+  Future<bool> toggleMangaWatchlist(String uid, Map<String, dynamic> mangaData) async {
+    final malId = mangaData['malId'];
+    final doc = _db.collection('users').doc(uid).collection('mangaWatchlist').doc(malId.toString());
+    final snap = await doc.get();
+    if (snap.exists) {
+      await doc.delete();
+      return false; // Removed
+    } else {
+      await doc.set(mangaData);
+      return true; // Added
+    }
   }
 
-  Future<bool> isInWatchlist(int malId, {bool isManga = false}) async {
-    try {
-      final doc = await (isManga ? _mangaWatchlistRef : _watchlistRef).doc(malId.toString()).get();
-      return doc.exists;
-    } catch (_) { return false; }
+  Future<bool> isInWatchlist(String uid, int malId) async {
+    final doc = await _db.collection('users').doc(uid).collection('watchlist').doc(malId.toString()).get();
+    return doc.exists;
   }
 
-  Future<void> removeFromWatchlist(int malId, {bool isManga = false}) async {
-    await (isManga ? _mangaWatchlistRef : _watchlistRef).doc(malId.toString()).delete();
+  Future<bool> isInMangaWatchlist(String uid, int malId) async {
+    final doc = await _db.collection('users').doc(uid).collection('mangaWatchlist').doc(malId.toString()).get();
+    return doc.exists;
   }
-
-  Stream<List<Map<String, dynamic>>> watchlistStream({WatchStatus? filter}) {
-    Query<Map<String, dynamic>> query =
-    _watchlistRef.orderBy('updatedAt', descending: true);
-    return query.snapshots().map((snap) {
-      final docs = snap.docs.map((d) => d.data()).toList();
-      if (filter != null) {
-        return docs.where((d) => d['status'] == filter.value).toList();
-      }
-      return docs;
-    });
-  }
-
-  Stream<List<Map<String, dynamic>>> mangaWatchlistStream({ReadStatus? filter}) {
-    Query<Map<String, dynamic>> query =
-    _mangaWatchlistRef.orderBy('updatedAt', descending: true);
-    return query.snapshots().map((snap) {
-      final docs = snap.docs.map((d) => d.data()).toList();
-      if (filter != null) {
-        return docs.where((d) => d['status'] == filter.value).toList();
-      }
-      return docs;
-    });
-  }
-
-  // ── Stats ─────────────────────────────────────────────────────────────────
 
   Stream<Map<String, dynamic>> getUserStatsStream() {
-    if (_uid == null) return Stream.value({});
-    
-    return _watchlistRef.snapshots().map((snap) {
-      final docs = snap.docs.map((d) => d.data()).toList();
-
-      int totalAnime = docs.length;
-      int completed = docs.where((d) => d['status'] == WatchStatus.completed.value).length;
-      int watching  = docs.where((d) => d['status'] == WatchStatus.watching.value).length;
-      int dropped   = docs.where((d) => d['status'] == WatchStatus.dropped.value).length;
-      int planToWatch = docs.where((d) => d['status'] == WatchStatus.planToWatch.value).length;
-      int onHold    = docs.where((d) => d['status'] == WatchStatus.onHold.value).length;
-
+    final uid = currentUser?.uid;
+    if (uid == null) return Stream.value({});
+    return watchlistStream(uid: uid).map((items) {
+      int totalAnime = items.length;
       int totalEpisodes = 0;
-      for (final d in docs) {
-        totalEpisodes += (d['episodeProgress'] as int? ?? 0);
-      }
+      double totalRating = 0;
+      int ratingsCount = 0;
+      Map<String, int> genres = {};
+      Map<String, int> statuses = {
+        'watching': 0,
+        'completed': 0,
+        'onHold': 0,
+        'dropped': 0,
+        'planToWatch': 0,
+      };
 
-      final ratings = docs
-          .map((d) => d['userRating'])
-          .whereType<num>()
-          .map((r) => r.toDouble())
-          .toList();
-      final avgRating = ratings.isEmpty
-          ? 0.0
-          : ratings.reduce((a, b) => a + b) / ratings.length;
+      for (var data in items) {
+        final episodes = (data['episodeProgress'] as int? ?? 0);
+        totalEpisodes += episodes;
+        
+        final rating = (data['rating'] as num?)?.toDouble();
+        if (rating != null && rating > 0) {
+          totalRating += rating;
+          ratingsCount++;
+        }
 
-      final genreCount = <String, int>{};
-      for (final d in docs) {
-        final genres = (d['genres'] as List<dynamic>? ?? []).cast<String>();
-        for (final g in genres) {
-          genreCount[g] = (genreCount[g] ?? 0) + 1;
+        final status = data['status'] as String?;
+        if (status != null && statuses.containsKey(status)) {
+          statuses[status] = statuses[status]! + 1;
+        }
+
+        final List<dynamic>? genreList = data['genres'];
+        if (genreList != null) {
+          for (var g in genreList) {
+            genres[g.toString()] = (genres[g.toString()] ?? 0) + 1;
+          }
         }
       }
-      final sortedGenres = genreCount.entries.toList()
+
+      final topGenres = genres.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
-      final topGenres = sortedGenres.take(3).map((e) => e.key).toList();
 
       return {
         'totalAnime': totalAnime,
-        'completed': completed,
-        'watching': watching,
-        'dropped': dropped,
-        'planToWatch': planToWatch,
-        'onHold': onHold,
         'totalEpisodes': totalEpisodes,
         'minutesWatched': totalEpisodes * 24,
-        'avgRating': avgRating,
-        'topGenres': topGenres,
-        'ratingsGiven': ratings.length,
+        'avgRating': ratingsCount > 0 ? totalRating / ratingsCount : 0.0,
+        'ratingsGiven': ratingsCount,
+        ...statuses,
+        'topGenres': topGenres.take(5).map((e) => e.key).toList(),
       };
     });
   }
 
   Stream<Map<String, dynamic>> getUserMangaStatsStream() {
-    if (_uid == null) return Stream.value({});
-    
-    return _mangaWatchlistRef.snapshots().map((snap) {
-      final docs = snap.docs.map((d) => d.data()).toList();
-
-      int totalManga = docs.length;
-      int completed = docs.where((d) => d['status'] == ReadStatus.completed.value).length;
-      int reading  = docs.where((d) => d['status'] == ReadStatus.reading.value).length;
-      int dropped   = docs.where((d) => d['status'] == ReadStatus.dropped.value).length;
-      int planToRead = docs.where((d) => d['status'] == ReadStatus.planToRead.value).length;
-      int onHold    = docs.where((d) => d['status'] == ReadStatus.onHold.value).length;
-
+    final uid = currentUser?.uid;
+    if (uid == null) return Stream.value({});
+    return mangaWatchlistStream(uid: uid).map((items) {
+      int totalManga = items.length;
       int totalChapters = 0;
-      for (final d in docs) {
-        totalChapters += (d['chapterProgress'] as int? ?? 0);
-      }
+      int totalVolumes = 0;
+      double totalRating = 0;
+      int ratingsCount = 0;
+      Map<String, int> genres = {};
+      Map<String, int> statuses = {
+        'reading': 0,
+        'completed': 0,
+        'onHold': 0,
+        'dropped': 0,
+        'planToRead': 0,
+      };
 
-      final ratings = docs
-          .map((d) => d['userRating'])
-          .whereType<num>()
-          .map((r) => r.toDouble())
-          .toList();
-      final avgRating = ratings.isEmpty
-          ? 0.0
-          : ratings.reduce((a, b) => a + b) / ratings.length;
+      for (var data in items) {
+        totalChapters += (data['chapterProgress'] as int? ?? 0);
+        totalVolumes += (data['volumes'] as int? ?? 0);
+        
+        final rating = (data['rating'] as num?)?.toDouble();
+        if (rating != null && rating > 0) {
+          totalRating += rating;
+          ratingsCount++;
+        }
 
-      final genreCount = <String, int>{};
-      for (final d in docs) {
-        final genres = (d['genres'] as List<dynamic>? ?? []).cast<String>();
-        for (final g in genres) {
-          genreCount[g] = (genreCount[g] ?? 0) + 1;
+        final status = data['status'] as String?;
+        if (status != null && statuses.containsKey(status)) {
+          statuses[status] = statuses[status]! + 1;
+        }
+
+        final List<dynamic>? genreList = data['genres'];
+        if (genreList != null) {
+          for (var g in genreList) {
+            genres[g.toString()] = (genres[g.toString()] ?? 0) + 1;
+          }
         }
       }
-      final sortedGenres = genreCount.entries.toList()
+
+      final topGenres = genres.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
-      final topGenres = sortedGenres.take(3).map((e) => e.key).toList();
 
       return {
         'totalManga': totalManga,
-        'completed': completed,
-        'reading': reading,
-        'dropped': dropped,
-        'planToRead': planToRead,
-        'onHold': onHold,
         'totalChapters': totalChapters,
-        'avgRating': avgRating,
-        'topGenres': topGenres,
-        'ratingsGiven': ratings.length,
+        'totalVolumes': totalVolumes,
+        'avgRating': ratingsCount > 0 ? totalRating / ratingsCount : 0.0,
+        'ratingsGiven': ratingsCount,
+        ...statuses,
+        'topGenres': topGenres.take(5).map((e) => e.key).toList(),
       };
     });
   }
 
-  // ── Quiz History ──────────────────────────────────────────────────────────
-
-  Future<void> saveQuizAnswers(QuizAnswers answers) async {
-    if (_uid == null) return;
-    await _db.collection('users').doc(_uid).set({
-      'lastQuiz': {
-        'mood': answers.mood,
-        'genres': answers.genres,
-        'episodeRange': answers.episodeRange,
-        'status': answers.status,
-        'savedAt': FieldValue.serverTimestamp(),
-      }
-    }, SetOptions(merge: true));
-  }
-
-  // ── History (recently viewed) ─────────────────────────────────────────────
-
-  Future<void> addToHistory(Anime anime) async {
-    if (_uid == null) return;
-    await _db
-        .collection('users')
-        .doc(_uid)
-        .collection('history')
-        .doc(anime.malId.toString())
-        .set({
-      'malId': anime.malId,
-      'title': anime.displayTitle,
-      'imageUrl': anime.imageUrl,
-      'viewedAt': FieldValue.serverTimestamp(),
+  Future<void> saveQuizAnswers(String uid, QuizAnswers answers) async {
+    await _db.collection('users').doc(uid).collection('quizHistory').add({
+      'mood': answers.mood,
+      'genres': answers.genres,
+      'episodeRange': answers.episodeRange,
+      'status': answers.status,
+      'typeParam': answers.typeParam,
+      'isManga': answers.isManga,
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<void> markAnimeReaction(int malId, bool liked) async {
-    if (_uid == null) return;
+  // ── Search History ────────────────────
+  Future<void> addSearchTerm(String uid, String term) async {
+    final sanitizedTerm = term.trim();
+    if (sanitizedTerm.isEmpty) return;
+
+    // Use a sanitized ID to prevent duplicates and handle illegal characters like '/'
+    final docId = sanitizedTerm.toLowerCase().replaceAll('/', '_');
+    
     await _db
         .collection('users')
-        .doc(_uid)
-        .collection('reactions')
-        .doc(malId.toString())
-        .set({'malId': malId, 'liked': liked, 'at': FieldValue.serverTimestamp()});
-  }
-
-  // ── Streaming Cache ───────────────────────────────────────────────────────
-
-  /// Persists [links] for [malId] under streamingCache/{malId} for [uid].
-  /// Includes a server timestamp so the 7-day TTL can be enforced on read.
-  Future<void> cacheStreamingLinks(
-      String uid, int malId, List<dynamic> links) async {
-    try {
-      final doc = _db
-          .collection('users')
-          .doc(uid)
-          .collection('streamingCache')
-          .doc('$malId');
-      await doc.set({
-        'malId': malId,
-        'links': links
-            .map((l) => {'name': (l as dynamic).name, 'url': (l as dynamic).url})
-            .toList(),
-        'cachedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (_) {
-      // Cache write failure is non-fatal — streaming data will be re-fetched
-      // on the next detail screen open.
-    }
-  }
-
-  /// Returns cached streaming links for [malId], or `null` if the entry does
-  /// not exist or is older than 7 days.
-  Future<List<dynamic>?> getCachedStreamingLinks(
-      String uid, int malId) async {
-    try {
-      final doc = await _db
-          .collection('users')
-          .doc(uid)
-          .collection('streamingCache')
-          .doc('$malId')
-          .get();
-      if (!doc.exists) return null;
-      final data = doc.data()!;
-
-      // Expire cache after 7 days
-      final cachedAt = (data['cachedAt'] as Timestamp?)?.toDate();
-      if (cachedAt == null ||
-          DateTime.now().difference(cachedAt).inDays > 7) {
-        return null;
-      }
-
-      return data['links'] as List<dynamic>;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // ── Search History ────────────────────────────────────────────────────────
-
-  Future<void> saveSearchQuery(String query) async {
-    if (_uid == null || query.trim().isEmpty) return;
-    final docRef = _db.collection('users').doc(_uid).collection('metadata').doc('search');
-    
-    // Add to array, ensuring uniqueness
-    await docRef.set({
-      'history': FieldValue.arrayUnion([query.trim()]),
-      'lastUpdated': FieldValue.serverTimestamp(),
+        .doc(uid)
+        .collection('searchHistory')
+        .doc(docId)
+        .set({
+      'term': sanitizedTerm, // Store original display term
+      'timestamp': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-
-    // Optional: Limit to last 15 items by checking size
-    try {
-      final doc = await docRef.get();
-      if (doc.exists) {
-        List<String> history = List<String>.from(doc.data()?['history'] ?? []);
-        if (history.length > 15) {
-          history = history.sublist(history.length - 15);
-          await docRef.update({'history': history});
-        }
-      }
-    } catch (_) {}
   }
 
-  Stream<List<String>> getRecentSearchesStream() {
-    if (_uid == null) return Stream.value([]);
+  Stream<List<String>> getRecentSearchesStream(String uid) {
     return _db
         .collection('users')
-        .doc(_uid)
-        .collection('metadata')
-        .doc('search')
+        .doc(uid)
+        .collection('searchHistory')
+        .orderBy('timestamp', descending: true)
+        .limit(10)
         .snapshots()
-        .map((snap) {
-          if (!snap.exists) return [];
-          final history = List<String>.from(snap.data()?['history'] ?? []);
-          return history.reversed.toList(); // Newest first
-        });
+        .map((snap) => snap.docs
+            .map((doc) => doc.data()['term'] as String?)
+            .whereType<String>() // Only take valid strings
+            .toList());
   }
 
-  Future<void> removeSearchQuery(String query) async {
-    if (_uid == null) return;
+
+  Future<void> clearSearchHistory(String uid) async {
+    final snap = await _db.collection('users').doc(uid).collection('searchHistory').get();
+    final batch = _db.batch();
+    for (var doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  // ── Streaming Cache ───────────────────
+  Future<void> cacheStreamingLinks(String uid, int malId, List<dynamic> links) async {
     await _db
         .collection('users')
-        .doc(_uid)
-        .collection('metadata')
-        .doc('search')
-        .update({
-      'history': FieldValue.arrayRemove([query]),
+        .doc(uid)
+        .collection('streamingCache')
+        .doc(malId.toString())
+        .set({
+      'links': links,
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<void> clearSearchHistory() async {
-    if (_uid == null) return;
-    await _db
+  Future<List<dynamic>?> getCachedStreamingLinks(String uid, int malId) async {
+    final doc = await _db
         .collection('users')
-        .doc(_uid)
-        .collection('metadata')
-        .doc('search')
-        .set({
-      'history': [],
-    }, SetOptions(merge: true));
+        .doc(uid)
+        .collection('streamingCache')
+        .doc(malId.toString())
+        .get();
+    if (!doc.exists) return null;
+    final data = doc.data()!;
+    final Timestamp timestamp = data['timestamp'];
+    if (DateTime.now().difference(timestamp.toDate()).inDays > 7) return null;
+    
+    return data['links'] as List<dynamic>?;
   }
-}
+}
+

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'media_base.dart';
 
 // ---------------------------------------------------------------------------
@@ -25,22 +24,27 @@ class StreamingLink {
 // ---------------------------------------------------------------------------
 
 class Anime implements MediaBase {
+  @override
   final int malId;
   final String title;
   final String? titleEnglish;
   final String imageUrl;
+  @override
   final String? synopsis;
+  @override
   final double? score;
   final int? episodes;
   final String? status;
   final String? type;
   final int? year;
+  @override
   final List<String> genres;
   final String? trailerUrl;
   final int? rank;
   final int? members;
 
   /// Direct link to this anime's page on MyAnimeList.
+  @override
   final String? malUrl;
 
   /// Streaming platforms where this anime is available (populated separately

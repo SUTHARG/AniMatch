@@ -1,9 +1,8 @@
-import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
-import 'floating_notification.dart';
+import 'utils/snackbar_utils.dart' as snacks;
 import 'image_utils.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -69,7 +68,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           Navigator.pop(context);
         }
       } else {
-        await _firebase.registerWithEmail(email, password);
+        final name = _nameController.text.trim();
+        await _firebase.registerWithEmail(email, password, displayName: name);
         if (mounted) {
           _showSuccess('Account created! Welcome 🎉');
           Navigator.pop(context);
@@ -104,30 +104,25 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       case 'network-request-failed':
         return 'Network error. Check your internet connection.';
       case 'invalid-credential':
-        return 'Email or password is incorrect.';
+        return 'Email or password is incorrect. Check your credentials.';
+      case 'sign_in_failed':
+      case '10':
+        return 'Developer Error (10). Ensure Support Email is set in Firebase Console and SHA-1 matches.';
+      case 'unsupported-platform':
+        return 'Firebase is not configured for this platform (Windows).';
       default:
-        return 'Authentication failed ($code). Please try again.';
+        return 'Authentication failed ($code). Please check your project settings.';
     }
   }
 
   void _showError(String message) {
     if (!mounted) return;
-    FloatingNotification.show(
-      context,
-      title: 'Authentication Error',
-      message: message,
-      icon: Icons.error_outline_rounded,
-    );
+    snacks.showError(context, message);
   }
 
   void _showSuccess(String message) {
     if (!mounted) return;
-    FloatingNotification.show(
-      context,
-      title: 'Success',
-      message: message,
-      icon: Icons.check_circle_outline_rounded,
-    );
+    snacks.showSuccess(context, message);
   }
 
   @override
@@ -150,9 +145,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         children: [
           // Cinematic Background
           Positioned.fill(
-            child: Image.asset(
-              ImageUtils.resolveAsset('assets/images/login_bg.png'),
-              fit: BoxFit.cover,
+            child: ImageUtils.safeBackground(
+              'assets/images/login_bg.png',
             ),
           ),
           
@@ -160,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-              child: Container(color: Colors.black.withOpacity(0.55)),
+              child: Container(color: Colors.black.withValues(alpha: 0.55)),
             ),
           ),
 
@@ -191,23 +185,27 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 // Hero Icon with Glow
-                                Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: colorScheme.primary.withOpacity(0.1),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: colorScheme.primary.withOpacity(0.2),
-                                        blurRadius: 40,
-                                        spreadRadius: 8,
+                                Center(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(28),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: colorScheme.primary.withValues(alpha: 0.15),
+                                          blurRadius: 40,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(28),
+                                      child: Image.asset(
+                                        'assets/images/final_app_logo.png',
+                                        height: 110,
+                                        width: 110,
+                                        fit: BoxFit.contain, // Changed to contain to show the full logo
                                       ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    _isLogin ? Icons.lock_person_rounded : Icons.person_add_rounded,
-                                    size: 64,
-                                    color: colorScheme.primary,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 32),
@@ -289,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.amber.withOpacity(0.3),
+                                          color: Colors.amber.withValues(alpha: 0.3),
                                           blurRadius: 15,
                                           offset: const Offset(0, 5),
                                         ),
@@ -349,7 +347,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 // Divider
                                 Row(
                                   children: [
-                                    Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
+                                    Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.1))),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 16),
                                       child: Text(
@@ -361,7 +359,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ),
                                       ),
                                     ),
-                                    Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
+                                    Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.1))),
                                   ],
                                 ),
                                 const SizedBox(height: 24),
@@ -426,10 +424,10 @@ class _PremiumSocialButton extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -440,7 +438,7 @@ class _PremiumSocialButton extends StatelessWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Material(
-              color: Colors.white.withOpacity(0.06),
+              color: Colors.white.withValues(alpha: 0.06),
               child: InkWell(
                 onTap: onPressed,
                 child: Center(
@@ -547,10 +545,10 @@ class _GlassField extends StatelessWidget {
               )
             : null,
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
+        fillColor: Colors.white.withValues(alpha: 0.05),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -558,7 +556,7 @@ class _GlassField extends StatelessWidget {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.red.withOpacity(0.5)),
+          borderSide: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

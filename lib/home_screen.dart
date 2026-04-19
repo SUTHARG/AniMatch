@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'app_state.dart';
 import 'manga.dart';
 import 'anime.dart';
@@ -17,9 +18,13 @@ import 'image_utils.dart';
 import 'shimmer_skeletons.dart';
 import 'media_base.dart';
 import 'browse_magazines_screen.dart';
+import 'pinterest_interaction.dart';
+import 'firebase_service.dart';
+import 'watch_status_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final AppState appState;
+  const HomeScreen({super.key, required this.appState});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -27,26 +32,24 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  static final Map<String, String> _imageHeaders = kIsWeb ? {} : {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-  };
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      extendBody: true, // Allows content to flow behind the glass bar
-      body: ValueListenableBuilder<AppMode>(
-        valueListenable: appState.modeNotifier,
-        builder: (context, mode, child) {
-          return IndexedStack(index: _currentIndex, children: const [
-            _HomeTab(),
-            WatchlistScreen(),
-          ]);
-        },
-      ),
+    return ListenableBuilder(
+      listenable: widget.appState,
+      builder: (context, _) {
+        return Scaffold(
+          extendBody: true,
+          body: IndexedStack(
+            index: _currentIndex,
+            children: [
+              _HomeTab(appState: widget.appState),
+              WatchlistScreen(),
+            ],
+          ),
       bottomNavigationBar: SafeArea(
         bottom: true,
         child: Container(
@@ -135,6 +138,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+    );
+      },
     );
   }
 }
@@ -283,7 +288,8 @@ class _NotchedPillBorderPainter extends CustomPainter {
 }
 
 class _HomeTab extends StatefulWidget {
-  const _HomeTab();
+  final AppState appState;
+  const _HomeTab({required this.appState});
 
   @override
   State<_HomeTab> createState() => _HomeTabState();
@@ -298,26 +304,28 @@ class _HomeTabState extends State<_HomeTab> {
 
   List<Manga> _spotlightManga = [];
   List<Manga> _trendingManga = [];
-  List<Manga> _topUpcomingManga = [];
+  List<Manga> _popularManhwa = [];
+  List<Manga> _popularManhua = [];
+  List<Manga> _popularNovels = [];
   
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    appState.modeNotifier.addListener(_onModeChanged);
+    widget.appState.addListener(_onModeChanged);
     _load();
   }
 
   @override
   void dispose() {
-    appState.modeNotifier.removeListener(_onModeChanged);
+    widget.appState.removeListener(_onModeChanged);
     super.dispose();
   }
 
   void _onModeChanged() {
-    if ((appState.currentMode == AppMode.anime && _spotlightAnime.isEmpty) ||
-        (appState.currentMode == AppMode.manga && _spotlightManga.isEmpty)) {
+    if ((widget.appState.isAnimeMode && _spotlightAnime.isEmpty) ||
+        (!widget.appState.isAnimeMode && _spotlightManga.isEmpty)) {
       _load();
     } else {
       setState(() {});
@@ -325,10 +333,11 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     
     try {
-      if (appState.currentMode == AppMode.anime) {
+      if (widget.appState.isAnimeMode) {
         final trendingData = await _anilist.getTrendingAnime();
         final seasonalData = await _anilist.getSeasonalAnime();
         final upcomingData = await _anilist.getTopUpcomingAnime();
@@ -342,26 +351,34 @@ class _HomeTabState extends State<_HomeTab> {
           });
         }
       } else {
-        // Load Manga Data
+        // Load Manga Data (with rate-limiting awareness)
         final trendingMangaData = await _jikan.getTopManga(filter: 'publishing'); // Current top publishing
         final topMangaData = await _jikan.getTopManga(); // All-time top
+        
+        // Fetch specific categories
+        final manhwaData = await _jikan.getTopManga(type: 'manhwa');
+        final manhuaData = await _jikan.getTopManga(type: 'manhua');
+        final novelData = await _jikan.getTopManga(type: 'lightnovel');
 
         if (mounted) {
           setState(() {
-            // Using publishing manga as spotlight to mirror seasonal anime
             _spotlightManga = trendingMangaData.take(10).toList();
             _trendingManga = topMangaData.take(10).toList();
-            _topUpcomingManga = []; // Maybe leave upcoming blank or use something else
-            _loading = false;
+            _popularManhwa = manhwaData.take(15).toList();
+            _popularManhua = manhuaData.take(15).toList();
+            _popularNovels = novelData.take(15).toList();
           });
         }
       }
     } catch (_) {
+      // Handle error gracefully
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _surpriseMe(BuildContext context) async {
+    final appState = widget.appState;
     // Show a polished loading overlay
     showDialog(
       context: context,
@@ -372,7 +389,7 @@ class _HomeTabState extends State<_HomeTab> {
           decoration: BoxDecoration(
             color: Colors.black87,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: const Column(
             mainAxisSize: MainAxisSize.min,
@@ -423,7 +440,7 @@ class _HomeTabState extends State<_HomeTab> {
         Navigator.pop(context); // Remove loading
         FloatingNotification.show(
           context,
-          title: 'Surprise Unavailable',
+          title: 'Magic Failed',
           message: 'Failed to find a surprise. Try again!',
           icon: Icons.auto_awesome_rounded,
         );
@@ -434,37 +451,82 @@ class _HomeTabState extends State<_HomeTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final appState = widget.appState;
 
     final content = CustomScrollView(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       slivers: [
         SliverAppBar(
-          title: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 200),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🎌', style: TextStyle(fontSize: 22)),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text('AniMatch',
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/images/final_app_logo.png',
+                height: 32,
+                width: 32,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text('AniMatch',
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+              ),
+            ],
           ),
           actions: [
+            // Mode Toggle in AppBar for Cleaner Look
             IconButton(
-              icon: const Icon(Icons.shuffle_rounded, color: Colors.amber),
+              icon: Icon(
+                appState.isAnimeMode ? Icons.movie_filter_rounded : Icons.menu_book_rounded, 
+                color: Colors.amber
+              ),
+              onPressed: () => appState.toggleMode(),
+              tooltip: 'Switch to ${appState.isAnimeMode ? 'Manga' : 'Anime'}',
+            ),
+            
+            // Surprise Me
+            IconButton(
+              icon: const Icon(Icons.shuffle_rounded, color: Colors.white70),
               onPressed: () => _surpriseMe(context),
               tooltip: 'Surprise Me',
             ),
-            IconButton(
-              icon: const Icon(Icons.auto_awesome_rounded, color: Colors.amber),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuizScreen())),
-              tooltip: 'Anime Quiz',
+
+            // Quiz Button (Matches Screenshot)
+            GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QuizScreen(isManga: appState.isMangaMode))),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Colors.amber, Color(0xFFFF9800)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.amber.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, color: Colors.black, size: 16),
+                    SizedBox(width: 4),
+                    Text('Quiz', 
+                      style: TextStyle(
+                        color: Colors.black, 
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      )
+                    ),
+                  ],
+                ),
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.person_outline_rounded),
@@ -474,7 +536,7 @@ class _HomeTabState extends State<_HomeTab> {
             const SizedBox(width: 8),
           ],
           floating: true,
-          backgroundColor: colorScheme.surface,
+          backgroundColor: Colors.black,
           surfaceTintColor: Colors.transparent,
         ),
 
@@ -483,10 +545,11 @@ class _HomeTabState extends State<_HomeTab> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Container(
-              height: 44,
+              height: 48,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(22),
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               ),
               child: Row(
                 children: [
@@ -494,17 +557,18 @@ class _HomeTabState extends State<_HomeTab> {
                     child: GestureDetector(
                       onTap: () => appState.setMode(AppMode.anime),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 300),
                         decoration: BoxDecoration(
-                          color: appState.currentMode == AppMode.anime ? Colors.amber : Colors.transparent,
-                          borderRadius: BorderRadius.circular(22),
+                          color: appState.isAnimeMode ? Colors.amber : Colors.transparent,
+                          borderRadius: BorderRadius.circular(24),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           'Anime',
                           style: TextStyle(
+                            color: appState.isAnimeMode ? Colors.black : Colors.white60,
                             fontWeight: FontWeight.bold,
-                            color: appState.currentMode == AppMode.anime ? Colors.black : Colors.white70,
+                            fontSize: 14,
                           ),
                         ),
                       ),
@@ -514,17 +578,18 @@ class _HomeTabState extends State<_HomeTab> {
                     child: GestureDetector(
                       onTap: () => appState.setMode(AppMode.manga),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 300),
                         decoration: BoxDecoration(
-                          color: appState.currentMode == AppMode.manga ? Colors.amber : Colors.transparent,
-                          borderRadius: BorderRadius.circular(22),
+                          color: appState.isMangaMode ? Colors.amber : Colors.transparent,
+                          borderRadius: BorderRadius.circular(24),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           'Manga',
                           style: TextStyle(
+                            color: appState.isMangaMode ? Colors.black : Colors.white60,
                             fontWeight: FontWeight.bold,
-                            color: appState.currentMode == AppMode.manga ? Colors.black : Colors.white70,
+                            fontSize: 14,
                           ),
                         ),
                       ),
@@ -536,75 +601,88 @@ class _HomeTabState extends State<_HomeTab> {
           ),
         ),
 
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
         if (_loading)
           const SliverFillRemaining(
               child: HomeShimmer())
         else ...[
-          // Spotlight Carousel
-          if (appState.currentMode == AppMode.anime && _spotlightAnime.isNotEmpty)
-            SliverToBoxAdapter(
-              child: _SpotlightCarousel(spotlightItems: _spotlightAnime, isManga: false),
-            ),
-          if (appState.currentMode == AppMode.manga && _spotlightManga.isNotEmpty)
-            SliverToBoxAdapter(
-              child: _SpotlightCarousel(spotlightItems: _spotlightManga, isManga: true),
-            ),
+          if (appState.isAnimeMode) ...[
+            // ── ANIME LAYOUT ──
+            if (_spotlightAnime.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _SpotlightCarousel(spotlightItems: _spotlightAnime, isManga: false),
+              ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-          if (appState.currentMode == AppMode.anime && _trendingAnime.isNotEmpty) ...[
-            const SliverToBoxAdapter(child: _SectionHeader(title: 'Trending')),
-            SliverToBoxAdapter(
-              child: _TrendingList(trendingItems: _trendingAnime, isManga: false),
-            ),
-          ],
-          if (appState.currentMode == AppMode.manga && _trendingManga.isNotEmpty) ...[
-            const SliverToBoxAdapter(child: _SectionHeader(title: 'Trending')),
-            SliverToBoxAdapter(
-              child: _TrendingList(trendingItems: _trendingManga, isManga: true),
-            ),
-          ],
+            if (_trendingAnime.isNotEmpty) ...[
+              const SliverToBoxAdapter(child: _SectionHeader(title: 'Trending')),
+              SliverToBoxAdapter(
+                child: _TrendingList(trendingItems: _trendingAnime, isManga: false),
+              ),
+            ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-          // Quiz banner moved here for better visibility
-          SliverToBoxAdapter(child: _RecommendBanner()),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
-
-          // Schedule Section (Anime Only)
-          if (appState.currentMode == AppMode.anime)
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _RecommendBanner(isManga: false)),
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
             SliverToBoxAdapter(child: _ScheduleSection(jikanService: _jikan)),
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
-          // Magazines Section (Manga Only)
-          if (appState.currentMode == AppMode.manga)
-            SliverToBoxAdapter(child: _MagazineSection(jikanService: _jikan)),
+            if (_topUpcomingAnime.isNotEmpty) 
+              SliverToBoxAdapter(
+                child: _TopUpcomingSection(upcomingItems: _topUpcomingAnime, isManga: false),
+              ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
-
-          // Top Upcoming List
-          if (appState.currentMode == AppMode.anime && _topUpcomingAnime.isNotEmpty) 
-            SliverToBoxAdapter(
-              child: _TopUpcomingSection(upcomingItems: _topUpcomingAnime, isManga: false),
-            ),
-          if (appState.currentMode == AppMode.manga && _topUpcomingManga.isNotEmpty) 
-            SliverToBoxAdapter(
-              child: _TopUpcomingSection(upcomingItems: _topUpcomingManga, isManga: true),
-            ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
-
-          // Top 10 List
-          if (appState.currentMode == AppMode.anime) ...[
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
             SliverToBoxAdapter(child: _TopTenSection(anilistService: _anilist, isManga: false)),
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-          ],
-          if (appState.currentMode == AppMode.manga) ...[
+          ] else ...[
+            // ── MANGA LAYOUT ──
+            if (_spotlightManga.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _SpotlightCarousel(spotlightItems: _spotlightManga, isManga: true),
+              ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _RecommendBanner(isManga: true)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+            if (_trendingManga.isNotEmpty) ...[
+              const SliverToBoxAdapter(child: _SectionHeader(title: 'Trending')),
+              SliverToBoxAdapter(
+                child: _TrendingList(trendingItems: _trendingManga, isManga: true),
+              ),
+            ],
+
+            if (_popularManhwa.isNotEmpty) ...[
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SliverToBoxAdapter(child: _SectionHeader(title: 'Popular Manhwa')),
+              SliverToBoxAdapter(
+                child: _TrendingList(trendingItems: _popularManhwa, isManga: true),
+              ),
+            ],
+            if (_popularManhua.isNotEmpty) ...[
+              const SliverToBoxAdapter(child: _SectionHeader(title: 'Popular Manhua')),
+              SliverToBoxAdapter(
+                child: _TrendingList(trendingItems: _popularManhua, isManga: true),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+
+            if (_popularNovels.isNotEmpty) ...[
+              const SliverToBoxAdapter(child: _SectionHeader(title: 'Top Novels')),
+              SliverToBoxAdapter(
+                child: _TrendingList(trendingItems: _popularNovels, isManga: true),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+            ],
+
+            SliverToBoxAdapter(child: _MagazineSection(jikanService: _jikan)),
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
             SliverToBoxAdapter(child: _TopTenSection(jikanService: _jikan, isManga: true)),
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          const SliverToBoxAdapter(child: SizedBox(height: 200)),
         ],
       ],
     );
@@ -667,8 +745,11 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
   Widget build(BuildContext context) {
     if (widget.spotlightItems.isEmpty) return const SizedBox.shrink();
     
+    final screenHeight = MediaQuery.of(context).size.height;
+    final carouselHeight = (screenHeight * 0.55).clamp(400.0, 550.0);
+
     return SizedBox(
-      height: 520, // Slightly taller for the card padding
+      height: carouselHeight,
       child: Stack(
         children: [
           PageView.builder(
@@ -678,41 +759,50 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
               // Reset timer on page change (manual or auto)
               _startTimer();
             },
-            itemCount: _infinitePages,
             itemBuilder: (context, index) {
               final isCurrent = (index % widget.spotlightItems.length) == _currentIndex;
               final item = widget.spotlightItems[index % widget.spotlightItems.length];
               
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                child: GestureDetector(
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga))),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 400),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(32),
-                      boxShadow: [
-                        BoxShadow(
-                          color: isCurrent 
-                              ? Colors.amber.withOpacity(0.3) 
-                              : Colors.black.withOpacity(0.4),
-                          blurRadius: isCurrent ? 30 : 20,
-                          spreadRadius: isCurrent ? 5 : 2,
+              return AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, child) {
+                  // Calculate parallax offset
+                  double scrollOffset = 0.0;
+                  if (_pageController.hasClients && _pageController.page != null) {
+                    scrollOffset = (_pageController.page! - index);
+                  }
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    child: GestureDetector(
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga))),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 400),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(32),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isCurrent 
+                                  ? Colors.amber.withValues(alpha: 0.3) 
+                                  : Colors.black.withValues(alpha: 0.4),
+                              blurRadius: isCurrent ? 30 : 20,
+                              spreadRadius: isCurrent ? 5 : 2,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(32),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          PremiumImage(
-                            imageUrl: item.displayImageUrl,
-                            fit: BoxFit.cover,
-                          ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(32),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              PremiumImage(
+                                imageUrl: item.displayImageUrl,
+                                fit: BoxFit.cover,
+                                alignment: Alignment(scrollOffset * 0.8, 0), // Parallax effect
+                              ),
                           // Premium Multi-gradient System
                           DecoratedBox(
                             decoration: BoxDecoration(
@@ -720,12 +810,13 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [
-                                  Colors.black.withOpacity(0.1),
+                                  Colors.black.withValues(alpha: 0.0),
+                                  Colors.black.withValues(alpha: 0.2),
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.3),
-                                  Colors.black.withOpacity(0.9),
+                                  Colors.black.withValues(alpha: 0.4),
+                                  Colors.black.withValues(alpha: 0.95),
                                 ],
-                                stops: const [0.0, 0.3, 0.6, 1.0],
+                                stops: const [0.0, 0.2, 0.4, 0.7, 1.0],
                               ),
                             ),
                           ),
@@ -736,7 +827,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                                 begin: Alignment.centerLeft,
                                 end: Alignment.centerRight,
                                 colors: [
-                                  Colors.black.withOpacity(0.6),
+                                  Colors.black.withValues(alpha: 0.6),
                                   Colors.transparent,
                                 ],
                                 stops: const [0.0, 0.6],
@@ -756,9 +847,9 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.amber.withOpacity(0.2),
+                                        color: Colors.amber.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                                        border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
                                       ),
                                       child: Text(
                                         '#${(index % widget.spotlightItems.length) + 1} Spotlight',
@@ -837,7 +928,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                                               style: TextStyle(color: Colors.white)),
                                           style: FilledButton.styleFrom(
                                             backgroundColor:
-                                                Colors.white.withOpacity(0.15),
+                                                Colors.white.withValues(alpha: 0.15),
                                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                           ),
                                         ),
@@ -848,13 +939,16 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                               ],
                             ),
                           ),
-                        ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               );
             },
+            itemCount: _infinitePages,
           ),
           // Dot indicators on the right
           Positioned(
@@ -873,7 +967,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                   decoration: BoxDecoration(
                     color: _currentIndex == index
                         ? Colors.amber
-                        : Colors.white.withOpacity(0.3),
+                        : Colors.white.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -887,35 +981,62 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
 }
 
 // ── Trending List ─────────────────────────────────────────────────────────────
-class _TrendingList extends StatelessWidget {
+class _TrendingList extends StatefulWidget {
   final List<MediaBase> trendingItems;
   final bool isManga;
   const _TrendingList({required this.trendingItems, this.isManga = false});
 
   @override
+  State<_TrendingList> createState() => _TrendingListState();
+}
+
+class _TrendingListState extends State<_TrendingList> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 200,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: trendingItems.length,
-        itemBuilder: (context, index) {
-          final item = trendingItems[index];
-          final String numStr = (index + 1).toString().padLeft(2, '0');
+      child: AnimatedBuilder(
+        animation: _scrollController,
+        builder: (context, child) {
+          return ListView.builder(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: widget.trendingItems.length,
+            itemBuilder: (context, index) {
+              final item = widget.trendingItems[index];
+              final String numStr = (index + 1).toString().padLeft(2, '0');
 
-          return Container(
-            width: 140,
-            margin: const EdgeInsets.only(right: 12),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  PremiumImage(
-                    imageUrl: item.displayImageUrl,
-                    fit: BoxFit.cover,
-                  ),
+              double scrollOffset = 0.0;
+              if (_scrollController.hasClients) {
+                // Approximate parallax based on index and controller offset
+                // Width of item (140) + margin (12) = 152
+                double itemPos = index * 152.0;
+                scrollOffset = (itemPos - _scrollController.offset) / 152.0;
+              }
+
+              return Container(
+                width: 140,
+                margin: const EdgeInsets.only(right: 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      PremiumImage(
+                        imageUrl: item.displayImageUrl,
+                        fit: BoxFit.cover,
+                        alignment: Alignment(scrollOffset * 0.3, 0),
+                      ),
                   // Rank Overlay
                   Positioned(
                     left: 0,
@@ -944,44 +1065,147 @@ class _TrendingList extends StatelessWidget {
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
+                      padding: const EdgeInsets.fromLTRB(8, 24, 8, 8),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withValues(alpha: 0.8),
+                            Colors.black.withValues(alpha: 0.4),
+                            Colors.black.withValues(alpha: 0.9),
                           ],
+                          stops: const [0.0, 0.4, 1.0],
                         ),
                       ),
-                      child: Text(
-                        item.displayTitle,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  item.mediaTypeBadge.toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  item.mediaProgressText,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.displayTitle,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   
                   // Top-level InkWell to ensure click-ability on Web
                   Positioned.fill(
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          Navigator.push(
+                    child: PinterestMenuWrapper(
+                      actions: [
+                        PinterestMenuAction(
+                          icon: Icons.bookmark_add_rounded, 
+                          label: 'Watchlist', 
+                          onAction: () async {
+                            final uid = FirebaseAuth.instance.currentUser?.uid;
+                            if (uid == null) {
+                              FloatingNotification.show(
+                                context,
+                                title: 'Authentication',
+                                message: 'Sign in to manage your watchlist',
+                                icon: Icons.login_rounded,
+                              );
+                              return;
+                            }
+                            
+                            final entry = await FirebaseService().getWatchlistEntry(
+                              uid, item.malId, isManga: widget.isManga
+                            );
+                            
+                            dynamic currentStatus;
+                            if (entry != null) {
+                              currentStatus = widget.isManga 
+                                ? ReadStatus.fromString(entry['status']) 
+                                : WatchStatus.fromString(entry['status']);
+                            }
+
+                            if (context.mounted) {
+                              await showMediaStatusSheet(
+                                context,
+                                media: item,
+                                isManga: widget.isManga,
+                                currentStatus: currentStatus,
+                              );
+                            }
+                          }
+                        ),
+                        PinterestMenuAction(
+                          icon: Icons.info_outline_rounded, 
+                          label: 'Details', 
+                          onAction: () => Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) => DetailScreen(malId: item.malId, isManga: isManga),
-                            ),
-                          );
-                        },
+                            MaterialPageRoute(builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga)),
+                          )
+                        ),
+                        PinterestMenuAction(
+                          icon: Icons.share_rounded, 
+                          label: 'Share', 
+                          onAction: () {
+                            // Copy link to clipboard as a "Share" action
+                            final url = 'https://myanimelist.net/${widget.isManga ? 'manga' : 'anime'}/${item.malId}';
+                            Clipboard.setData(ClipboardData(text: url));
+                            FloatingNotification.show(
+                              context,
+                              title: 'Shared',
+                              message: 'Link copied to clipboard!',
+                              icon: Icons.share_rounded,
+                            );
+                          }
+                        ),
+                      ],
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -990,9 +1214,11 @@ class _TrendingList extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
+      );
+    },
+  ),
+ );
+}
 }
 
 // ── Section Header ────────────────────────────────────────────────────────────
@@ -1027,61 +1253,196 @@ class _SectionHeader extends StatelessWidget {
 
 // ── Recommend Banner ──────────────────────────────────────────────────────────
 class _RecommendBanner extends StatelessWidget {
+  final bool isManga;
+  const _RecommendBanner({this.isManga = false});
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
-        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              colorScheme.primaryContainer,
-              colorScheme.secondaryContainer
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Not sure what to watch?',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onPrimaryContainer,
-                          )),
-                  const SizedBox(height: 4),
-                  Text('Take a quick quiz and get personalized picks',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onPrimaryContainer
-                                .withValues(alpha: 0.8),
-                          )),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const QuizScreen())),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: const Text('Start quiz ✨'),
-                  ),
-                ],
-              ),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.amber.withValues(alpha: 0.15),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
             ),
-            const Text('🎭', style: TextStyle(fontSize: 56)),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: Stack(
+            children: [
+              // Vibrant Base Gradient
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF6C5CE7),
+                        const Color(0xFF6C5CE7).withValues(alpha: 0.8),
+                        Colors.amber.withValues(alpha: 0.2),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Glass Layer
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Content
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isSmall = constraints.maxWidth < 340;
+                  return Padding(
+                    padding: EdgeInsets.all(isSmall ? 16.0 : 28.0),
+                    child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min, // allow banner to shrink
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('MATCHMAKER', 
+                              style: TextStyle(
+                                color: Colors.amber, 
+                                fontWeight: FontWeight.w900, 
+                                fontSize: 10, 
+                                letterSpacing: 1.5
+                              )
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Find your next favorite story',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSmall ? 16 : 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Take the personalized quiz ✨',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => QuizScreen(isManga: isManga)),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber,
+                              foregroundColor: Colors.black,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isSmall ? 14 : 20, 
+                                vertical: isSmall ? 8 : 12
+                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            child: const Text('Start Quiz', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!isSmall) ...[
+                      const SizedBox(width: 12),
+                      // Overlapping Cards Effect for Premium Look
+                      SizedBox(
+                        width: 130,
+                        height: 100,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned(
+                              right: 0,
+                              top: 10,
+                              child: _FloatingCard(color: Colors.amber.withValues(alpha: 0.4), rotation: 0.1, scale: 0.8),
+                            ),
+                            Positioned(
+                              right: 15,
+                              top: 5,
+                              child: _FloatingCard(color: Colors.amber.withValues(alpha: 0.7), rotation: -0.05, scale: 0.9),
+                            ),
+                            Positioned(
+                              right: 35,
+                              top: 0,
+                              child: const _FloatingCard(color: Colors.amber, rotation: 0, scale: 1.0),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    ),
+  ),
+);
+  }
+}
+
+class _FloatingCard extends StatelessWidget {
+  final Color color;
+  final double rotation;
+  final double scale;
+  const _FloatingCard({required this.color, required this.rotation, required this.scale});
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.scale(
+      scale: scale,
+      child: Transform.rotate(
+        angle: rotation,
+        child: Container(
+          width: 50,
+          height: 65,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 10,
+                offset: const Offset(4, 4),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1245,7 +1606,7 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
                       width: 90,
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.amber : colorScheme.surfaceVariant.withOpacity(0.3),
+                        color: isSelected ? Colors.amber : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -1303,7 +1664,7 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: _isExpanded ? _scheduledAnime.length : _scheduledAnime.take(7).length,
-                separatorBuilder: (_, __) => Divider(color: Colors.white.withOpacity(0.05), height: 1),
+                separatorBuilder: (_, __) => Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
                 itemBuilder: (context, index) {
                   final anime = _scheduledAnime[index];
                   final timeObj = DateTime.fromMillisecondsSinceEpoch(anime.airingAt * 1000);
@@ -1385,7 +1746,7 @@ class _ScrollArrow extends StatelessWidget {
           color: Colors.white,
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4, offset: const Offset(0, 2)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2)),
           ],
         ),
         child: Icon(icon, color: Colors.black, size: 20),
@@ -1419,6 +1780,7 @@ class _MagazineSectionState extends State<_MagazineSection> {
       if (mounted) {
         setState(() {
           _magazines = list.take(8).toList(); // Reduced for faster, more reliable load
+          _loading = false; // Show the section immediately with shimmers/placeholders
         });
         
         // Fetch covers sequentially to avoid Jikan 429 Rate Limits
@@ -1431,11 +1793,9 @@ class _MagazineSectionState extends State<_MagazineSection> {
               mag.imageUrl = cover;
             });
           }
-          // Small staggered delay between magazines to stay under Jikan's 3req/sec limit
-          await Future.delayed(const Duration(milliseconds: 600));
+          // The JikanService already handles throttling (800ms between calls)
+          // so we don't need an extra manual delay here.
         }
-        
-        if (mounted) setState(() => _loading = false);
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -1462,14 +1822,13 @@ class _MagazineSectionState extends State<_MagazineSection> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 220, // Increased height for the new aspect ratio
+          height: 200, 
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _magazines.length,
             itemBuilder: (context, index) {
               final mag = _magazines[index];
-              // Use different gradients to simulate unique magazine covers
               final gradients = [
                 [const Color(0xFF6448FE), const Color(0xFF5FC6FF)],
                 [const Color(0xFFFE485B), const Color(0xFFFE9A5F)],
@@ -1479,22 +1838,22 @@ class _MagazineSectionState extends State<_MagazineSection> {
               final gradient = gradients[index % gradients.length];
 
               return Container(
-                width: 160, 
-                margin: const EdgeInsets.only(right: 16),
+                width: 140, 
+                margin: const EdgeInsets.only(right: 12),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(12),
                   child: Stack(
                     children: [
                       // Background Cover
                       Container(
                         decoration: BoxDecoration(
                           color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
@@ -1517,22 +1876,22 @@ class _MagazineSectionState extends State<_MagazineSection> {
                               child: Opacity(
                                 opacity: 0.15,
                                 child: Center(
-                                  child: Icon(Icons.auto_stories_rounded, size: 80, color: Colors.white.withOpacity(0.5)),
+                                  child: Icon(Icons.auto_stories_rounded, size: 60, color: Colors.white.withValues(alpha: 0.5)),
                                 ),
                               ),
                             ),
                       ),
                       
-                      // Subtle dynamic overlay for better text legibility
+                      // Subtle dynamic overlay
                       Container(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(12),
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Colors.black.withOpacity(0.1),
-                              Colors.black.withOpacity(0.4),
+                              Colors.black.withValues(alpha: 0.1),
+                              Colors.black.withValues(alpha: 0.5),
                             ],
                           ),
                         ),
@@ -1540,15 +1899,15 @@ class _MagazineSectionState extends State<_MagazineSection> {
                       
                       // Top Right Arrow Button
                       Positioned(
-                        top: 12,
-                        right: 12,
+                        top: 8,
+                        right: 8,
                         child: Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.north_east_rounded, size: 14, color: Colors.white),
+                          child: const Icon(Icons.north_east_rounded, size: 12, color: Colors.white),
                         ),
                       ),
   
@@ -1558,37 +1917,28 @@ class _MagazineSectionState extends State<_MagazineSection> {
                         left: 0,
                         right: 0,
                         child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
                           child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                             child: Container(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.3),
-                                border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+                                color: Colors.black.withValues(alpha: 0.4),
+                                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
                               ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Stars
-                                  Row(
-                                    children: List.generate(5, (i) => Icon(
-                                      Icons.star_rounded, 
-                                      size: 10, 
-                                      color: i < 4 ? Colors.amber : Colors.white24
-                                    )),
-                                  ),
-                                  const SizedBox(height: 4),
                                   Text(
                                     mag.name,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
                                     '${mag.count} titles',
-                                    style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.6)),
+                                    style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.7)),
                                   ),
                                 ],
                               ),
@@ -1597,18 +1947,35 @@ class _MagazineSectionState extends State<_MagazineSection> {
                         ),
                       ),
 
-                      // Click Overlay (Ensures reactivity on Web/CORS images)
+                      // Click Overlay
                       Positioned.fill(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(24),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MagazineBrowseScreen(
-                                  magazineId: mag.malId,
-                                  magazineName: mag.name,
+                        child: PinterestMenuWrapper(
+                          actions: [
+                            PinterestMenuAction(
+                              icon: Icons.open_in_new_rounded, 
+                              label: 'Browse', 
+                              onAction: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MagazineBrowseScreen(
+                                    magazineId: mag.malId,
+                                    magazineName: mag.name,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MagazineBrowseScreen(
+                                    magazineId: mag.malId,
+                                    magazineName: mag.name,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1694,17 +2061,65 @@ class _TopUpcomingSectionState extends State<_TopUpcomingSection> {
                             const SizedBox(height: 4),
                             Text(
                               item.mediaProgressText,
-                              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                             ),
                           ],
                         ),
                         // Transparent InkWell overlay
                         Positioned.fill(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(8),
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga))),
+                          child: PinterestMenuWrapper(
+                            actions: [
+                              PinterestMenuAction(
+                                icon: Icons.bookmark_add_rounded, 
+                                label: 'Watchlist', 
+                                onAction: () async {
+                                  final uid = FirebaseAuth.instance.currentUser?.uid;
+                                  if (uid == null) {
+                                    FloatingNotification.show(
+                                      context,
+                                      title: 'Authentication',
+                                      message: 'Sign in to manage your watchlist',
+                                      icon: Icons.login_rounded,
+                                    );
+                                    return;
+                                  }
+                                  
+                                  final entry = await FirebaseService().getWatchlistEntry(
+                                    uid, item.malId, isManga: widget.isManga
+                                  );
+                                  
+                                  dynamic currentStatus;
+                                  if (entry != null) {
+                                    currentStatus = widget.isManga 
+                                      ? ReadStatus.fromString(entry['status']) 
+                                      : WatchStatus.fromString(entry['status']);
+                                  }
+
+                                  if (context.mounted) {
+                                    await showMediaStatusSheet(
+                                      context,
+                                      media: item,
+                                      isManga: widget.isManga,
+                                      currentStatus: currentStatus,
+                                    );
+                                  }
+                                }
+                              ),
+                              PinterestMenuAction(
+                                icon: Icons.info_outline_rounded, 
+                                label: 'Details', 
+                                onAction: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga)),
+                                )
+                              ),
+                            ],
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga))),
+                              ),
                             ),
                           ),
                         ),
@@ -1839,9 +2254,56 @@ class _TopTenSectionState extends State<_TopTenSection> {
                itemBuilder: (context, index) {
                  final anime = _topList[index];
                  final numStr = (index + 1).toString().padLeft(2, '0');
-                 return GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId))),
-                    child: Padding(
+                 return PinterestMenuWrapper(
+                    actions: [
+                      PinterestMenuAction(
+                        icon: Icons.bookmark_add_rounded, 
+                        label: 'Watchlist', 
+                        onAction: () async {
+                          final uid = FirebaseAuth.instance.currentUser?.uid;
+                          if (uid == null) {
+                            FloatingNotification.show(
+                              context,
+                              title: 'Authentication',
+                              message: 'Sign in to manage your watchlist',
+                              icon: Icons.login_rounded,
+                            );
+                            return;
+                          }
+                          
+                          final entry = await FirebaseService().getWatchlistEntry(
+                            uid, anime.malId, isManga: widget.isManga
+                          );
+                          
+                          dynamic currentStatus;
+                          if (entry != null) {
+                            currentStatus = widget.isManga 
+                              ? ReadStatus.fromString(entry['status']) 
+                              : WatchStatus.fromString(entry['status']);
+                          }
+
+                          if (context.mounted) {
+                            await showMediaStatusSheet(
+                              context,
+                              media: anime,
+                              isManga: widget.isManga,
+                              currentStatus: currentStatus,
+                            );
+                          }
+                        }
+                      ),
+                      PinterestMenuAction(
+                        icon: Icons.info_outline_rounded, 
+                        label: 'Details', 
+                        onAction: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId, isManga: widget.isManga)),
+                        )
+                      ),
+                    ],
+                    child: GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId, isManga: widget.isManga))),
+                      child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Row(
                         children: [
@@ -1889,7 +2351,7 @@ class _TopTenSectionState extends State<_TopTenSection> {
                                          children: [
                                            const Icon(Icons.closed_caption, size: 12, color: Colors.black),
                                            const SizedBox(width: 4),
-                                           Text('${anime.mediaProgressText.split(' ').first}', style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
+                                           Text(anime.mediaProgressText.split(' ').first, style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
                                          ],
                                        )
                                      ),
@@ -1912,8 +2374,9 @@ class _TopTenSectionState extends State<_TopTenSection> {
                           )
                         ],
                       ),
-                    )
-                 );
+                    ),
+                  ),
+                );
                }
              ),
              const SizedBox(height: 8),

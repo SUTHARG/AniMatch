@@ -130,12 +130,12 @@ class _FloatingNotificationState extends State<FloatingNotification> with Single
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -149,7 +149,7 @@ class _FloatingNotificationState extends State<FloatingNotification> with Single
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.amber.withOpacity(0.2),
+                          color: Colors.amber.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(widget.icon, color: Colors.amber, size: 20),
@@ -171,7 +171,7 @@ class _FloatingNotificationState extends State<FloatingNotification> with Single
                             Text(
                               widget.message,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
+                                color: Colors.white.withValues(alpha: 0.7),
                                 fontSize: 13,
                               ),
                             ),

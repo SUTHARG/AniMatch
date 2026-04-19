@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:untitled1/anilist_service.dart';
+import 'anilist_service.dart';
 import 'anime.dart';
 import 'manga.dart';
 import 'media_base.dart';
@@ -13,7 +12,7 @@ import 'login_screen.dart';
 import 'watch_status_sheet.dart';
 import 'rating_sheet.dart';
 import 'streaming_utils.dart';
-import 'floating_notification.dart';
+import 'utils/snackbar_utils.dart' as snacks;
 import 'image_utils.dart';
 import 'shimmer_skeletons.dart';
 
@@ -72,7 +71,7 @@ class _DetailScreenState extends State<DetailScreen> {
     }
     final links = await _jikan.fetchStreamingLinks(widget.malId);
     if (uid != null && links.isNotEmpty) {
-      _firebase.cacheStreamingLinks(uid, widget.malId, links).ignore();
+      _firebase.cacheStreamingLinks(uid, widget.malId, links.map((e) => e.toJson()).toList()).ignore();
     }
     return links;
   }
@@ -106,12 +105,7 @@ class _DetailScreenState extends State<DetailScreen> {
     await tryLaunch(mal);
 
     if (ctx != null && ctx.mounted) {
-      FloatingNotification.show(
-        ctx,
-        title: 'Opening Alternative',
-        message: 'Opening MAL instead of primary link.',
-        icon: Icons.open_in_new_rounded,
-      );
+      snacks.showSuccess(ctx, 'Opening MyAnimeList...');
     }
   }
 
@@ -122,15 +116,18 @@ class _DetailScreenState extends State<DetailScreen> {
       if (widget.isManga) {
         final manga = await _jikan.getMangaDetail(widget.malId);
         media = manga;
-        // if (_firebase.isLoggedIn) _firebase.addToHistory(manga); // History not implemented for manga yet
       } else {
         final anime = await _jikan.getAnimeDetail(widget.malId);
         media = anime;
-        if (_firebase.isLoggedIn) _firebase.addToHistory(anime);
+      }
+
+      final uid = _firebase.currentUser?.uid;
+      if (uid != null) {
+        _firebase.addToHistory(uid, media).ignore();
       }
 
       Map<String, dynamic>? entry;
-      if (_firebase.isLoggedIn) entry = await _firebase.getWatchlistEntry(widget.malId, isManga: widget.isManga);
+      if (uid != null) entry = await _firebase.getWatchlistEntry(uid, widget.malId, isManga: widget.isManga);
 
       if (mounted) {
         setState(() {
@@ -215,7 +212,8 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> _openRatingSheet() async {
-    if (!_firebase.isLoggedIn) { _promptLogin(); return; }
+    final uid = _firebase.currentUser?.uid;
+    if (uid == null) { _promptLogin(); return; }
     await showRatingSheet(
       context,
       malId: widget.malId,
@@ -224,7 +222,7 @@ class _DetailScreenState extends State<DetailScreen> {
       currentRating: _userRating,
       currentReview: _userReview,
     );
-    final data = await _firebase.getRatingAndReview(widget.malId, isManga: widget.isManga);
+    final data = await _firebase.getRatingAndReview(uid, widget.malId, isManga: widget.isManga);
     if (mounted && data != null) {
       setState(() {
         _userRating = (data['rating'] as num?)?.toDouble();
@@ -234,22 +232,21 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> _updateProgress(int val) async {
-    if (!_firebase.isLoggedIn) { _promptLogin(); return; }
+    final uid = _firebase.currentUser?.uid;
+    if (uid == null) { _promptLogin(); return; }
     if (widget.isManga) {
-      await _firebase.updateChapterProgress(widget.malId, val);
+      await _firebase.updateChapterProgress(uid, widget.malId, val);
     } else {
-      await _firebase.updateEpisodeProgress(widget.malId, val);
+      await _firebase.updateEpisodeProgress(uid, widget.malId, val);
     }
     if (mounted) setState(() => _progress = val);
   }
 
   void _promptLogin() {
-    FloatingNotification.show(
+    snacks.showError(
       context,
-      title: 'Sign In Required',
-      message: 'Log in to track this ${widget.isManga ? 'manga' : 'anime'} in your list.',
+      'Log in to track this ${widget.isManga ? 'manga' : 'anime'}',
       actionLabel: 'Login',
-      icon: Icons.account_circle_rounded,
       onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
     );
   }
@@ -262,18 +259,15 @@ class _DetailScreenState extends State<DetailScreen> {
     final text = 'Check out "${media.displayTitle}" on AniMatch!\nType: $type · Score: ${media.scoreText} · $progress';
     Clipboard.setData(ClipboardData(text: text));
     
-    FloatingNotification.show(
+    snacks.showSuccess(
       context,
-      title: 'Shared!',
-      message: 'Link copied to clipboard.',
-      icon: Icons.check_circle_rounded,
+      'Link copied to clipboard!',
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     if (_loading) return const Scaffold(body: DetailShimmer());
     if (_error != null || _media == null) return Scaffold(appBar: AppBar(), body: Center(child: Text(_error ?? 'Failed')));
 
@@ -315,7 +309,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             title: media.displayTitle,
                             fit: BoxFit.cover,
                           ),
-                          Container(color: Colors.black.withOpacity(0.4)),
+                          Container(color: Colors.black.withValues(alpha: 0.4)),
                         ],
                       ),
                 ),
@@ -324,7 +318,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.black.withOpacity(0.4), const Color(0xFF1E1E1E)],
+                      colors: [Colors.black.withValues(alpha: 0.4), const Color(0xFF1E1E1E)],
                     ),
                   ),
                 ),
@@ -349,7 +343,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             bottom: 0, left: 0, right: 0,
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 4),
-                              color: Colors.black.withOpacity(0.7),
+                              color: Colors.black.withValues(alpha: 0.7),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
@@ -385,11 +379,11 @@ class _DetailScreenState extends State<DetailScreen> {
                       _Badge(label: '${widget.isManga ? 'ch' : 'cc'} ${total ?? "?"}', color: const Color(0xFFB1E5D5), textColor: Colors.black),
                       if (widget.isManga) _Badge(label: 'vol ${(media as Manga).volumes ?? "?"}', color: const Color(0xFFE5B1D5), textColor: Colors.black),
                       if (!widget.isManga) _Badge(label: 'mic 1155', color: const Color(0xFFE5B1D5), textColor: Colors.black),
-                      Text('•', style: TextStyle(color: Colors.white.withOpacity(0.5))),
-                      Text(media.mediaTypeBadge, style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                      Text('•', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+                      Text(media.mediaTypeBadge, style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
                       if (!widget.isManga) ...[
-                        Text('•', style: TextStyle(color: Colors.white.withOpacity(0.5))),
-                        Text((media as Anime).duration?.split(' ').first ?? '24m', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                        Text('•', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+                        Text((media as Anime).duration?.split(' ').first ?? '24m', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
                       ],
                     ],
                   ),
@@ -440,7 +434,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                 fontWeight: FontWeight.bold)),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Colors.white24),
-                          backgroundColor: Colors.white.withOpacity(0.05),
+                          backgroundColor: Colors.white.withValues(alpha: 0.05),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30)),
@@ -459,10 +453,10 @@ class _DetailScreenState extends State<DetailScreen> {
                   const SizedBox(height: 32),
                   Align(alignment: Alignment.centerLeft, child: Text('Overview:', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.white))),
                   const SizedBox(height: 12),
-                  Text(_media?.synopsis ?? 'No description available.', style: TextStyle(color: Colors.white.withOpacity(0.6), height: 1.5)),
+                  Text(_media?.synopsis ?? 'No description available.', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), height: 1.5)),
                   const SizedBox(height: 24),
                   _DetailItem(label: 'Japanese:', value: (widget.isManga ? (media as Manga).titleJapanese : (media as Anime).titleJapanese) ?? 'N/A'),
-                  _DetailItem(label: 'Synonyms:', value: media is Anime ? (media as Anime).synonyms.join(', ') : (media as Manga).synonyms.join(', ')),
+                  _DetailItem(label: 'Synonyms:', value: media is Anime ? (media).synonyms.join(', ') : (media as Manga).synonyms.join(', ')),
                   _DetailItem(label: widget.isManga ? 'Published:' : 'Aired:', value: (widget.isManga ? (media as Manga).publishedString : (media as Anime).airedString) ?? 'N/A'),
                   if (!widget.isManga) _DetailItem(label: 'Premiered:', value: (media as Anime).premiered ?? 'N/A'),
                   if (!widget.isManga) _DetailItem(label: 'Duration:', value: (media as Anime).duration ?? 'N/A'),
@@ -474,11 +468,11 @@ class _DetailScreenState extends State<DetailScreen> {
                   Wrap(spacing: 8, runSpacing: 8, children: _media!.genres.map((g) => _GenreChip(label: g)).toList()),
                   const SizedBox(height: 24),
                   if (widget.isManga) ...[
-                    _DetailItem(label: 'Authors:', value: (media as Manga).authors.join(', ').isEmpty ? 'N/A' : (media as Manga).authors.join(', ')),
-                    _DetailItem(label: 'Serialization:', value: (media as Manga).serializations.join(', ').isEmpty ? 'N/A' : (media as Manga).serializations.join(', ')),
+                    _DetailItem(label: 'Authors:', value: (media as Manga).authors.join(', ').isEmpty ? 'N/A' : (media).authors.join(', ')),
+                    _DetailItem(label: 'Serialization:', value: (media).serializations.join(', ').isEmpty ? 'N/A' : (media).serializations.join(', ')),
                   ] else ...[
-                    _DetailItem(label: 'Studios:', value: (media as Anime).studios.join(', ').isEmpty ? 'N/A' : (media as Anime).studios.join(', ')),
-                    _DetailItem(label: 'Producers:', value: (media as Anime).producers.isEmpty ? 'N/A' : (media as Anime).producers.take(3).join(', ')),
+                    _DetailItem(label: 'Studios:', value: (media as Anime).studios.join(', ').isEmpty ? 'N/A' : (media).studios.join(', ')),
+                    _DetailItem(label: 'Producers:', value: (media).producers.isEmpty ? 'N/A' : (media).producers.take(3).join(', ')),
                   ],
                   const SizedBox(height: 32),
                   if (inList && ((!widget.isManga && _watchStatus == WatchStatus.watching) || (widget.isManga && _readStatus == ReadStatus.reading)) && total != null) ...[
@@ -592,7 +586,7 @@ class _DetailItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('$label ', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-          Expanded(child: Text(value, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14))),
+          Expanded(child: Text(value, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14))),
         ],
       ),
     );
@@ -609,7 +603,7 @@ class _EpisodeTracker extends StatelessWidget {
     final theme = Theme.of(context);
     final pct = total > 0 ? (current / total).clamp(0.0, 1.0) : 0.0;
     return Container(
-      padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -622,7 +616,7 @@ class _EpisodeTracker extends StatelessWidget {
               IconButton(onPressed: current > 0 ? () => onChanged(current - 1) : null, icon: const Icon(Icons.remove_circle_outline, color: Colors.amber)),
               Expanded(
                 child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(activeTrackColor: Colors.amber, inactiveTrackColor: Colors.white10, thumbColor: Colors.amber, overlayColor: Colors.amber.withOpacity(0.2)),
+                  data: SliderTheme.of(context).copyWith(activeTrackColor: Colors.amber, inactiveTrackColor: Colors.white10, thumbColor: Colors.amber, overlayColor: Colors.amber.withValues(alpha: 0.2)),
                   child: Slider(value: current.toDouble(), min: 0, max: total.toDouble(), divisions: total > 0 ? total : 1, onChanged: (v) => onChanged(v.round())),
                 ),
               ),
@@ -643,7 +637,7 @@ class _UserRatingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.amber.withOpacity(0.3))),
+      padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.amber.withValues(alpha: 0.3))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -686,12 +680,12 @@ class _WhereToWatchSection extends StatelessWidget {
             if (links.isEmpty) return _EmptyStreamingState(anime: anime, colorScheme: colorScheme, onLaunchMal: onLaunchMal);
             return Column(
               children: [
-                ...links.asMap().entries.map((e) => _StreamingLinkTile(link: e.value, index: e.key, animeTitle: anime.displayTitle, onTap: () => onLaunch(e.value))),
+                ...links.map((link) => _StreamingLinkTile(link: link, onTap: () => onLaunch(link))),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
                     width: double.infinity,
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: [colorScheme.primary.withOpacity(0.85), colorScheme.secondary.withOpacity(0.85)]), borderRadius: BorderRadius.circular(16)),
+                    decoration: BoxDecoration(gradient: LinearGradient(colors: [colorScheme.primary.withValues(alpha: 0.85), colorScheme.secondary.withValues(alpha: 0.85)]), borderRadius: BorderRadius.circular(16)),
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(onTap: onLaunchMal, borderRadius: BorderRadius.circular(16), child: const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.link, color: Colors.white), SizedBox(width: 8), Text('View on MyAnimeList', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))]))),
@@ -717,7 +711,7 @@ class _EmptyStreamingState extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Card(
-        color: Colors.white.withOpacity(0.05), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: Colors.white.withValues(alpha: 0.05), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -734,17 +728,14 @@ class _EmptyStreamingState extends StatelessWidget {
 
 class _StreamingLinkTile extends StatelessWidget {
   final StreamingLink link;
-  final int index;
-  final String animeTitle;
   final VoidCallback onTap;
-  const _StreamingLinkTile({required this.link, required this.index, required this.animeTitle, required this.onTap});
+  const _StreamingLinkTile({required this.link, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
       child: Container(
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.white.withOpacity(0.05), border: Border.all(color: Colors.white10)),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.white.withValues(alpha: 0.05), border: Border.all(color: Colors.white10)),
         child: InkWell(
           onTap: onTap, borderRadius: BorderRadius.circular(16),
           child: Padding(
@@ -772,7 +763,7 @@ class _StreamingIcon extends StatelessWidget {
       // Use a themed material icon for web to bypass CORS favicon issues
       return Container(
         padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
         child: const Icon(Icons.play_circle_fill_rounded, color: Colors.amber, size: 20),
       );
     }
@@ -833,7 +824,7 @@ class _CharacterCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-          Text(role, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 9)),
+          Text(role, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 9)),
         ],
       ),
     );
@@ -866,7 +857,7 @@ class _SimilarMediaCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(media.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-            Text(media.genres.take(1).join(''), style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10)),
+            Text(media.genres.take(1).join(''), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10)),
           ],
         ),
       ),

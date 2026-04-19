@@ -51,3 +51,5 @@ firebase_options.dart
 .env
 *.properties
 local.properties
+*.jks
+

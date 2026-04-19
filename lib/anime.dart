@@ -33,6 +33,7 @@ class Anime implements MediaBase {
   final String? synopsis;
   @override
   final double? score;
+  @override
   final int? episodes;
   final String? status;
   final String? type;
@@ -53,12 +54,14 @@ class Anime implements MediaBase {
   final String? broadcastTime;
   final String? titleJapanese;
   final List<String> synonyms;
+  @override
   final String? duration;
   final String? rating;
   final String? airedString;
   final List<String> studios;
   final List<String> producers;
   final String? premiered;
+  final String? source;
 
   const Anime({
     required this.malId,
@@ -86,6 +89,7 @@ class Anime implements MediaBase {
     this.studios = const [],
     this.producers = const [],
     this.premiered,
+    this.source,
   });
 
   @override
@@ -108,6 +112,9 @@ class Anime implements MediaBase {
 
   @override
   bool get isOngoing => status?.toLowerCase() == 'airing' || status?.toLowerCase() == 'ongoing';
+
+  @override
+  int? get chapters => null;
 
   factory Anime.fromJson(Map<String, dynamic> json) {
     final images = json['images']?['jpg'];
@@ -160,6 +167,7 @@ class Anime implements MediaBase {
       premiered: json['season'] != null && json['year'] != null
           ? "${json['season'].toString().toUpperCase()} ${json['year']}"
           : null,
+      source: json['source'] as String?,
     );
   }
 
@@ -238,6 +246,15 @@ class QuizAnswers {
     this.typeParam,
     this.isManga = false,
   });
+
+  Map<String, dynamic> toJson() => {
+        'mood': mood,
+        'genres': genres,
+        'episodeRange': episodeRange,
+        'status': status,
+        'typeParam': typeParam,
+        'isManga': isManga,
+      };
 
   // Map mood to MyAnimeList genre IDs
   static const Map<String, List<int>> moodToGenreIds = {

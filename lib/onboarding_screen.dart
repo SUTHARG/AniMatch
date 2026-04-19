@@ -51,14 +51,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _finish() async {
+    // Save the flag FIRST before navigating
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_done', true);
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomeScreen(appState: widget.appState)),
-      );
-    }
+    await prefs.setBool('seen_onboarding', true);
+
+    // Safety check after async gap
+    if (!mounted) return;
+
+    // Use pushReplacement so user cannot go back to onboarding
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => HomeScreen(appState: widget.appState),
+      ),
+    );
   }
 
   @override
@@ -237,5 +242,5 @@ class _OnboardPageView extends StatelessWidget {
 /// Call this in main.dart to decide whether to show onboarding
 Future<bool> shouldShowOnboarding() async {
   final prefs = await SharedPreferences.getInstance();
-  return !(prefs.getBool('onboarding_done') ?? false);
+  return !(prefs.getBool('seen_onboarding') ?? false);
 }

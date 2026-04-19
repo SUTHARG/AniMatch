@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
 import 'media_base.dart';
+import 'manga.dart';
 import 'utils/snackbar_utils.dart' as snacks;
 
 /// Shows a bottom sheet to pick / change watch or read status.
@@ -140,6 +141,8 @@ class _MediaStatusSheetState extends State<_MediaStatusSheet> {
             'score': widget.media.score,
             'status': (status as ReadStatus).name,
             'type': 'manga',
+            'chapters': widget.media.chapters,
+            'volumes': (widget.media as Manga).volumes,
           };
           await _firebase.addToMangaWatchlist(uid, data);
         }
@@ -155,6 +158,7 @@ class _MediaStatusSheetState extends State<_MediaStatusSheet> {
             'score': widget.media.score,
             'status': (status as WatchStatus).name,
             'type': 'anime',
+            'episodes': widget.media.episodes,
           };
           await _firebase.addToWatchlist(uid, data);
         }

@@ -262,6 +262,27 @@ class FirebaseService {
         .update({'chapterProgress': progress});
   }
 
+  Future<void> updateAnimeTotals(String uid, int malId, int? episodes) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('watchlist')
+        .doc(malId.toString())
+        .update({'episodes': episodes});
+  }
+
+  Future<void> updateMangaTotals(String uid, int malId, {int? chapters, int? volumes}) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('mangaWatchlist')
+        .doc(malId.toString())
+        .update({
+      if (chapters != null) 'chapters': chapters,
+      if (volumes != null) 'volumes': volumes,
+    });
+  }
+
   // ── History ────────────────────────────
   Future<void> addToHistory(String uid, MediaBase media) async {
     final Map<String, dynamic> data = {

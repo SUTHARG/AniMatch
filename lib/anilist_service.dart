@@ -36,204 +36,75 @@ class AiringSchedule {
 }
 
 class AnilistService {
-  static const String _baseUrl = 'https://graphql.anilist.co';
-  
-  // Cache storage
-  final Map<String, dynamic> _cache = {};
-  final Map<String, DateTime> _cacheTimestamps = {};
-  static const Duration _cacheTtl = Duration(minutes: 5);
+  static const String _baseUrl = 'https://animatch-api.railway.app/anilist';
+
+  Future<dynamic> _get(String path, {Map<String, String>? params}) async {
+    final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: params);
+    final response = await http.get(uri);
+    
+    if (response.statusCode == 200) {
+      final jsonResponse = jsonDecode(response.body);
+      return jsonResponse['data'] ?? {};
+    }
+    throw Exception('Anilist Backend error: ${response.statusCode}');
+  }
 
   /// Get airing schedules between two UNIX timestamps
   Future<List<AiringSchedule>> getSchedules(int startTimestamp, int endTimestamp) async {
-    const String query = '''
-      query (\$start: Int, \$end: Int) {
-        Page(page: 1, perPage: 50) {
-          airingSchedules(airingAt_greater: \$start, airingAt_lesser: \$end, sort: TIME) {
-            airingAt
-            episode
-            media {
-              idMal
-              title { romaji english }
-              coverImage { large }
-            }
-          }
-        }
-      }
-    ''';
-
-    final variables = {'start': startTimestamp, 'end': endTimestamp};
-    final data = await _postQuery(query, variables);
+    final data = await _get('/schedule', params: {
+      'start': startTimestamp.toString(),
+      'end': endTimestamp.toString(),
+    });
     final list = data['Page']?['airingSchedules'] as List<dynamic>? ?? [];
     return list.map((e) => AiringSchedule.fromJson(e)).where((s) => s.idMal != 0).toList();
   }
 
-  /// Get Trending Anime (CORS friendly)
+  /// Get Trending Anime
   Future<List<Map<String, dynamic>>> getTrendingAnime() async {
-    const String query = '''
-      query {
-        Page(page: 1, perPage: 15) {
-          media(type: ANIME, sort: TRENDING_DESC) {
-            idMal
-            id
-            title { english romaji }
-            coverImage { extraLarge large }
-            bannerImage
-            description
-            averageScore
-            episodes
-            status
-            format
-            genres
-            startDate { year month day }
-          }
-        }
-      }
-    ''';
-    final data = await _postQuery(query, {});
+    final data = await _get('/trending');
     return List<Map<String, dynamic>>.from(data['Page']?['media'] ?? []);
   }
 
   /// Get Seasonal Anime (Current Season)
   Future<List<Map<String, dynamic>>> getSeasonalAnime() async {
-    const String query = '''
-      query {
-        Page(page: 1, perPage: 15) {
-          media(type: ANIME, sort: POPULARITY_DESC, status: RELEASING) {
-            idMal
-            id
-            title { english romaji }
-            coverImage { extraLarge large }
-            bannerImage
-            description
-            averageScore
-            episodes
-            status
-            format
-            genres
-            startDate { year month day }
-          }
-        }
-      }
-    ''';
-    final data = await _postQuery(query, {});
+    final data = await _get('/seasonal');
     return List<Map<String, dynamic>>.from(data['Page']?['media'] ?? []);
   }
 
   /// Get Top Rated Anime
   Future<List<Map<String, dynamic>>> getTopRatedAnime() async {
-    const String query = '''
-      query {
-        Page(page: 1, perPage: 15) {
-          media(type: ANIME, sort: SCORE_DESC) {
-            idMal
-            id
-            title { english romaji }
-            coverImage { extraLarge large }
-            bannerImage
-            description
-            averageScore
-            episodes
-            status
-            format
-            genres
-            startDate { year month day }
-          }
-        }
-      }
-    ''';
-    final data = await _postQuery(query, {});
+    final data = await _get('/top-rated');
     return List<Map<String, dynamic>>.from(data['Page']?['media'] ?? []);
   }
 
   /// Get Top Upcoming
   Future<List<Map<String, dynamic>>> getTopUpcomingAnime() async {
-    const String query = '''
-      query {
-        Page(page: 1, perPage: 15) {
-          media(type: ANIME, sort: POPULARITY_DESC, status: NOT_YET_RELEASED) {
-            idMal
-            id
-            title { english romaji }
-            coverImage { extraLarge large }
-            bannerImage
-            description
-            averageScore
-            episodes
-            status
-            format
-            genres
-            startDate { year month day }
-          }
-        }
-      }
-    ''';
-    final data = await _postQuery(query, {});
+    final data = await _get('/upcoming');
     return List<Map<String, dynamic>>.from(data['Page']?['media'] ?? []);
   }
 
-  /// Get CORS-friendly cover image from AniList by MAL ID
+  /// Get cover image from AniList by MAL ID
   Future<String?> getCoverImageByMalId(int idMal, {bool isManga = false}) async {
-    final String typeStr = isManga ? 'MANGA' : 'ANIME';
-    final String query = '''
-      query (\$id: Int) {
-        Media(idMal: \$id, type: $typeStr) {
-          coverImage { extraLarge large }
-        }
-      }
-    ''';
     try {
-      final data = await _postQuery(query, {'id': idMal});
+      final data = await _get('/cover/$idMal', params: {
+        'type': isManga ? 'MANGA' : 'ANIME',
+      });
       return data['Media']?['coverImage']?['extraLarge'] ?? data['Media']?['coverImage']?['large'];
     } catch (_) {
       return null;
     }
   }
 
-  /// Get CORS-friendly cover image from AniList by Title (fallback for new MAL IDs)
+  /// Get cover image from AniList by Title (fallback)
   Future<String?> getCoverImageByTitle(String title, {bool isManga = false}) async {
-    final String typeStr = isManga ? 'MANGA' : 'ANIME';
-    final String query = '''
-      query (\$q: String) {
-        Media(search: \$q, type: $typeStr) {
-          coverImage { extraLarge large }
-        }
-      }
-    ''';
     try {
-      final data = await _postQuery(query, {'q': title});
+      final data = await _get('/cover-by-title', params: {
+        'q': title,
+        'type': isManga ? 'MANGA' : 'ANIME',
+      });
       return data['Media']?['coverImage']?['extraLarge'] ?? data['Media']?['coverImage']?['large'];
     } catch (_) {
       return null;
     }
-  }
-
-  Future<Map<String, dynamic>> _postQuery(String query, Map<String, dynamic> variables) async {
-    final String cacheKey = jsonEncode({'query': query, 'variables': variables});
-    
-    // Check cache
-    if (_cache.containsKey(cacheKey)) {
-      final timestamp = _cacheTimestamps[cacheKey];
-      if (timestamp != null && DateTime.now().difference(timestamp) < _cacheTtl) {
-        return _cache[cacheKey];
-      }
-    }
-
-    final response = await http.post(
-      Uri.parse(_baseUrl),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-      body: jsonEncode({'query': query, 'variables': variables}),
-    );
-    
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      final data = json['data'] ?? {};
-      
-      // Store in cache
-      _cache[cacheKey] = data;
-      _cacheTimestamps[cacheKey] = DateTime.now();
-      
-      return data;
-    }
-    throw Exception('AniList API error: ${response.statusCode}');
   }
 }

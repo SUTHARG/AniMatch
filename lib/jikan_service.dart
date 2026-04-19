@@ -10,67 +10,24 @@ class JikanService {
   factory JikanService() => _instance;
   JikanService._internal();
 
-  final Map<String, _CacheEntry> _cache = {};
-  final List<Completer<void>> _queue = [];
-  bool _isProcessing = false;
-
-  Future<void> _throttle() async {
-    final completer = Completer<void>();
-    _queue.add(completer);
-    if (!_isProcessing) _processQueue();
-    return completer.future;
-  }
-
-  void _processQueue() async {
-    _isProcessing = true;
-    while (_queue.isNotEmpty) {
-      final completer = _queue.removeAt(0);
-      completer.complete();
-      await Future.delayed(const Duration(milliseconds: 500)); // ~2 requests per second
-    }
-    _isProcessing = false;
-  }
+  static const String _baseUrl = 'https://animatch-api.railway.app';
 
   Future<dynamic> _get(String path, {Map<String, String>? params}) async {
-    final uri = Uri.parse('https://api.jikan.moe/v4$path').replace(queryParameters: params);
-    final cacheKey = uri.toString();
+    final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: params);
 
-    // 1. Check Cache
-    if (_cache.containsKey(cacheKey)) {
-      final entry = _cache[cacheKey]!;
-      if (DateTime.now().isBefore(entry.expiry)) {
-        return entry.data;
-      }
-      _cache.remove(cacheKey);
-    }
-
-    // 2. Throttle
-    await _throttle();
-
-    // 3. Fetch
     final response = await http.get(uri);
     if (response.statusCode == 200) {
-      final data = json.decode(response.body)['data'];
-      _cache[cacheKey] = _CacheEntry(
-        data: data,
-        expiry: DateTime.now().add(const Duration(minutes: 5)),
-      );
-      return data;
-    } else if (response.statusCode == 429) {
-      // Retry once after a delay if rate limited
-      await Future.delayed(const Duration(seconds: 2));
-      return _get(path, params: params);
+      return json.decode(response.body)['data'];
     } else {
-      throw Exception('Jikan API error: ${response.statusCode}');
+      throw Exception('Backend API error: ${response.statusCode}');
     }
   }
 
   // ── Anime Endpoints ───────────────────────────────────────────────────────
 
   Future<List<Anime>> getTopAnime({int page = 1, String? type, String? filter}) async {
-    final data = await _get('/top/anime', params: {
+    final data = await _get('/anime/top', params: {
       'page': page.toString(),
-      'limit': '20',
       if (type != null) 'type': type,
       if (filter != null) 'filter': filter,
     });
@@ -78,79 +35,54 @@ class JikanService {
   }
 
   Future<List<Anime>> getCurrentSeasonAnime() async {
-    final data = await _get('/seasons/now', params: {'limit': '20'});
+    final data = await _get('/anime/seasonal');
     return (data as List).map((x) => Anime.fromJson(x)).toList();
   }
 
   Future<List<Anime>> getSchedules(String dayOfWeek) async {
-    final data = await _get('/schedules', params: {'filter': dayOfWeek, 'limit': '15'});
+    final data = await _get('/anime/schedule/$dayOfWeek');
     return (data as List).map((x) => Anime.fromJson(x)).toList();
   }
 
   Future<List<Anime>> getTopUpcomingAnime() async {
-    final data = await _get('/seasons/upcoming', params: {'limit': '20'});
+    final data = await _get('/anime/upcoming');
     return (data as List).map((x) => Anime.fromJson(x)).toList();
   }
 
   Future<List<Anime>> searchAnime(String query, {int page = 1}) async {
     if (query.trim().isEmpty) return [];
-    final data = await _get('/anime', params: {
+    final data = await _get('/anime/search', params: {
       'q': query.trim(),
       'page': page.toString(),
-      'limit': '20',
-      'order_by': 'score',
-      'sort': 'desc',
     });
     return (data as List).map((x) => Anime.fromJson(x)).toList();
   }
 
   Future<List<Anime>> getRecommendations(QuizAnswers answers) async {
-    final genreIds = answers.genreIds;
-    final params = <String, String>{
-      'order_by': 'popularity',
-      'limit': '25',
-      'min_score': '6.0',
-      'sfw': 'true',
-      if (genreIds.isNotEmpty) 'genres': genreIds.first.toString(),
-      if (answers.statusParam.isNotEmpty) 'status': answers.statusParam,
-    };
+    final response = await http.post(
+      Uri.parse('$_baseUrl/recommendations'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        ...answers.toJson(),
+        'isManga': false,
+      }),
+    );
 
-    List<Anime> finalResults = [];
-    int page = 1;
-
-    while (finalResults.length < 12 && page <= 3) {
-      params['page'] = page.toString();
-      final data = await _get('/anime', params: params);
-      List<Anime> results = (data as List).map((x) => Anime.fromJson(x)).toList();
-      
-      if (results.isEmpty) break;
-
-      if (answers.minEpisodes != null || answers.maxEpisodes != null) {
-        results = results.where((a) {
-          if (a.episodes == null) return true;
-          final eps = a.episodes!;
-          if (answers.minEpisodes != null && eps < answers.minEpisodes!) return false;
-          if (answers.maxEpisodes != null && eps > answers.maxEpisodes!) return false;
-          return true;
-        }).toList();
-      }
-
-      finalResults.addAll(results);
-      if (results.length < 25) break;
-      page++;
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body)['data'];
+      return (data as List).map((x) => Anime.fromJson(x)).toList();
+    } else {
+      throw Exception('Recommendation API error: ${response.statusCode}');
     }
-
-    finalResults.shuffle();
-    return finalResults.take(16).toList();
   }
 
   Future<Anime> getAnimeDetail(int malId) async {
-    final data = await _get('/anime/$malId/full');
+    final data = await _get('/anime/$malId');
     return Anime.fromJson(data);
   }
 
   Future<Anime> getRandomAnime() async {
-    final data = await _get('/random/anime');
+    final data = await _get('/anime/random');
     return Anime.fromJson(data);
   }
 
@@ -184,9 +116,8 @@ class JikanService {
   // ── Manga Endpoints ───────────────────────────────────────────────────────
 
   Future<List<Manga>> getTopManga({int page = 1, String? type, String? filter}) async {
-    final data = await _get('/top/manga', params: {
+    final data = await _get('/manga/top', params: {
       'page': page.toString(),
-      'limit': '20',
       if (type != null) 'type': type,
       if (filter != null) 'filter': filter,
     });
@@ -195,18 +126,15 @@ class JikanService {
 
   Future<List<Manga>> searchManga(String query, {int page = 1}) async {
     if (query.trim().isEmpty) return [];
-    final data = await _get('/manga', params: {
+    final data = await _get('/manga/search', params: {
       'q': query.trim(),
       'page': page.toString(),
-      'limit': '20',
-      'order_by': 'score',
-      'sort': 'desc',
     });
     return (data as List).map((x) => Manga.fromJson(x)).toList();
   }
 
   Future<Manga> getMangaDetail(int malId) async {
-    final data = await _get('/manga/$malId/full');
+    final data = await _get('/manga/$malId');
     return Manga.fromJson(data);
   }
 
@@ -229,58 +157,31 @@ class JikanService {
   }
 
   Future<List<Manga>> getMangaRecommendations(QuizAnswers answers) async {
-    final genreIds = answers.genreIds;
-    final params = <String, String>{
-      'order_by': 'popularity',
-      'limit': '25',
-      'min_score': '6.0',
-      'sfw': 'true',
-      if (genreIds.isNotEmpty) 'genres': genreIds.first.toString(),
-      if (answers.statusParam.isNotEmpty) 'status': answers.statusParam,
-      if (answers.typeParam != null) 'type': answers.typeParam!,
-    };
+    final response = await http.post(
+      Uri.parse('$_baseUrl/recommendations'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        ...answers.toJson(),
+        'isManga': true,
+      }),
+    );
 
-    List<Manga> finalResults = [];
-    int page = 1;
-
-    while (finalResults.length < 12 && page <= 3) {
-      params['page'] = page.toString();
-      final data = await _get('/manga', params: params);
-      List<Manga> results = (data as List).map((x) => Manga.fromJson(x)).toList();
-
-      if (results.isEmpty) break;
-
-      if (answers.minEpisodes != null || answers.maxEpisodes != null) {
-        results = results.where((m) {
-          if (m.chapters == null) return true;
-          final ch = m.chapters!;
-          if (answers.minEpisodes != null && ch < (answers.minEpisodes! * 3)) return false;
-          if (answers.maxEpisodes != null && ch > (answers.maxEpisodes! * 3)) return false;
-          return true;
-        }).toList();
-      }
-
-      finalResults.addAll(results);
-      if (results.length < 25) break;
-      page++;
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body)['data'];
+      return (data as List).map((x) => Manga.fromJson(x)).toList();
+    } else {
+      throw Exception('Recommendation API error: ${response.statusCode}');
     }
-
-    finalResults.shuffle();
-    return finalResults.take(16).toList();
   }
 
   Future<List<MangaMagazine>> getMagazines() async {
-    final data = await _get('/magazines', params: {'limit': '20'});
+    final data = await _get('/manga/magazines');
     return (data as List).map((x) => MangaMagazine.fromJson(x)).toList();
   }
 
   Future<String?> getMagazineCover(int magazineId) async {
     try {
-      final data = await _get('/manga', params: {
-        'magazines': magazineId.toString(),
-        'order_by': 'popularity',
-        'limit': '1',
-      });
+      final data = await _get('/manga/by-magazine/$magazineId', params: {'limit': '1'});
       final list = data as List;
       if (list.isNotEmpty) {
         return list.first['images']?['jpg']?['large_image_url'];
@@ -290,12 +191,7 @@ class JikanService {
   }
 
   Future<List<Manga>> getMangaByMagazine(int magazineId, {int page = 1}) async {
-    final data = await _get('/manga', params: {
-      'magazines': magazineId.toString(),
-      'order_by': 'popularity',
-      'page': page.toString(),
-      'limit': '20',
-    });
+    final data = await _get('/manga/by-magazine/$magazineId', params: {'page': page.toString()});
     return (data as List).map((x) => Manga.fromJson(x)).toList();
   }
 }

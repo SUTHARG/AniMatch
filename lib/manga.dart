@@ -10,6 +10,7 @@ class Manga implements MediaBase {
   final String? synopsis;
   @override
   final double? score;
+  @override
   final int? chapters;
   final int? volumes;
   final String? status;
@@ -127,6 +128,12 @@ class Manga implements MediaBase {
   bool get isCompleted => status?.toLowerCase() == 'finished';
   @override
   bool get isOngoing => status?.toLowerCase() == 'publishing';
+
+  @override
+  int? get episodes => null;
+
+  @override
+  String? get duration => null;
 
   @override
   String get displayImageUrl => imageUrl;

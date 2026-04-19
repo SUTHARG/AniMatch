@@ -374,16 +374,18 @@ class _DetailScreenState extends State<DetailScreen> {
                   Wrap(
                     spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      if (!widget.isManga) _Badge(label: (media as Anime).rating?.split(' ').first ?? 'PG-13', color: Colors.white12),
+                      if (!widget.isManga) _Badge(label: (media as Anime).rating?.split(' ').first ?? 'NR', color: Colors.white12),
                       _Badge(label: 'HD', color: Colors.amber),
-                      _Badge(label: '${widget.isManga ? 'ch' : 'cc'} ${total ?? "?"}', color: const Color(0xFFB1E5D5), textColor: Colors.black),
+                      _Badge(label: '${total ?? "?"} ${widget.isManga ? 'chps' : 'eps'}', color: const Color(0xFFB1E5D5), textColor: Colors.black),
                       if (widget.isManga) _Badge(label: 'vol ${(media as Manga).volumes ?? "?"}', color: const Color(0xFFE5B1D5), textColor: Colors.black),
-                      if (!widget.isManga) _Badge(label: 'mic 1155', color: const Color(0xFFE5B1D5), textColor: Colors.black),
                       Text('•', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
                       Text(media.mediaTypeBadge, style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
-                      if (!widget.isManga) ...[
+                      if (!widget.isManga && media.duration != null) ...[
                         Text('•', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
-                        Text((media as Anime).duration?.split(' ').first ?? '24m', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+                        _Badge(
+                          label: media.duration!.replaceAll(' per ep', '').replaceAll(' min', ' min'), 
+                          color: Colors.white12
+                        ),
                       ],
                     ],
                   ),

@@ -7,6 +7,7 @@ import 'login_screen.dart';
 import 'image_utils.dart';
 import 'app_state.dart';
 import 'shimmer_skeletons.dart';
+import 'jikan_service.dart';
 
 class WatchlistScreen extends StatefulWidget {
   const WatchlistScreen({super.key});
@@ -238,6 +239,9 @@ class _WatchlistTab extends StatelessWidget {
 
         if (items.isEmpty) return _EmptyTab(isManga: isManga, watchStatus: watchStatus, readStatus: readStatus);
 
+        // Auto-Patch missing data logic
+        _triggerAutoPatch(uid, items, isManga);
+
         return RefreshIndicator(
           onRefresh: () async {
             await Future.delayed(const Duration(seconds: 1));
@@ -259,6 +263,50 @@ class _WatchlistTab extends StatelessWidget {
         );
       },
     );
+  }
+
+  // Set to track IDs currently being patched in this session
+  static final Set<int> _patchingIds = {};
+
+  void _triggerAutoPatch(String uid, List<Map<String, dynamic>> items, bool isManga) {
+    if (uid.isEmpty) return;
+
+    for (var item in items) {
+      final malId = item['malId'] as int?;
+      if (malId == null) continue;
+
+      bool needsPatch = false;
+      if (isManga) {
+        needsPatch = (item['chapters'] == null || item['chapters'] == 0);
+      } else {
+        needsPatch = (item['episodes'] == null || item['episodes'] == 0);
+      }
+
+      if (needsPatch && !_patchingIds.contains(malId)) {
+        _patchingIds.add(malId);
+        _performPatch(uid, malId, isManga);
+      }
+    }
+  }
+
+  Future<void> _performPatch(String uid, int malId, bool isManga) async {
+    try {
+      final jikan = JikanService();
+      if (isManga) {
+        final detail = await jikan.getMangaDetail(malId);
+        await firebase.updateMangaTotals(uid, malId, 
+          chapters: detail.chapters, 
+          volumes: detail.volumes
+        );
+      } else {
+        final detail = await jikan.getAnimeDetail(malId);
+        await firebase.updateAnimeTotals(uid, malId, detail.episodes);
+      }
+    } catch (e) {
+      debugPrint('Auto-patch failed for ID $malId: $e');
+    } finally {
+      // Keep in patching set for a while to avoid rapid retries on failure
+    }
   }
 }
 
@@ -429,7 +477,9 @@ class _WatchlistCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    isManga ? '${item['chapterProgress'] ?? 0} chapters' : '${item['episodeProgress'] ?? 0} eps',
+                    isManga 
+                      ? '${item['chapterProgress'] ?? 0} / ${item['chapters'] ?? '?'} chps' 
+                      : '${item['episodeProgress'] ?? 0} / ${item['episodes'] ?? '?'} eps',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 11,

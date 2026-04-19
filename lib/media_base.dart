@@ -13,4 +13,9 @@ abstract class MediaBase {
   String get mediaTypeBadge; // E.g., "TV" or "Manga"
   bool get isCompleted;
   bool get isOngoing;
+
+  // Total counts
+  int? get episodes;
+  int? get chapters;
+  String? get duration;
 }

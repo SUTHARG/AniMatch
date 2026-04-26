@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:animatch/data/models/media_base.dart';
 import 'package:animatch/data/models/anime.dart';
 
@@ -133,9 +134,11 @@ class FirebaseService {
 
   Future<UserCredential?> signInWithGoogle() async {
     try {
+      // GOOGLE_SERVER_CLIENT_ID is the Web OAuth 2.0 Client ID from Firebase Console.
+      // Set it in your .env file. See .env.example for guidance.
+      final serverClientId = dotenv.env['GOOGLE_SERVER_CLIENT_ID'];
       final googleSignIn = GoogleSignIn(
-        serverClientId:
-            '630393329450-snc00v3ch5rbe23jdiq7ln2qgjj9r4oo.apps.googleusercontent.com',
+        serverClientId: serverClientId, // null is safe — omits the parameter
       );
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return null;

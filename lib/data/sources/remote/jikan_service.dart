@@ -1,7 +1,8 @@
-﻿// lib/jikan_service.dart
+// lib/jikan_service.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:animatch/core/constants/api_constants.dart';
 import 'package:animatch/data/models/anime.dart';
 import 'package:animatch/data/models/manga.dart';
 
@@ -33,7 +34,7 @@ class JikanService {
   }
 
   Future<dynamic> _get(String path, {Map<String, String>? params}) async {
-    final uri = Uri.parse('https://api.jikan.moe/v4$path')
+    final uri = Uri.parse('${ApiConstants.jikanBaseUrl}$path')
         .replace(queryParameters: params);
     final cacheKey = uri.toString();
 

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:animatch/core/constants/api_constants.dart';
 
 class AiringSchedule {
   final int idMal;
@@ -36,7 +37,6 @@ class AiringSchedule {
 }
 
 class AnilistService {
-  static const String _baseUrl = 'https://graphql.anilist.co';
 
   // Cache storage
   final Map<String, dynamic> _cache = {};
@@ -230,7 +230,7 @@ class AnilistService {
     }
 
     final response = await http.post(
-      Uri.parse(_baseUrl),
+      Uri.parse(ApiConstants.anilistBaseUrl),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'

@@ -1,4 +1,4 @@
-﻿import 'package:animatch/data/models/media_base.dart';
+import 'package:animatch/data/models/media_base.dart';
 
 // ---------------------------------------------------------------------------
 // StreamingLink — a single streaming platform entry
@@ -7,7 +7,7 @@
 /// Represents one streaming platform where an anime is available.
 class StreamingLink {
   final String name; // e.g. "Crunchyroll", "Netflix"
-  final String url;  // web URL for that platform's page for this anime
+  final String url; // web URL for that platform's page for this anime
 
   const StreamingLink({required this.name, required this.url});
 
@@ -93,7 +93,8 @@ class Anime implements MediaBase {
   });
 
   @override
-  String get displayTitle => titleEnglish?.isNotEmpty == true ? titleEnglish! : title;
+  String get displayTitle =>
+      titleEnglish?.isNotEmpty == true ? titleEnglish! : title;
 
   @override
   String get displayImageUrl => imageUrl;
@@ -102,16 +103,20 @@ class Anime implements MediaBase {
   String get scoreText => score != null ? score!.toStringAsFixed(1) : 'N/A';
 
   @override
-  String get mediaProgressText => '${type ?? 'TV'} (${episodes?.toString() ?? '?'} eps)';
+  String get mediaProgressText =>
+      '${type ?? 'TV'} (${episodes?.toString() ?? '?'} eps)';
 
   @override
   String get mediaTypeBadge => type ?? 'TV';
 
   @override
-  bool get isCompleted => status?.toLowerCase() == 'completed' || status?.toLowerCase() == 'finished';
+  bool get isCompleted =>
+      status?.toLowerCase() == 'completed' ||
+      status?.toLowerCase() == 'finished';
 
   @override
-  bool get isOngoing => status?.toLowerCase() == 'airing' || status?.toLowerCase() == 'ongoing';
+  bool get isOngoing =>
+      status?.toLowerCase() == 'airing' || status?.toLowerCase() == 'ongoing';
 
   @override
   int? get chapters => null;
@@ -147,7 +152,7 @@ class Anime implements MediaBase {
       streamingLinks: (json['streaming'] as List<dynamic>?)
           ?.map((e) => StreamingLink.fromJson(e as Map<String, dynamic>))
           .toList(),
-      broadcastTime: json['broadcast'] != null 
+      broadcastTime: json['broadcast'] != null
           ? json['broadcast']['time'] as String?
           : null,
       titleJapanese: json['title_japanese'] as String?,
@@ -175,8 +180,9 @@ class Anime implements MediaBase {
     final titleObj = json['title'] ?? {};
     final title = titleObj['english'] ?? titleObj['romaji'] ?? 'Unknown';
     final titleEnglish = titleObj['english'] as String?;
-    final imageUrl = json['coverImage']?['extraLarge'] ?? json['coverImage']?['large'] ?? '';
-    
+    final imageUrl =
+        json['coverImage']?['extraLarge'] ?? json['coverImage']?['large'] ?? '';
+
     final genres = (json['genres'] as List<dynamic>? ?? [])
         .map((e) => e.toString())
         .toList();
@@ -186,9 +192,10 @@ class Anime implements MediaBase {
       title: title,
       titleEnglish: titleEnglish,
       imageUrl: imageUrl,
-      synopsis: json['description']?.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), ''), // Strip HTML
-      score: (json['averageScore'] as num?)?.toDouble() != null 
-          ? (json['averageScore'] as num).toDouble() / 10.0 
+      synopsis: json['description']
+          ?.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), ''), // Strip HTML
+      score: (json['averageScore'] as num?)?.toDouble() != null
+          ? (json['averageScore'] as num).toDouble() / 10.0
           : null,
       episodes: json['episodes'] as int?,
       status: json['status'] as String?,
@@ -220,7 +227,8 @@ class Anime implements MediaBase {
         return 'https://www.youtube.com/watch?v=$id';
       }
       if (embedUrl.contains('youtube-nocookie.com/embed/')) {
-        final id = embedUrl.split('youtube-nocookie.com/embed/').last.split('?').first;
+        final id =
+            embedUrl.split('youtube-nocookie.com/embed/').last.split('?').first;
         return 'https://www.youtube.com/watch?v=$id';
       }
       return embedUrl;
@@ -249,18 +257,18 @@ class QuizAnswers {
 
   // Map mood to MyAnimeList genre IDs
   static const Map<String, List<int>> moodToGenreIds = {
-    'dark': [41, 14, 7],        // Thriller, Horror, Mystery
-    'funny': [4, 20],            // Comedy, Parody
-    'romantic': [22, 43],        // Romance, Josei
-    'action': [1, 24],           // Action, Sci-Fi
-    'chill': [36, 15],           // Slice of Life, Kids
-    'adventure': [2, 10],        // Adventure, Fantasy
-    'mystery': [7, 41],          // Mystery, Suspense
-    'battles': [1, 17],          // Action, Martial Arts
-    'cozy': [36, 46],            // Slice of Life, Award Winning
-    'gore': [14, 41],            // Horror, Thriller
-    'sports': [30],              // Sports
-    'sad': [8, 41],              // Drama, Suspense
+    'dark': [41, 14, 7], // Thriller, Horror, Mystery
+    'funny': [4, 20], // Comedy, Parody
+    'romantic': [22, 43], // Romance, Josei
+    'action': [1, 24], // Action, Sci-Fi
+    'chill': [36, 15], // Slice of Life, Kids
+    'adventure': [2, 10], // Adventure, Fantasy
+    'mystery': [7, 41], // Mystery, Suspense
+    'battles': [1, 17], // Action, Martial Arts
+    'cozy': [36, 46], // Slice of Life, Award Winning
+    'gore': [14, 41], // Horror, Thriller
+    'sports': [30], // Sports
+    'sad': [8, 41], // Drama, Suspense
   };
 
   static const Map<String, String> genreNameToId = {
@@ -313,15 +321,16 @@ class QuizAnswers {
     for (final g in genres) {
       final id = genreNameToId[g];
       if (id != null) ids.add(int.parse(id));
-      if (ids.length >= 2) break; // Limit to max 2 genres to avoid over-filtering
+      if (ids.length >= 2)
+        break; // Limit to max 2 genres to avoid over-filtering
     }
-    
+
     // Fallback to mood genre only if no user genres were selected
     if (ids.isEmpty) {
       final moodIds = moodToGenreIds[mood] ?? [];
       ids.addAll(moodIds.take(1));
     }
-    
+
     return ids.toList();
   }
 
@@ -336,7 +345,7 @@ class QuizAnswers {
           return '';
       }
     }
-    
+
     switch (status) {
       case 'ongoing':
         return 'airing';
@@ -388,7 +397,8 @@ class AnimeCharacter {
     return AnimeCharacter(
       id: char['mal_id'] as int? ?? 0,
       name: char['name'] as String? ?? 'Unknown',
-      imageUrl: char['images']?['jpg']?['image_url'] as String? ?? 'https://via.placeholder.com/150',
+      imageUrl: char['images']?['jpg']?['image_url'] as String? ??
+          'https://via.placeholder.com/150',
       role: json['role'] as String? ?? 'Supporting',
     );
   }

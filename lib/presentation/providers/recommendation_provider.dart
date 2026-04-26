@@ -184,4 +184,3 @@ final heroRecommendationProvider =
         watchlistItems: watchlistItems,
       );
 });
-

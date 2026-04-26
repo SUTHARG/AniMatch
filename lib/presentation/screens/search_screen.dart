@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,13 +64,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             final uid = _uid;
             final trimmed = val.trim();
             if (trimmed.isNotEmpty && uid != null) {
-              ref.read(searchActionsProvider).addSearchTerm(uid, trimmed).ignore();
+              ref
+                  .read(searchActionsProvider)
+                  .addSearchTerm(uid, trimmed)
+                  .ignore();
             }
           },
           autofocus: true,
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
-            hintText: appState.isMangaMode ? 'Search manga...' : 'Search anime...',
+            hintText:
+                appState.isMangaMode ? 'Search manga...' : 'Search anime...',
             hintStyle: const TextStyle(color: Colors.white38),
             border: InputBorder.none,
             suffixIcon: query.isNotEmpty
@@ -92,7 +96,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ? _buildRecentSearchChips()
                   : _buildEmptyState(colorScheme)
               : ListView.builder(
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                  physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics()),
                   itemCount: results.length,
                   padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
                   itemBuilder: (_, i) {
@@ -102,7 +107,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       onTap: () {
                         final uid = _uid;
                         if (_controller.text.trim().isNotEmpty && uid != null) {
-                          ref.read(searchActionsProvider).addSearchTerm(uid, _controller.text).ignore();
+                          ref
+                              .read(searchActionsProvider)
+                              .addSearchTerm(uid, _controller.text)
+                              .ignore();
                         }
                       },
                     );
@@ -131,82 +139,95 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildRecentSearchChips() {
     final uid = _uid;
-    if (uid == null) return const Center(child: Text('Sign in to see history', style: TextStyle(color: Colors.white38)));
+    if (uid == null)
+      return const Center(
+          child: Text('Sign in to see history',
+              style: TextStyle(color: Colors.white38)));
 
     return ref.watch(recentSearchesProvider(uid)).when(
-      loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white10)),
-      error: (error, _) {
-          debugPrint('Search history error: $error');
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(
-                'History Error: $error',
-                style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                textAlign: TextAlign.center,
+          loading: () => const Center(
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white10)),
+          error: (error, _) {
+            debugPrint('Search history error: $error');
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  'History Error: $error',
+                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
-          );
-      },
-      data: (history) {
-        if (history.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.search_rounded, size: 64, color: Colors.white.withValues(alpha: 0.05)),
-                const SizedBox(height: 16),
-                Text('Search for your favorite ${appState.isMangaMode ? "manga" : "anime"}', style: const TextStyle(color: Colors.white38)),
-              ],
-            ),
-          );
-        }
+            );
+          },
+          data: (history) {
+            if (history.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.search_rounded,
+                        size: 64, color: Colors.white.withValues(alpha: 0.05)),
+                    const SizedBox(height: 16),
+                    Text(
+                        'Search for your favorite ${appState.isMangaMode ? "manga" : "anime"}',
+                        style: const TextStyle(color: Colors.white38)),
+                  ],
+                ),
+              );
+            }
 
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Recent Searches',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      const Text(
+                        'Recent Searches',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () {
+                          ref
+                              .read(searchActionsProvider)
+                              .clearSearchHistory(uid);
+                          snacks.showSuccess(context, 'Search history cleared');
+                        },
+                        child: const Text('Clear All',
+                            style:
+                                TextStyle(color: Colors.amber, fontSize: 13)),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {
-                      ref.read(searchActionsProvider).clearSearchHistory(uid);
-                      snacks.showSuccess(context, 'Search history cleared');
-                    },
-                    child: const Text('Clear All', style: TextStyle(color: Colors.amber, fontSize: 13)),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: history.map((query) {
+                      return ActionChip(
+                        label: Text(query),
+                        onPressed: () => _searchFromHistory(query),
+                        backgroundColor: Colors.white.withValues(alpha: 0.05),
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        side: BorderSide.none,
+                      );
+                    }).toList(),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: history.map((query) {
-                  return ActionChip(
-                    label: Text(query),
-                    onPressed: () => _searchFromHistory(query),
-                    backgroundColor: Colors.white.withValues(alpha: 0.05),
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    side: BorderSide.none,
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
+            );
+          },
         );
-      },
-    );
   }
 }
 
@@ -214,7 +235,8 @@ class _SearchMediaCard extends ConsumerWidget {
   final MediaBase media;
   final bool isManga;
   final VoidCallback onTap;
-  const _SearchMediaCard({required this.media, required this.isManga, required this.onTap});
+  const _SearchMediaCard(
+      {required this.media, required this.isManga, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -228,47 +250,50 @@ class _SearchMediaCard extends ConsumerWidget {
       data: (url) => url,
       orElse: () => null,
     );
-    final loadingAnilist = kIsWeb && coverAsync.isLoading && anilistImageUrl == null;
+    final loadingAnilist =
+        kIsWeb && coverAsync.isLoading && anilistImageUrl == null;
 
     return PinterestMenuWrapper(
       actions: [
         PinterestMenuAction(
-          icon: Icons.bookmark_add_rounded, 
-          label: 'Watchlist', 
-          onAction: () async {
-            final actions = ref.read(watchlistActionsProvider);
-            final uid = actions.currentUserId;
-            if (uid == null) {
-              snacks.showError(context, 'Please log in to manage your watchlist.');
-              return;
-            }
-            final entry = await actions.getEntry(uid, media.malId, isManga: isManga);
-            
-            dynamic currentStatus;
-            if (entry != null) {
-              currentStatus = isManga 
-                ? ReadStatus.fromString(entry['status']) 
-                : WatchStatus.fromString(entry['status']);
-            }
+            icon: Icons.bookmark_add_rounded,
+            label: 'Watchlist',
+            onAction: () async {
+              final actions = ref.read(watchlistActionsProvider);
+              final uid = actions.currentUserId;
+              if (uid == null) {
+                snacks.showError(
+                    context, 'Please log in to manage your watchlist.');
+                return;
+              }
+              final entry =
+                  await actions.getEntry(uid, media.malId, isManga: isManga);
 
-            if (context.mounted) {
-              await showMediaStatusSheet(
-                context,
-                media: media,
-                isManga: isManga,
-                currentStatus: currentStatus,
-              );
-            }
-          }
-        ),
+              dynamic currentStatus;
+              if (entry != null) {
+                currentStatus = isManga
+                    ? ReadStatus.fromString(entry['status'])
+                    : WatchStatus.fromString(entry['status']);
+              }
+
+              if (context.mounted) {
+                await showMediaStatusSheet(
+                  context,
+                  media: media,
+                  isManga: isManga,
+                  currentStatus: currentStatus,
+                );
+              }
+            }),
         PinterestMenuAction(
-          icon: Icons.info_outline_rounded, 
-          label: 'Details', 
-          onAction: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => DetailScreen(malId: media.malId, isManga: isManga)),
-          )
-        ),
+            icon: Icons.info_outline_rounded,
+            label: 'Details',
+            onAction: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          DetailScreen(malId: media.malId, isManga: isManga)),
+                )),
       ],
       child: ListTile(
         leading: ClipRRect(
@@ -278,7 +303,10 @@ class _SearchMediaCard extends ConsumerWidget {
             height: 60,
             color: colorScheme.surfaceContainerHighest,
             child: (loadingAnilist && anilistImageUrl == null)
-                ? const ShimmerSkeleton(width: double.infinity, height: double.infinity, borderRadius: 0)
+                ? const ShimmerSkeleton(
+                    width: double.infinity,
+                    height: double.infinity,
+                    borderRadius: 0)
                 : PremiumImage(
                     imageUrl: anilistImageUrl ?? media.displayImageUrl,
                     title: media.displayTitle,
@@ -286,14 +314,16 @@ class _SearchMediaCard extends ConsumerWidget {
                   ),
           ),
         ),
-        title: Text(media.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(media.displayTitle,
+            maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
           '${media.scoreText} · ${media.mediaProgressText}',
           style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
         ),
         trailing: media.genres.isNotEmpty
             ? Chip(
-                label: Text(media.genres.first, style: const TextStyle(fontSize: 10)),
+                label: Text(media.genres.first,
+                    style: const TextStyle(fontSize: 10)),
                 padding: EdgeInsets.zero,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               )
@@ -303,7 +333,8 @@ class _SearchMediaCard extends ConsumerWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => DetailScreen(malId: media.malId, isManga: isManga),
+              builder: (_) =>
+                  DetailScreen(malId: media.malId, isManga: isManga),
             ),
           );
         },

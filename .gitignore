@@ -1,55 +1,99 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# ============================================================
+#  AniMatch — .gitignore
+# ============================================================
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
+# ─────────────────────────────────────────────
+# 🔐 SECURITY — NEVER commit these files
+# ─────────────────────────────────────────────
+# Firebase secrets (download from Firebase Console and place locally)
+google-services.json
+GoogleService-Info.plist
+# firebase_options.dart is now safe to commit (reads from .env)
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Environment variables
+.env
+*.env
 
-# Flutter/Dart/Pub related
+# Android signing keys — NEVER expose these
+*.jks
+*.keystore
+key.properties
+android/key.properties
+upload-keystore.jks
+
+# ─────────────────────────────────────────────
+# Flutter / Dart
+# ─────────────────────────────────────────────
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
 /build/
 /coverage/
 
-# Symbolication related
-app.*.symbols
+# Generated files (regenerate with: dart run build_runner build)
+*.g.dart
+*.freezed.dart
 
-# Obfuscation related
-app.*.map.json
+# ─────────────────────────────────────────────
+# Hive local database boxes
+# ─────────────────────────────────────────────
+*.hive
+hive_boxes/
+**.lock
 
-# Android Studio will place build artifacts here
+# ─────────────────────────────────────────────
+# Android
+# ─────────────────────────────────────────────
 /android/app/debug
 /android/app/profile
 /android/app/release
-
-# Firebase / Secret files
-google-services.json
-GoogleService-Info.plist
-firebase_options.dart
-.env
 *.properties
 local.properties
-*.jks
 
+# ─────────────────────────────────────────────
+# iOS
+# ─────────────────────────────────────────────
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# ─────────────────────────────────────────────
+# macOS
+# ─────────────────────────────────────────────
+macos/Pods/
+macos/.symlinks/
+
+# ─────────────────────────────────────────────
+# Build artifacts
+# ─────────────────────────────────────────────
+app.*.symbols
+app.*.map.json
+
+# ─────────────────────────────────────────────
+# IDE
+# ─────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.suo
+*.user
+
+# ─────────────────────────────────────────────
+# OS
+# ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.atom/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/

@@ -21,16 +21,46 @@ import 'package:animatch/data/models/anime.dart';
 // Each index is one dimension; order is stable.
 
 const List<String> kGenreVocabulary = [
-  'Action',       'Adventure',    'Cars',          'Comedy',
-  'Dementia',     'Demons',       'Drama',         'Ecchi',
-  'Fantasy',      'Game',         'Harem',         'Historical',
-  'Horror',       'Isekai',       'Josei',         'Kids',
-  'Magic',        'Martial Arts', 'Mecha',         'Military',
-  'Music',        'Mystery',      'Parody',        'Police',
-  'Psychological','Romance',      'Samurai',       'School',
-  'Sci-Fi',       'Seinen',       'Shoujo',        'Shounen',
-  'Slice of Life','Space',        'Sports',        'Super Power',
-  'Supernatural', 'Thriller',     'Vampire',       'Award Winning',
+  'Action',
+  'Adventure',
+  'Cars',
+  'Comedy',
+  'Dementia',
+  'Demons',
+  'Drama',
+  'Ecchi',
+  'Fantasy',
+  'Game',
+  'Harem',
+  'Historical',
+  'Horror',
+  'Isekai',
+  'Josei',
+  'Kids',
+  'Magic',
+  'Martial Arts',
+  'Mecha',
+  'Military',
+  'Music',
+  'Mystery',
+  'Parody',
+  'Police',
+  'Psychological',
+  'Romance',
+  'Samurai',
+  'School',
+  'Sci-Fi',
+  'Seinen',
+  'Shoujo',
+  'Shounen',
+  'Slice of Life',
+  'Space',
+  'Sports',
+  'Super Power',
+  'Supernatural',
+  'Thriller',
+  'Vampire',
+  'Award Winning',
 ];
 
 const int _kDim = 40; // must equal kGenreVocabulary.length
@@ -44,17 +74,20 @@ final Map<String, int> _kGenreIndex = {
 // ── Weight configuration ──────────────────────────────────────────────────────
 
 class ScoreWeights {
-  final double alpha;   // content / cosine similarity
-  final double beta;    // behavioral / KL divergence (reduced: noisy on small datasets)
-  final double gamma;   // temporal preference (increased: recent behaviour is decisive)
-  final double delta;   // Bayesian popularity (increased: users trust visible quality)
+  final double alpha; // content / cosine similarity
+  final double
+      beta; // behavioral / KL divergence (reduced: noisy on small datasets)
+  final double
+      gamma; // temporal preference (increased: recent behaviour is decisive)
+  final double
+      delta; // Bayesian popularity (increased: users trust visible quality)
   final double epsilon; // novelty / anti-repetition
 
   const ScoreWeights({
-    this.alpha   = 0.30, // ↓ from 0.35
-    this.beta    = 0.10, // ↓ from 0.25 — KL contribution clamped
-    this.gamma   = 0.25, // ↑ from 0.20
-    this.delta   = 0.30, // ↑ from 0.15 — popularity is the tiebreaker
+    this.alpha = 0.30, // ↓ from 0.35
+    this.beta = 0.10, // ↓ from 0.25 — KL contribution clamped
+    this.gamma = 0.25, // ↑ from 0.20
+    this.delta = 0.30, // ↑ from 0.15 — popularity is the tiebreaker
     this.epsilon = 0.05,
   });
 }
@@ -83,15 +116,13 @@ class ScoredAnime {
   /// Dominant factor label — used by explanation generator.
   String dominantFactor(ScoreWeights weights) {
     final scores = {
-      'content':    contentScore   * weights.alpha,
-      'behavior':   behaviorScore  * weights.beta,
-      'temporal':   temporalScore  * weights.gamma,
-      'popularity': popularityScore* weights.delta,
-      'novelty':    noveltyScore   * weights.epsilon,
+      'content': contentScore * weights.alpha,
+      'behavior': behaviorScore * weights.beta,
+      'temporal': temporalScore * weights.gamma,
+      'popularity': popularityScore * weights.delta,
+      'novelty': noveltyScore * weights.epsilon,
     };
-    return scores.entries
-        .reduce((a, b) => a.value >= b.value ? a : b)
-        .key;
+    return scores.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
   }
 }
 
@@ -101,17 +132,17 @@ class ScoringEngine {
   final ScoreWeights weights;
 
   // Bayesian rating constants
-  static const double _kGlobalMean      = 7.0;    // C: global mean MAL score
-  static const double _kMinVotes        = 10000.0; // m: confidence threshold
-  static const double _kLambda          = 0.04;    // temporal decay (per day)
-  static const double _kEps             = 1e-10;   // smoothing / zero-division
-  static const double _kMaxKL           = 5.0;     // KL ceiling
-  static const int    _kRecentN         = 10;      // "recent" window size
+  static const double _kGlobalMean = 7.0; // C: global mean MAL score
+  static const double _kMinVotes = 10000.0; // m: confidence threshold
+  static const double _kLambda = 0.04; // temporal decay (per day)
+  static const double _kEps = 1e-10; // smoothing / zero-division
+  static const double _kMaxKL = 5.0; // KL ceiling
+  static const int _kRecentN = 10; // "recent" window size
   // ── Decisiveness constants (Tasks 1, 2, 4) ────────────────────────────
-  static const double _kTau             = 2.5;    // T1: sharpening exponent S' = S^τ
-  static const double _kMarginThreshold = 0.08;   // T2: min gap before boost
-  static const double _kMarginBoost     = 0.12;   // T2: boost added to winner
-  static const int    _kSparseThreshold = 3;      // T4: watchlist items needed for KL
+  static const double _kTau = 2.5; // T1: sharpening exponent S' = S^τ
+  static const double _kMarginThreshold = 0.08; // T2: min gap before boost
+  static const double _kMarginBoost = 0.12; // T2: boost added to winner
+  static const int _kSparseThreshold = 3; // T4: watchlist items needed for KL
 
   const ScoringEngine({this.weights = const ScoreWeights()});
 
@@ -127,32 +158,32 @@ class ScoringEngine {
     required List<Map<String, dynamic>> watchlistItems,
     required Set<int> watchedIds,
   }) {
-    final candidates = pool
-        .where((a) => !watchedIds.contains(a.malId))
-        .toList();
+    final candidates =
+        pool.where((a) => !watchedIds.contains(a.malId)).toList();
 
     if (candidates.isEmpty) return const [];
 
     // Build user context once (amortised O(1) per candidate)
-    final userVec     = _userPreferenceVector(watchlistItems);
+    final userVec = _userPreferenceVector(watchlistItems);
     final temporalVec = _temporalPreferenceVector(watchlistItems);
-    final userDist    = _userGenreDistribution(watchlistItems);
+    final userDist = _userGenreDistribution(watchlistItems);
 
     // T4: detect sparse watchlist → skip KL, use overlap fallback
-    final genreItems = watchlistItems
-        .where((e) { final g = e['genres']; return g is List && g.isNotEmpty; })
-        .length;
+    final genreItems = watchlistItems.where((e) {
+      final g = e['genres'];
+      return g is List && g.isNotEmpty;
+    }).length;
     final isSparse = genreItems < _kSparseThreshold;
 
     // Score all candidates
     var scored = candidates
         .map((a) => _score(
               a,
-              userVec:      userVec,
-              temporalVec:  temporalVec,
-              userDist:     userDist,
+              userVec: userVec,
+              temporalVec: temporalVec,
+              userDist: userDist,
               recentHistory: watchlistItems,
-              sparseData:   isSparse,
+              sparseData: isSparse,
             ))
         .toList();
 
@@ -160,13 +191,13 @@ class ScoringEngine {
     scored = scored.map((s) {
       final sharpened = _pow(s.totalScore, _kTau);
       return ScoredAnime(
-        anime:          s.anime,
-        totalScore:     sharpened.clamp(0.0, 1.0),
-        contentScore:   s.contentScore,
-        behaviorScore:  s.behaviorScore,
-        temporalScore:  s.temporalScore,
+        anime: s.anime,
+        totalScore: sharpened.clamp(0.0, 1.0),
+        contentScore: s.contentScore,
+        behaviorScore: s.behaviorScore,
+        temporalScore: s.temporalScore,
         popularityScore: s.popularityScore,
-        noveltyScore:   s.noveltyScore,
+        noveltyScore: s.noveltyScore,
       );
     }).toList()
       ..sort((a, b) => b.totalScore.compareTo(a.totalScore));
@@ -178,19 +209,21 @@ class ScoringEngine {
       if (normalizedGap < 0.03) {
         final now = DateTime.now();
         final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays;
-        final rawSeed = (userId.hashCode * 31) + (dayOfYear * 17) + (watchedIds.length * 13);
+        final rawSeed = (userId.hashCode * 31) +
+            (dayOfYear * 17) +
+            (watchedIds.length * 13);
         final seed = rawSeed & 0x7fffffff;
         final rng = math.Random(seed);
         scored = scored.map((s) {
           final noise = rng.nextDouble() * 0.01;
           return ScoredAnime(
-            anime:          s.anime,
-            totalScore:     (s.totalScore + noise).clamp(0.0, 1.0),
-            contentScore:   s.contentScore,
-            behaviorScore:  s.behaviorScore,
-            temporalScore:  s.temporalScore,
+            anime: s.anime,
+            totalScore: (s.totalScore + noise).clamp(0.0, 1.0),
+            contentScore: s.contentScore,
+            behaviorScore: s.behaviorScore,
+            temporalScore: s.temporalScore,
             popularityScore: s.popularityScore,
-            noveltyScore:   s.noveltyScore,
+            noveltyScore: s.noveltyScore,
           );
         }).toList()
           ..sort((a, b) => b.totalScore.compareTo(a.totalScore));
@@ -203,13 +236,13 @@ class ScoringEngine {
       if (gap < _kMarginThreshold) {
         final w = scored[0];
         scored[0] = ScoredAnime(
-          anime:          w.anime,
-          totalScore:     (w.totalScore + _kMarginBoost).clamp(0.0, 1.0),
-          contentScore:   w.contentScore,
-          behaviorScore:  w.behaviorScore,
-          temporalScore:  w.temporalScore,
+          anime: w.anime,
+          totalScore: (w.totalScore + _kMarginBoost).clamp(0.0, 1.0),
+          contentScore: w.contentScore,
+          behaviorScore: w.behaviorScore,
+          temporalScore: w.temporalScore,
           popularityScore: w.popularityScore,
-          noveltyScore:   w.noveltyScore,
+          noveltyScore: w.noveltyScore,
         );
       }
     }
@@ -283,7 +316,7 @@ class ScoringEngine {
     var totalW = 0.0;
 
     for (final item in items) {
-      final w      = _ratingWeight(item);
+      final w = _ratingWeight(item);
       final genres = _extractGenres(item);
       if (genres.isEmpty) continue;
       _addWeightedGenres(sum, genres, w);
@@ -291,7 +324,9 @@ class ScoringEngine {
     }
 
     if (totalW < _kEps) return List<double>.filled(_kDim, 0.0);
-    for (var i = 0; i < _kDim; i++) { sum[i] /= totalW; }
+    for (var i = 0; i < _kDim; i++) {
+      sum[i] /= totalW;
+    }
     return _normalise(sum);
   }
 
@@ -303,9 +338,9 @@ class ScoringEngine {
     var totalW = 0.0;
 
     for (final item in items) {
-      final r      = _ratingWeight(item);
-      final decay  = _temporalDecay(item, now);
-      final w      = r * decay;
+      final r = _ratingWeight(item);
+      final decay = _temporalDecay(item, now);
+      final w = r * decay;
       final genres = _extractGenres(item);
       if (genres.isEmpty) continue;
       _addWeightedGenres(sum, genres, w);
@@ -313,7 +348,9 @@ class ScoringEngine {
     }
 
     if (totalW < _kEps) return List<double>.filled(_kDim, 0.0);
-    for (var i = 0; i < _kDim; i++) { sum[i] /= totalW; }
+    for (var i = 0; i < _kDim; i++) {
+      sum[i] /= totalW;
+    }
     return _normalise(sum);
   }
 
@@ -327,7 +364,7 @@ class ScoringEngine {
     var totalW = 0.0;
 
     for (final item in items) {
-      final w      = _ratingWeight(item);
+      final w = _ratingWeight(item);
       final genres = _extractGenres(item);
       for (final g in genres) {
         final idx = _kGenreIndex[g.toLowerCase()];
@@ -442,7 +479,7 @@ class ScoringEngine {
     required List<Map<String, dynamic>> recentHistory,
     bool sparseData = false,
   }) {
-    final animeVec  = animeGenreVector(anime);
+    final animeVec = animeGenreVector(anime);
     final animeDist = _animeGenreDistribution(anime);
 
     final cs = _contentScore(animeVec, userVec);
@@ -452,20 +489,20 @@ class ScoringEngine {
     final ns = _noveltyScore(animeVec, recentHistory);
 
     // Raw linear combination (sharpening applied later in rank())
-    final total = weights.alpha   * cs
-                + weights.beta    * bs
-                + weights.gamma   * ts
-                + weights.delta   * ps
-                + weights.epsilon * ns;
+    final total = weights.alpha * cs +
+        weights.beta * bs +
+        weights.gamma * ts +
+        weights.delta * ps +
+        weights.epsilon * ns;
 
     return ScoredAnime(
-      anime:           anime,
-      totalScore:      total.clamp(0.0, 1.0),
-      contentScore:    cs,
-      behaviorScore:   bs,
-      temporalScore:   ts,
+      anime: anime,
+      totalScore: total.clamp(0.0, 1.0),
+      contentScore: cs,
+      behaviorScore: bs,
+      temporalScore: ts,
       popularityScore: ps,
-      noveltyScore:    ns,
+      noveltyScore: ns,
     );
   }
 
@@ -475,7 +512,9 @@ class ScoringEngine {
 
   List<double> _normalise(List<double> v) {
     var mag = 0.0;
-    for (final x in v) { mag += x * x; }
+    for (final x in v) {
+      mag += x * x;
+    }
     mag = math.sqrt(mag);
     if (mag < _kEps) return v;
     return [for (final x in v) x / mag];
@@ -484,7 +523,9 @@ class ScoringEngine {
   /// Cosine similarity between two pre-normalised vectors.
   double _cosine(List<double> a, List<double> b) {
     var dot = 0.0;
-    for (var i = 0; i < _kDim; i++) { dot += a[i] * b[i]; }
+    for (var i = 0; i < _kDim; i++) {
+      dot += a[i] * b[i];
+    }
     return dot.clamp(0.0, 1.0);
   }
 
@@ -502,7 +543,8 @@ class ScoringEngine {
   /// σ(x) = 1 / (1 + e^−x)
   double _sigmoid(double x) => 1.0 / (1.0 + math.exp(-x));
 
-  double _pow(double base, double exponent) => math.pow(base, exponent).toDouble();
+  double _pow(double base, double exponent) =>
+      math.pow(base, exponent).toDouble();
 
   /// wᵢ = e^(−λ · daysAgo)  — falls back to 1.0 when no timestamp.
   double _temporalDecay(Map<String, dynamic> item, DateTime now) {
@@ -530,12 +572,18 @@ class ScoringEngine {
     if (r is num && r > 0) return (r.toDouble() / 10.0).clamp(0.1, 1.0);
 
     switch (item['status'] as String? ?? '') {
-      case 'completed':    return 0.80;
-      case 'watching':     return 0.70;
-      case 'planToWatch':  return 0.50;
-      case 'onHold':       return 0.40;
-      case 'dropped':      return 0.20;
-      default:             return 0.50;
+      case 'completed':
+        return 0.80;
+      case 'watching':
+        return 0.70;
+      case 'planToWatch':
+        return 0.50;
+      case 'onHold':
+        return 0.40;
+      case 'dropped':
+        return 0.20;
+      default:
+        return 0.50;
     }
   }
 
@@ -569,7 +617,8 @@ class ScoringEngine {
 
 /// Generates a one-sentence explanation based on the dominant score factor
 /// and the anime's actual properties.
-String buildHeroExplanation(ScoredAnime scored, String mood, ScoreWeights weights) {
+String buildHeroExplanation(
+    ScoredAnime scored, String mood, ScoreWeights weights) {
   switch (scored.dominantFactor(weights)) {
     case 'content':
       if (scored.anime.genres.isNotEmpty) {
@@ -589,7 +638,7 @@ String buildHeroExplanation(ScoredAnime scored, String mood, ScoreWeights weight
 
     case 'popularity':
       final members = scored.anime.members ?? 0;
-      final score   = scored.anime.score ?? 0;
+      final score = scored.anime.score ?? 0;
       if (members >= 1000000) {
         final m = (members / 1000000).toStringAsFixed(1);
         return 'Loved by ${m}M+ fans worldwide';
@@ -608,18 +657,18 @@ String buildHeroExplanation(ScoredAnime scored, String mood, ScoreWeights weight
 }
 
 const _kMoodLabels = <String, String>{
-  'dark':      'dark & intense',
-  'funny':     'fun & lighthearted',
-  'romantic':  'romantic',
-  'action':    'action',
-  'chill':     'chill',
+  'dark': 'dark & intense',
+  'funny': 'fun & lighthearted',
+  'romantic': 'romantic',
+  'action': 'action',
+  'chill': 'chill',
   'adventure': 'epic adventure',
-  'mystery':   'mystery',
-  'battles':   'battle',
-  'cozy':      'cozy',
-  'gore':      'horror',
-  'sports':    'sports',
-  'sad':       'emotional',
+  'mystery': 'mystery',
+  'battles': 'battle',
+  'cozy': 'cozy',
+  'gore': 'horror',
+  'sports': 'sports',
+  'sad': 'emotional',
 };
 
 String _moodLabel(String mood) => _kMoodLabels[mood] ?? mood;

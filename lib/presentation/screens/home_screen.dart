@@ -55,95 +55,102 @@ class _HomeScreenState extends State<HomeScreen> {
               WatchlistScreen(),
             ],
           ),
-      bottomNavigationBar: SafeArea(
-        bottom: true,
-        child: Container(
-          height: 80, // Safe height for contents
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            clipBehavior: Clip.none,
-            children: [
-              // Floating Glass Pill
-              Positioned.fill(
-                child: ClipPath(
-                  clipper: _NotchedPillClipper(notchMargin: 8),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface.withValues(alpha: 0.8),
-                        // The border is handled by custom painter for the notch
+          bottomNavigationBar: SafeArea(
+            bottom: true,
+            child: Container(
+              height: 80, // Safe height for contents
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                clipBehavior: Clip.none,
+                children: [
+                  // Floating Glass Pill
+                  Positioned.fill(
+                    child: ClipPath(
+                      clipper: _NotchedPillClipper(notchMargin: 8),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface.withValues(alpha: 0.8),
+                            // The border is handled by custom painter for the notch
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-  
-              // The thin white border following the notch
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _NotchedPillBorderPainter(
-                    notchMargin: 8,
-                    color: Colors.white.withValues(alpha: 0.2),
+
+                  // The thin white border following the notch
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _NotchedPillBorderPainter(
+                        notchMargin: 8,
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-  
-              // Content icons
-              BottomAppBar(
-                shape: const CircularNotchedRectangle(),
-                notchMargin: 8,
-                color: Colors.transparent, // Transparent to show glass behind
-                elevation: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _NavBarIcon(
-                      icon: _currentIndex == 0 ? Icons.home_rounded : Icons.home_outlined,
-                      isActive: _currentIndex == 0,
-                      onTap: () => setState(() => _currentIndex = 0),
-                      label: 'Home',
+
+                  // Content icons
+                  BottomAppBar(
+                    shape: const CircularNotchedRectangle(),
+                    notchMargin: 8,
+                    color:
+                        Colors.transparent, // Transparent to show glass behind
+                    elevation: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _NavBarIcon(
+                          icon: _currentIndex == 0
+                              ? Icons.home_rounded
+                              : Icons.home_outlined,
+                          isActive: _currentIndex == 0,
+                          onTap: () => setState(() => _currentIndex = 0),
+                          label: 'Home',
+                        ),
+                        const SizedBox(width: 48), // Space for FAB
+                        _NavBarIcon(
+                          icon: _currentIndex == 1
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded,
+                          isActive: _currentIndex == 1,
+                          onTap: () => setState(() => _currentIndex = 1),
+                          label: 'Watchlist',
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 48), // Space for FAB
-                    _NavBarIcon(
-                      icon: _currentIndex == 1 ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-                      isActive: _currentIndex == 1,
-                      onTap: () => setState(() => _currentIndex = 1),
-                      label: 'Watchlist',
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: Container(
-        margin: const EdgeInsets.only(top: 10),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.amber.withValues(alpha: 0.3),
-              blurRadius: 15,
-              spreadRadius: 2,
             ),
-          ],
-        ),
-        child: FloatingActionButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SearchScreen()),
           ),
-          backgroundColor: Colors.amber,
-          shape: const CircleBorder(),
-          elevation: 6,
-          child: const Icon(Icons.search_rounded, color: Colors.black, size: 28),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-    );
+          floatingActionButton: Container(
+            margin: const EdgeInsets.only(top: 10),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.amber.withValues(alpha: 0.3),
+                  blurRadius: 15,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: FloatingActionButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SearchScreen()),
+              ),
+              backgroundColor: Colors.amber,
+              shape: const CircleBorder(),
+              elevation: 6,
+              child: const Icon(Icons.search_rounded,
+                  color: Colors.black, size: 28),
+            ),
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
+        );
       },
     );
   }
@@ -175,12 +182,15 @@ class _NavBarIcon extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isActive ? colorScheme.primary.withValues(alpha: 0.1) : Colors.transparent,
+              color: isActive
+                  ? colorScheme.primary.withValues(alpha: 0.1)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
-              color: isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
+              color:
+                  isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
               size: 26,
             ),
           ),
@@ -189,7 +199,8 @@ class _NavBarIcon extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-              color: isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
+              color:
+                  isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -211,7 +222,7 @@ class _NotchedPillClipper extends CustomClipper<Path> {
 
     // Start from top left corner
     path.moveTo(radius, 0);
-    
+
     // Top line with notch
     path.lineTo(centerX - notchRadius, 0);
     path.arcToPoint(
@@ -222,23 +233,26 @@ class _NotchedPillClipper extends CustomClipper<Path> {
     path.lineTo(size.width - radius, 0);
 
     // Top right corner
-    path.arcToPoint(Offset(size.width, radius), radius: const Radius.circular(radius));
-    
+    path.arcToPoint(Offset(size.width, radius),
+        radius: const Radius.circular(radius));
+
     // Right line
     path.lineTo(size.width, size.height - radius);
-    
+
     // Bottom right corner
-    path.arcToPoint(Offset(size.width - radius, size.height), radius: const Radius.circular(radius));
-    
+    path.arcToPoint(Offset(size.width - radius, size.height),
+        radius: const Radius.circular(radius));
+
     // Bottom line
     path.lineTo(radius, size.height);
-    
+
     // Bottom left corner
-    path.arcToPoint(Offset(0, size.height - radius), radius: const Radius.circular(radius));
-    
+    path.arcToPoint(Offset(0, size.height - radius),
+        radius: const Radius.circular(radius));
+
     // Left line
     path.lineTo(0, radius);
-    
+
     // Top left corner
     path.arcToPoint(Offset(radius, 0), radius: const Radius.circular(radius));
 
@@ -276,11 +290,14 @@ class _NotchedPillBorderPainter extends CustomPainter {
       clockwise: false,
     );
     path.lineTo(size.width - radius, 0);
-    path.arcToPoint(Offset(size.width, radius), radius: const Radius.circular(radius));
+    path.arcToPoint(Offset(size.width, radius),
+        radius: const Radius.circular(radius));
     path.lineTo(size.width, size.height - radius);
-    path.arcToPoint(Offset(size.width - radius, size.height), radius: const Radius.circular(radius));
+    path.arcToPoint(Offset(size.width - radius, size.height),
+        radius: const Radius.circular(radius));
     path.lineTo(radius, size.height);
-    path.arcToPoint(Offset(0, size.height - radius), radius: const Radius.circular(radius));
+    path.arcToPoint(Offset(0, size.height - radius),
+        radius: const Radius.circular(radius));
     path.lineTo(0, radius);
     path.arcToPoint(Offset(radius, 0), radius: const Radius.circular(radius));
     path.close();
@@ -312,7 +329,7 @@ class _HomeTabState extends State<_HomeTab> {
   List<Manga> _popularManhwa = [];
   List<Manga> _popularManhua = [];
   List<Manga> _popularNovels = [];
-  
+
   bool _loading = true;
 
   @override
@@ -340,7 +357,7 @@ class _HomeTabState extends State<_HomeTab> {
   Future<void> _load() async {
     if (!mounted) return;
     setState(() => _loading = true);
-    
+
     try {
       if (widget.appState.isAnimeMode) {
         final trendingData = await _anilist.getTrendingAnime();
@@ -349,17 +366,21 @@ class _HomeTabState extends State<_HomeTab> {
 
         if (mounted) {
           setState(() {
-            _spotlightAnime = seasonalData.take(10).map((e) => Anime.fromAniList(e)).toList();
-            _trendingAnime = trendingData.take(10).map((e) => Anime.fromAniList(e)).toList();
-            _topUpcomingAnime = upcomingData.map((e) => Anime.fromAniList(e)).toList();
+            _spotlightAnime =
+                seasonalData.take(10).map((e) => Anime.fromAniList(e)).toList();
+            _trendingAnime =
+                trendingData.take(10).map((e) => Anime.fromAniList(e)).toList();
+            _topUpcomingAnime =
+                upcomingData.map((e) => Anime.fromAniList(e)).toList();
             _loading = false;
           });
         }
       } else {
         // Load Manga Data (with rate-limiting awareness)
-        final trendingMangaData = await _jikan.getTopManga(filter: 'publishing'); // Current top publishing
+        final trendingMangaData = await _jikan.getTopManga(
+            filter: 'publishing'); // Current top publishing
         final topMangaData = await _jikan.getTopManga(); // All-time top
-        
+
         // Fetch specific categories
         final manhwaData = await _jikan.getTopManga(type: 'manhwa');
         final manhuaData = await _jikan.getTopManga(type: 'manhua');
@@ -401,14 +422,13 @@ class _HomeTabState extends State<_HomeTab> {
             children: [
               CircularProgressIndicator(color: Colors.amber),
               SizedBox(height: 16),
-              Text('Finding magic...', 
-                style: TextStyle(
-                  color: Colors.white, 
-                  fontWeight: FontWeight.bold,
-                  decoration: TextDecoration.none,
-                  fontSize: 16,
-                )
-              ),
+              Text('Finding magic...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.none,
+                    fontSize: 16,
+                  )),
             ],
           ),
         ),
@@ -421,22 +441,28 @@ class _HomeTabState extends State<_HomeTab> {
         if (context.mounted) {
           Navigator.pop(context); // Remove loading
           Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId, isManga: false)),
+            context,
+            MaterialPageRoute(
+                builder: (_) =>
+                    DetailScreen(malId: anime.malId, isManga: false)),
           );
         }
       } else {
         // Random Manga
         // Jikan v4 has a random manga endpoint
-        final mangaData = await _jikan.getTopManga(filter: 'bypopularity'); // Fallback if random isn't handy, but let's assume we can pick random from top
+        final mangaData = await _jikan.getTopManga(
+            filter:
+                'bypopularity'); // Fallback if random isn't handy, but let's assume we can pick random from top
         if (context.mounted) {
           Navigator.pop(context);
           if (mangaData.isNotEmpty) {
-             mangaData.shuffle();
-             Navigator.push(
-               context,
-               MaterialPageRoute(builder: (_) => DetailScreen(malId: mangaData.first.malId, isManga: true)),
-             );
+            mangaData.shuffle();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => DetailScreen(
+                      malId: mangaData.first.malId, isManga: true)),
+            );
           }
         }
       }
@@ -459,7 +485,8 @@ class _HomeTabState extends State<_HomeTab> {
     final appState = widget.appState;
 
     final content = CustomScrollView(
-      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      physics:
+          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       slivers: [
         SliverAppBar(
           title: Row(
@@ -475,8 +502,8 @@ class _HomeTabState extends State<_HomeTab> {
               Flexible(
                 child: Text('AniMatch',
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold, letterSpacing: -0.5)),
               ),
             ],
           ),
@@ -484,13 +511,14 @@ class _HomeTabState extends State<_HomeTab> {
             // Mode Toggle in AppBar for Cleaner Look
             IconButton(
               icon: Icon(
-                appState.isAnimeMode ? Icons.movie_filter_rounded : Icons.menu_book_rounded, 
-                color: Colors.amber
-              ),
+                  appState.isAnimeMode
+                      ? Icons.movie_filter_rounded
+                      : Icons.menu_book_rounded,
+                  color: Colors.amber),
               onPressed: () => appState.toggleMode(),
               tooltip: 'Switch to ${appState.isAnimeMode ? 'Manga' : 'Anime'}',
             ),
-            
+
             // Surprise Me
             IconButton(
               icon: const Icon(Icons.shuffle_rounded, color: Colors.white70),
@@ -500,7 +528,11 @@ class _HomeTabState extends State<_HomeTab> {
 
             // Quiz Button (Matches Screenshot)
             GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QuizScreen(isManga: appState.isMangaMode))),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          QuizScreen(isManga: appState.isMangaMode))),
               child: Container(
                 margin: const EdgeInsets.symmetric(vertical: 10),
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -520,22 +552,23 @@ class _HomeTabState extends State<_HomeTab> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.auto_awesome_rounded, color: Colors.black, size: 16),
+                    Icon(Icons.auto_awesome_rounded,
+                        color: Colors.black, size: 16),
                     SizedBox(width: 4),
-                    Text('Quiz', 
-                      style: TextStyle(
-                        color: Colors.black, 
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12,
-                      )
-                    ),
+                    Text('Quiz',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                        )),
                   ],
                 ),
               ),
             ),
             IconButton(
               icon: const Icon(Icons.person_outline_rounded),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen())),
               tooltip: 'Profile',
             ),
             const SizedBox(width: 8),
@@ -564,14 +597,18 @@ class _HomeTabState extends State<_HomeTab> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         decoration: BoxDecoration(
-                          color: appState.isAnimeMode ? Colors.amber : Colors.transparent,
+                          color: appState.isAnimeMode
+                              ? Colors.amber
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(24),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           'Anime',
                           style: TextStyle(
-                            color: appState.isAnimeMode ? Colors.black : Colors.white60,
+                            color: appState.isAnimeMode
+                                ? Colors.black
+                                : Colors.white60,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -585,14 +622,18 @@ class _HomeTabState extends State<_HomeTab> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         decoration: BoxDecoration(
-                          color: appState.isMangaMode ? Colors.amber : Colors.transparent,
+                          color: appState.isMangaMode
+                              ? Colors.amber
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(24),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           'Manga',
                           style: TextStyle(
-                            color: appState.isMangaMode ? Colors.black : Colors.white60,
+                            color: appState.isMangaMode
+                                ? Colors.black
+                                : Colors.white60,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -609,22 +650,24 @@ class _HomeTabState extends State<_HomeTab> {
         const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
         if (_loading)
-          const SliverFillRemaining(
-              child: HomeShimmer())
+          const SliverFillRemaining(child: HomeShimmer())
         else ...[
           if (appState.isAnimeMode) ...[
             // ── ANIME LAYOUT ──
             if (_spotlightAnime.isNotEmpty)
               SliverToBoxAdapter(
-                child: _SpotlightCarousel(spotlightItems: _spotlightAnime, isManga: false),
+                child: _SpotlightCarousel(
+                    spotlightItems: _spotlightAnime, isManga: false),
               ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
             if (_trendingAnime.isNotEmpty) ...[
-              const SliverToBoxAdapter(child: _SectionHeader(title: 'Trending')),
+              const SliverToBoxAdapter(
+                  child: _SectionHeader(title: 'Trending')),
               SliverToBoxAdapter(
-                child: _TrendingList(trendingItems: _trendingAnime, isManga: false),
+                child: _TrendingList(
+                    trendingItems: _trendingAnime, isManga: false),
               ),
             ],
 
@@ -643,9 +686,10 @@ class _HomeTabState extends State<_HomeTab> {
             SliverToBoxAdapter(child: _ScheduleSection(jikanService: _jikan)),
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
-            if (_topUpcomingAnime.isNotEmpty) 
+            if (_topUpcomingAnime.isNotEmpty)
               SliverToBoxAdapter(
-                child: _TopUpcomingSection(upcomingItems: _topUpcomingAnime, isManga: false),
+                child: _TopUpcomingSection(
+                    upcomingItems: _topUpcomingAnime, isManga: false),
               ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -654,7 +698,8 @@ class _HomeTabState extends State<_HomeTab> {
             // ── MANGA LAYOUT ──
             if (_spotlightManga.isNotEmpty)
               SliverToBoxAdapter(
-                child: _SpotlightCarousel(spotlightItems: _spotlightManga, isManga: true),
+                child: _SpotlightCarousel(
+                    spotlightItems: _spotlightManga, isManga: true),
               ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -662,40 +707,48 @@ class _HomeTabState extends State<_HomeTab> {
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
             if (_trendingManga.isNotEmpty) ...[
-              const SliverToBoxAdapter(child: _SectionHeader(title: 'Trending')),
+              const SliverToBoxAdapter(
+                  child: _SectionHeader(title: 'Trending')),
               SliverToBoxAdapter(
-                child: _TrendingList(trendingItems: _trendingManga, isManga: true),
+                child:
+                    _TrendingList(trendingItems: _trendingManga, isManga: true),
               ),
             ],
 
             if (_popularManhwa.isNotEmpty) ...[
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              const SliverToBoxAdapter(child: _SectionHeader(title: 'Popular Manhwa')),
+              const SliverToBoxAdapter(
+                  child: _SectionHeader(title: 'Popular Manhwa')),
               SliverToBoxAdapter(
-                child: _TrendingList(trendingItems: _popularManhwa, isManga: true),
+                child:
+                    _TrendingList(trendingItems: _popularManhwa, isManga: true),
               ),
             ],
             if (_popularManhua.isNotEmpty) ...[
-              const SliverToBoxAdapter(child: _SectionHeader(title: 'Popular Manhua')),
+              const SliverToBoxAdapter(
+                  child: _SectionHeader(title: 'Popular Manhua')),
               SliverToBoxAdapter(
-                child: _TrendingList(trendingItems: _popularManhua, isManga: true),
+                child:
+                    _TrendingList(trendingItems: _popularManhua, isManga: true),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
 
             if (_popularNovels.isNotEmpty) ...[
-              const SliverToBoxAdapter(child: _SectionHeader(title: 'Top Novels')),
+              const SliverToBoxAdapter(
+                  child: _SectionHeader(title: 'Top Novels')),
               SliverToBoxAdapter(
-                child: _TrendingList(trendingItems: _popularNovels, isManga: true),
+                child:
+                    _TrendingList(trendingItems: _popularNovels, isManga: true),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 32)),
             ],
 
             SliverToBoxAdapter(child: _MagazineSection(jikanService: _jikan)),
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
-            SliverToBoxAdapter(child: _TopTenSection(jikanService: _jikan, isManga: true)),
+            SliverToBoxAdapter(
+                child: _TopTenSection(jikanService: _jikan, isManga: true)),
           ],
-
           const SliverToBoxAdapter(child: SizedBox(height: 200)),
         ],
       ],
@@ -714,7 +767,8 @@ class _HomeTabState extends State<_HomeTab> {
 class _SpotlightCarousel extends StatefulWidget {
   final List<MediaBase> spotlightItems;
   final bool isManga;
-  const _SpotlightCarousel({required this.spotlightItems, this.isManga = false});
+  const _SpotlightCarousel(
+      {required this.spotlightItems, this.isManga = false});
 
   @override
   State<_SpotlightCarousel> createState() => _SpotlightCarouselState();
@@ -730,9 +784,12 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
   void initState() {
     super.initState();
     // Start in the middle to allow infinite scrolling in both directions
-    final initialPage = (_infinitePages ~/ 2) - ((_infinitePages ~/ 2) % (widget.spotlightItems.isEmpty ? 1 : widget.spotlightItems.length));
+    final initialPage = (_infinitePages ~/ 2) -
+        ((_infinitePages ~/ 2) %
+            (widget.spotlightItems.isEmpty ? 1 : widget.spotlightItems.length));
     _pageController = PageController(initialPage: initialPage);
-    _currentIndex = initialPage % (widget.spotlightItems.isEmpty ? 1 : widget.spotlightItems.length);
+    _currentIndex = initialPage %
+        (widget.spotlightItems.isEmpty ? 1 : widget.spotlightItems.length);
     _startTimer();
   }
 
@@ -758,7 +815,7 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
   @override
   Widget build(BuildContext context) {
     if (widget.spotlightItems.isEmpty) return const SizedBox.shrink();
-    
+
     final screenHeight = MediaQuery.of(context).size.height;
     final carouselHeight = (screenHeight * 0.55).clamp(400.0, 550.0);
 
@@ -769,38 +826,44 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
           PageView.builder(
             controller: _pageController,
             onPageChanged: (idx) {
-              setState(() => _currentIndex = idx % widget.spotlightItems.length);
+              setState(
+                  () => _currentIndex = idx % widget.spotlightItems.length);
               // Reset timer on page change (manual or auto)
               _startTimer();
             },
             itemBuilder: (context, index) {
-              final isCurrent = (index % widget.spotlightItems.length) == _currentIndex;
-              final item = widget.spotlightItems[index % widget.spotlightItems.length];
-              
+              final isCurrent =
+                  (index % widget.spotlightItems.length) == _currentIndex;
+              final item =
+                  widget.spotlightItems[index % widget.spotlightItems.length];
+
               return AnimatedBuilder(
                 animation: _pageController,
                 builder: (context, child) {
                   // Calculate parallax offset
                   double scrollOffset = 0.0;
-                  if (_pageController.hasClients && _pageController.page != null) {
+                  if (_pageController.hasClients &&
+                      _pageController.page != null) {
                     scrollOffset = (_pageController.page! - index);
                   }
-                  
+
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     child: GestureDetector(
                       onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga))),
+                              builder: (_) => DetailScreen(
+                                  malId: item.malId, isManga: widget.isManga))),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 400),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(32),
                           boxShadow: [
                             BoxShadow(
-                              color: isCurrent 
-                                  ? Colors.amber.withValues(alpha: 0.3) 
+                              color: isCurrent
+                                  ? Colors.amber.withValues(alpha: 0.3)
                                   : Colors.black.withValues(alpha: 0.4),
                               blurRadius: isCurrent ? 30 : 20,
                               spreadRadius: isCurrent ? 5 : 2,
@@ -815,144 +878,173 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
                               PremiumImage(
                                 imageUrl: item.displayImageUrl,
                                 fit: BoxFit.cover,
-                                alignment: Alignment(scrollOffset * 0.8, 0), // Parallax effect
+                                alignment: Alignment(
+                                    scrollOffset * 0.8, 0), // Parallax effect
                               ),
-                          // Premium Multi-gradient System
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.black.withValues(alpha: 0.0),
-                                  Colors.black.withValues(alpha: 0.2),
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.4),
-                                  Colors.black.withValues(alpha: 0.95),
-                                ],
-                                stops: const [0.0, 0.2, 0.4, 0.7, 1.0],
-                              ),
-                            ),
-                          ),
-                          // Side shade for text pop
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  Colors.black.withValues(alpha: 0.6),
-                                  Colors.transparent,
-                                ],
-                                stops: const [0.0, 0.6],
-                              ),
-                            ),
-                          ),
-                          // Overlay details
-                          Positioned(
-                            left: 24,
-                            bottom: 30,
-                            right: 48,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
-                                      ),
-                                      child: Text(
-                                        '#${(index % widget.spotlightItems.length) + 1} Spotlight',
-                                        style: const TextStyle(
-                                          color: Colors.amber,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white24,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        '⭐ ${item.scoreText}',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  item.displayTitle,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: -0.5,
+                              // Premium Multi-gradient System
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black.withValues(alpha: 0.0),
+                                      Colors.black.withValues(alpha: 0.2),
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.4),
+                                      Colors.black.withValues(alpha: 0.95),
+                                    ],
+                                    stops: const [0.0, 0.2, 0.4, 0.7, 1.0],
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 20),
-                                Wrap(
-                                  spacing: 12,
-                                  runSpacing: 12,
+                              ),
+                              // Side shade for text pop
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: [
+                                      Colors.black.withValues(alpha: 0.6),
+                                      Colors.transparent,
+                                    ],
+                                    stops: const [0.0, 0.6],
+                                  ),
+                                ),
+                              ),
+                              // Overlay details
+                              Positioned(
+                                left: 24,
+                                bottom: 30,
+                                right: 48,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    FilledButton.icon(
-                                      onPressed: () {
-                                        Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (_) => DetailScreen(
-                                                    malId: item.malId, isManga: widget.isManga)));
-                                      },
-                                      icon: const Icon(Icons.play_circle_fill_rounded,
-                                          color: Colors.black, size: 20),
-                                      label: const Text('Watch Now',
-                                          style: TextStyle(
-                                              color: Colors.black,
-                                              fontWeight: FontWeight.bold)),
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: Colors.amber,
-                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                      ),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber
+                                                .withValues(alpha: 0.2),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: Border.all(
+                                                color: Colors.amber
+                                                    .withValues(alpha: 0.5)),
+                                          ),
+                                          child: Text(
+                                            '#${(index % widget.spotlightItems.length) + 1} Spotlight',
+                                            style: const TextStyle(
+                                              color: Colors.amber,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white24,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            '⭐ ${item.scoreText}',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                                color: Colors.white),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(100),
-                                      child: BackdropFilter(
-                                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                        child: FilledButton.icon(
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      item.displayTitle,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: -0.5,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Wrap(
+                                      spacing: 12,
+                                      runSpacing: 12,
+                                      children: [
+                                        FilledButton.icon(
                                           onPressed: () {
                                             Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
-                                                    builder: (_) => DetailScreen(
-                                                        malId: item.malId, isManga: widget.isManga)));
+                                                    builder: (_) =>
+                                                        DetailScreen(
+                                                            malId: item.malId,
+                                                            isManga: widget
+                                                                .isManga)));
                                           },
-                                          icon: const Icon(Icons.info_outline_rounded,
-                                              color: Colors.white, size: 20),
-                                          label: const Text('Detail',
-                                              style: TextStyle(color: Colors.white)),
+                                          icon: const Icon(
+                                              Icons.play_circle_fill_rounded,
+                                              color: Colors.black,
+                                              size: 20),
+                                          label: const Text('Watch Now',
+                                              style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontWeight: FontWeight.bold)),
                                           style: FilledButton.styleFrom(
-                                            backgroundColor:
-                                                Colors.white.withValues(alpha: 0.15),
-                                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                            backgroundColor: Colors.amber,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 20, vertical: 12),
                                           ),
                                         ),
-                                      ),
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(100),
+                                          child: BackdropFilter(
+                                            filter: ImageFilter.blur(
+                                                sigmaX: 10, sigmaY: 10),
+                                            child: FilledButton.icon(
+                                              onPressed: () {
+                                                Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            DetailScreen(
+                                                                malId:
+                                                                    item.malId,
+                                                                isManga: widget
+                                                                    .isManga)));
+                                              },
+                                              icon: const Icon(
+                                                  Icons.info_outline_rounded,
+                                                  color: Colors.white,
+                                                  size: 20),
+                                              label: const Text('Detail',
+                                                  style: TextStyle(
+                                                      color: Colors.white)),
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: Colors.white
+                                                    .withValues(alpha: 0.15),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 20,
+                                                        vertical: 12),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
+                              ),
                             ],
                           ),
                         ),
@@ -972,7 +1064,8 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                widget.spotlightItems.length.clamp(0, 10), // Limit dots for layout
+                widget.spotlightItems.length
+                    .clamp(0, 10), // Limit dots for layout
                 (index) => AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   margin: const EdgeInsets.symmetric(vertical: 5),
@@ -1051,188 +1144,196 @@ class _TrendingListState extends State<_TrendingList> {
                         fit: BoxFit.cover,
                         alignment: Alignment(scrollOffset * 0.3, 0),
                       ),
-                  // Rank Overlay
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                            bottomRight: Radius.circular(12)),
-                      ),
-                      child: Text(
-                        numStr,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      // Rank Overlay
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.only(
+                                bottomRight: Radius.circular(12)),
+                          ),
+                          child: Text(
+                            numStr,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  // Title Overlay at bottom
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(8, 24, 8, 8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.4),
-                            Colors.black.withValues(alpha: 0.9),
-                          ],
-                          stops: const [0.0, 0.4, 1.0],
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                      // Title Overlay at bottom
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(8, 24, 8, 8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.4),
+                                Colors.black.withValues(alpha: 0.9),
+                              ],
+                              stops: const [0.0, 0.4, 1.0],
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  item.mediaTypeBadge.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w900,
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      item.mediaTypeBadge.toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      item.mediaProgressText,
+                                      style: TextStyle(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.7),
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  item.mediaProgressText,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              const SizedBox(height: 4),
+                              Text(
+                                item.displayTitle,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            item.displayTitle,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  
-                  // Top-level InkWell to ensure click-ability on Web
-                  Positioned.fill(
-                    child: PinterestMenuWrapper(
-                      actions: [
-                        PinterestMenuAction(
-                          icon: Icons.bookmark_add_rounded, 
-                          label: 'Watchlist', 
-                          onAction: () async {
-                            final uid = FirebaseAuth.instance.currentUser?.uid;
-                            if (uid == null) {
-                              FloatingNotification.show(
-                                context,
-                                title: 'Authentication',
-                                message: 'Sign in to manage your watchlist',
-                                icon: Icons.login_rounded,
-                              );
-                              return;
-                            }
-                            
-                            final entry = await FirebaseService().getWatchlistEntry(
-                              uid, item.malId, isManga: widget.isManga
-                            );
-                            
-                            dynamic currentStatus;
-                            if (entry != null) {
-                              currentStatus = widget.isManga 
-                                ? ReadStatus.fromString(entry['status']) 
-                                : WatchStatus.fromString(entry['status']);
-                            }
 
-                            if (context.mounted) {
-                              await showMediaStatusSheet(
-                                context,
-                                media: item,
-                                isManga: widget.isManga,
-                                currentStatus: currentStatus,
-                              );
-                            }
-                          }
-                        ),
-                        PinterestMenuAction(
-                          icon: Icons.info_outline_rounded, 
-                          label: 'Details', 
-                          onAction: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga)),
-                          )
-                        ),
-                        PinterestMenuAction(
-                          icon: Icons.share_rounded, 
-                          label: 'Share', 
-                          onAction: () {
-                            // Copy link to clipboard as a "Share" action
-                            final url = 'https://myanimelist.net/${widget.isManga ? 'manga' : 'anime'}/${item.malId}';
-                            Clipboard.setData(ClipboardData(text: url));
-                            FloatingNotification.show(
-                              context,
-                              title: 'Shared',
-                              message: 'Link copied to clipboard!',
-                              icon: Icons.share_rounded,
-                            );
-                          }
-                        ),
-                      ],
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga),
-                              ),
-                            );
-                          },
+                      // Top-level InkWell to ensure click-ability on Web
+                      Positioned.fill(
+                        child: PinterestMenuWrapper(
+                          actions: [
+                            PinterestMenuAction(
+                                icon: Icons.bookmark_add_rounded,
+                                label: 'Watchlist',
+                                onAction: () async {
+                                  final uid =
+                                      FirebaseAuth.instance.currentUser?.uid;
+                                  if (uid == null) {
+                                    FloatingNotification.show(
+                                      context,
+                                      title: 'Authentication',
+                                      message:
+                                          'Sign in to manage your watchlist',
+                                      icon: Icons.login_rounded,
+                                    );
+                                    return;
+                                  }
+
+                                  final entry = await FirebaseService()
+                                      .getWatchlistEntry(uid, item.malId,
+                                          isManga: widget.isManga);
+
+                                  dynamic currentStatus;
+                                  if (entry != null) {
+                                    currentStatus = widget.isManga
+                                        ? ReadStatus.fromString(entry['status'])
+                                        : WatchStatus.fromString(
+                                            entry['status']);
+                                  }
+
+                                  if (context.mounted) {
+                                    await showMediaStatusSheet(
+                                      context,
+                                      media: item,
+                                      isManga: widget.isManga,
+                                      currentStatus: currentStatus,
+                                    );
+                                  }
+                                }),
+                            PinterestMenuAction(
+                                icon: Icons.info_outline_rounded,
+                                label: 'Details',
+                                onAction: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => DetailScreen(
+                                              malId: item.malId,
+                                              isManga: widget.isManga)),
+                                    )),
+                            PinterestMenuAction(
+                                icon: Icons.share_rounded,
+                                label: 'Share',
+                                onAction: () {
+                                  // Copy link to clipboard as a "Share" action
+                                  final url =
+                                      'https://myanimelist.net/${widget.isManga ? 'manga' : 'anime'}/${item.malId}';
+                                  Clipboard.setData(ClipboardData(text: url));
+                                  FloatingNotification.show(
+                                    context,
+                                    title: 'Shared',
+                                    message: 'Link copied to clipboard!',
+                                    icon: Icons.share_rounded,
+                                  );
+                                }),
+                          ],
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DetailScreen(
+                                        malId: item.malId,
+                                        isManga: widget.isManga),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
-      );
-    },
-  ),
- );
-}
+      ),
+    );
+  }
 }
 
 // ── Section Header ────────────────────────────────────────────────────────────
@@ -1260,7 +1361,9 @@ class _QuickMoodSelector extends ConsumerWidget {
           orElse: () => null,
         );
         if (savedMood != null) {
-          ref.read(selectedRecommendationMoodProvider.notifier).hydrate(savedMood);
+          ref
+              .read(selectedRecommendationMoodProvider.notifier)
+              .hydrate(savedMood);
         }
       });
     }
@@ -1289,7 +1392,9 @@ class _QuickMoodSelector extends ConsumerWidget {
               duration: const Duration(milliseconds: 180),
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.amber : Colors.white.withValues(alpha: 0.06),
+                color: isSelected
+                    ? Colors.amber
+                    : Colors.white.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(21),
                 border: Border.all(
                   color: isSelected
@@ -1343,11 +1448,14 @@ class _ContinueWatchingSection extends ConsumerWidget {
 
     return watchlist.maybeWhen(
       data: (items) {
-        final continueItems = items.where((item) {
-          final progress = item['episodeProgress'] as int? ?? 0;
-          final total = item['episodes'] as int?;
-          return progress > 0 && (total == null || progress < total);
-        }).take(10).toList();
+        final continueItems = items
+            .where((item) {
+              final progress = item['episodeProgress'] as int? ?? 0;
+              final total = item['episodes'] as int?;
+              return progress > 0 && (total == null || progress < total);
+            })
+            .take(10)
+            .toList();
 
         if (continueItems.isEmpty) return const SizedBox.shrink();
 
@@ -1478,7 +1586,8 @@ class _RecommendedForYouSection extends ConsumerWidget {
               title: 'Recommended for You',
               subtitle: 'Refresh',
               onSubtitleTap: () {
-                ref.invalidate(homeRecommendationProvider(defaultRecommendationMood));
+                ref.invalidate(
+                    homeRecommendationProvider(defaultRecommendationMood));
               },
             ),
             _TrendingList(trendingItems: items, isManga: false),
@@ -1494,7 +1603,8 @@ class _SectionHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback? onSubtitleTap;
-  const _SectionHeader({required this.title, this.subtitle, this.onSubtitleTap});
+  const _SectionHeader(
+      {required this.title, this.subtitle, this.onSubtitleTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1511,7 +1621,11 @@ class _SectionHeader extends StatelessWidget {
           if (subtitle != null)
             GestureDetector(
               onTap: onSubtitleTap,
-              child: Text(subtitle!, style: const TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
+              child: Text(subtitle!,
+                  style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold)),
             ),
         ],
       ),
@@ -1583,105 +1697,121 @@ class _RecommendBanner extends StatelessWidget {
                   return Padding(
                     padding: EdgeInsets.all(isSmall ? 16.0 : 28.0),
                     child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min, // allow banner to shrink
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text('MATCHMAKER', 
-                              style: TextStyle(
-                                color: Colors.amber, 
-                                fontWeight: FontWeight.w900, 
-                                fontSize: 10, 
-                                letterSpacing: 1.5
-                              )
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Find your next favorite story',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: isSmall ? 16 : 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Take the personalized quiz ✨',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => QuizScreen(isManga: isManga)),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber,
-                              foregroundColor: Colors.black,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isSmall ? 14 : 20, 
-                                vertical: isSmall ? 8 : 12
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize:
+                                MainAxisSize.min, // allow banner to shrink
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text('MATCHMAKER',
+                                    style: TextStyle(
+                                        color: Colors.amber,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 10,
+                                        letterSpacing: 1.5)),
                               ),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              elevation: 0,
+                              const SizedBox(height: 12),
+                              Text(
+                                'Find your next favorite story',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isSmall ? 16 : 18,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Take the personalized quiz ✨',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          QuizScreen(isManga: isManga)),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber,
+                                  foregroundColor: Colors.black,
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: isSmall ? 14 : 20,
+                                      vertical: isSmall ? 8 : 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14)),
+                                  elevation: 0,
+                                ),
+                                child: const Text('Start Quiz',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!isSmall) ...[
+                          const SizedBox(width: 12),
+                          // Overlapping Cards Effect for Premium Look
+                          SizedBox(
+                            width: 130,
+                            height: 100,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Positioned(
+                                  right: 0,
+                                  top: 10,
+                                  child: _FloatingCard(
+                                      color:
+                                          Colors.amber.withValues(alpha: 0.4),
+                                      rotation: 0.1,
+                                      scale: 0.8),
+                                ),
+                                Positioned(
+                                  right: 15,
+                                  top: 5,
+                                  child: _FloatingCard(
+                                      color:
+                                          Colors.amber.withValues(alpha: 0.7),
+                                      rotation: -0.05,
+                                      scale: 0.9),
+                                ),
+                                Positioned(
+                                  right: 35,
+                                  top: 0,
+                                  child: const _FloatingCard(
+                                      color: Colors.amber,
+                                      rotation: 0,
+                                      scale: 1.0),
+                                ),
+                              ],
                             ),
-                            child: const Text('Start Quiz', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                    if (!isSmall) ...[
-                      const SizedBox(width: 12),
-                      // Overlapping Cards Effect for Premium Look
-                      SizedBox(
-                        width: 130,
-                        height: 100,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned(
-                              right: 0,
-                              top: 10,
-                              child: _FloatingCard(color: Colors.amber.withValues(alpha: 0.4), rotation: 0.1, scale: 0.8),
-                            ),
-                            Positioned(
-                              right: 15,
-                              top: 5,
-                              child: _FloatingCard(color: Colors.amber.withValues(alpha: 0.7), rotation: -0.05, scale: 0.9),
-                            ),
-                            Positioned(
-                              right: 35,
-                              top: 0,
-                              child: const _FloatingCard(color: Colors.amber, rotation: 0, scale: 1.0),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
+                  );
+                },
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }
 
@@ -1689,7 +1819,8 @@ class _FloatingCard extends StatelessWidget {
   final Color color;
   final double rotation;
   final double scale;
-  const _FloatingCard({required this.color, required this.rotation, required this.scale});
+  const _FloatingCard(
+      {required this.color, required this.rotation, required this.scale});
 
   @override
   Widget build(BuildContext context) {
@@ -1728,7 +1859,15 @@ class _ScheduleSection extends StatefulWidget {
 
 class _ScheduleSectionState extends State<_ScheduleSection> {
   final AnilistService _anilistService = AnilistService();
-  final List<String> _days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  final List<String> _days = [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday'
+  ];
   late String _selectedDay;
   List<AiringSchedule> _scheduledAnime = [];
   bool _loading = false;
@@ -1742,7 +1881,7 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
     final weekday = DateTime.now().weekday; // 1 = Monday, 7 = Sunday
     _selectedDay = _days[weekday - 1];
     _fetchSchedule(_selectedDay);
-    
+
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -1763,7 +1902,10 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
     final targetDate = baseDate.add(Duration(days: targetWeekday - 1));
 
     // Map to zero-hour local timestamps
-    final startOfDay = DateTime(targetDate.year, targetDate.month, targetDate.day, 0, 0, 0).millisecondsSinceEpoch ~/ 1000;
+    final startOfDay =
+        DateTime(targetDate.year, targetDate.month, targetDate.day, 0, 0, 0)
+                .millisecondsSinceEpoch ~/
+            1000;
     final endOfDay = startOfDay + 86400; // +24 hours
 
     setState(() {
@@ -1786,20 +1928,30 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
   }
 
   String _formatDayForUI(String d) {
-    switch(d) {
-      case 'monday': return 'Mon';
-      case 'tuesday': return 'Tue';
-      case 'wednesday': return 'Wed';
-      case 'thursday': return 'Thu';
-      case 'friday': return 'Fri';
-      case 'saturday': return 'Sat';
-      case 'sunday': return 'Sun';
-      default: return 'Day';
+    switch (d) {
+      case 'monday':
+        return 'Mon';
+      case 'tuesday':
+        return 'Tue';
+      case 'wednesday':
+        return 'Wed';
+      case 'thursday':
+        return 'Thu';
+      case 'friday':
+        return 'Fri';
+      case 'saturday':
+        return 'Sat';
+      case 'sunday':
+        return 'Sun';
+      default:
+        return 'Day';
     }
   }
 
   void _scrollDays(bool right) {
-    final offset = right ? _dayScrollController.offset + 150 : _dayScrollController.offset - 150;
+    final offset = right
+        ? _dayScrollController.offset + 150
+        : _dayScrollController.offset - 150;
     _dayScrollController.animateTo(
       offset.clamp(0.0, _dayScrollController.position.maxScrollExtent),
       duration: const Duration(milliseconds: 300),
@@ -1811,7 +1963,7 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1829,7 +1981,8 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -1863,9 +2016,11 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
                   final day = _days[index];
                   final isSelected = _selectedDay == day;
                   final now = DateTime.now();
-                  final baseDate = now.subtract(Duration(days: now.weekday - 1));
+                  final baseDate =
+                      now.subtract(Duration(days: now.weekday - 1));
                   final dateForDay = baseDate.add(Duration(days: index));
-                  final suffixStr = '${_formatMonth(dateForDay.month)} ${dateForDay.day}';
+                  final suffixStr =
+                      '${_formatMonth(dateForDay.month)} ${dateForDay.day}';
 
                   return GestureDetector(
                     onTap: () => _fetchSchedule(day),
@@ -1874,7 +2029,10 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
                       width: 90,
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.amber : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        color: isSelected
+                            ? Colors.amber
+                            : colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -1892,7 +2050,8 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
                           Text(
                             suffixStr,
                             style: TextStyle(
-                              color: isSelected ? Colors.black54 : Colors.white54,
+                              color:
+                                  isSelected ? Colors.black54 : Colors.white54,
                               fontSize: 11,
                             ),
                           ),
@@ -1906,11 +2065,15 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
             // Arrows
             Positioned(
               left: 8,
-              child: _ScrollArrow(onTap: () => _scrollDays(false), icon: Icons.chevron_left_rounded),
+              child: _ScrollArrow(
+                  onTap: () => _scrollDays(false),
+                  icon: Icons.chevron_left_rounded),
             ),
             Positioned(
               right: 8,
-              child: _ScrollArrow(onTap: () => _scrollDays(true), icon: Icons.chevron_right_rounded),
+              child: _ScrollArrow(
+                  onTap: () => _scrollDays(true),
+                  icon: Icons.chevron_right_rounded),
             ),
           ],
         ),
@@ -1918,11 +2081,15 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
 
         // Schedule List
         if (_loading)
-          const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
+          const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: CircularProgressIndicator()))
         else if (_scheduledAnime.isEmpty)
           const Padding(
             padding: EdgeInsets.all(32),
-            child: Center(child: Text('No programs scheduled for this day.', style: TextStyle(color: Colors.white54))),
+            child: Center(
+                child: Text('No programs scheduled for this day.',
+                    style: TextStyle(color: Colors.white54))),
           )
         else
           Column(
@@ -1931,38 +2098,56 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _isExpanded ? _scheduledAnime.length : _scheduledAnime.take(7).length,
-                separatorBuilder: (_, __) => Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
+                itemCount: _isExpanded
+                    ? _scheduledAnime.length
+                    : _scheduledAnime.take(7).length,
+                separatorBuilder: (_, __) => Divider(
+                    color: Colors.white.withValues(alpha: 0.05), height: 1),
                 itemBuilder: (context, index) {
                   final anime = _scheduledAnime[index];
-                  final timeObj = DateTime.fromMillisecondsSinceEpoch(anime.airingAt * 1000);
-                  final timeStr = '${timeObj.hour.toString().padLeft(2, '0')}:${timeObj.minute.toString().padLeft(2, '0')}';
+                  final timeObj = DateTime.fromMillisecondsSinceEpoch(
+                      anime.airingAt * 1000);
+                  final timeStr =
+                      '${timeObj.hour.toString().padLeft(2, '0')}:${timeObj.minute.toString().padLeft(2, '0')}';
 
                   return InkWell(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.idMal))),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => DetailScreen(malId: anime.idMal))),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Row(
                         children: [
                           SizedBox(
                             width: 60,
-                            child: Text(timeStr, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            child: Text(timeStr,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold)),
                           ),
                           Expanded(
-                            child: Text(
-                              anime.title, 
-                              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15, color: Colors.white),
-                              maxLines: 2, 
-                              overflow: TextOverflow.ellipsis
-                            ),
+                            child: Text(anime.title,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                    color: Colors.white),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
                           ),
                           const SizedBox(width: 12),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.play_arrow_rounded, color: Colors.white54, size: 16),
+                              const Icon(Icons.play_arrow_rounded,
+                                  color: Colors.white54, size: 16),
                               const SizedBox(width: 4),
-                              Text('Episode ${anime.episode}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+                              Text('Episode ${anime.episode}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500)),
                             ],
                           ),
                         ],
@@ -1976,8 +2161,14 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
                   padding: const EdgeInsets.only(top: 16),
                   child: TextButton.icon(
                     onPressed: () => setState(() => _isExpanded = !_isExpanded),
-                    icon: Icon(_isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.amber),
-                    label: Text(_isExpanded ? 'See less' : 'See more', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                    icon: Icon(
+                        _isExpanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        color: Colors.amber),
+                    label: Text(_isExpanded ? 'See less' : 'See more',
+                        style: const TextStyle(
+                            color: Colors.amber, fontWeight: FontWeight.bold)),
                   ),
                 ),
             ],
@@ -1994,7 +2185,20 @@ class _ScheduleSectionState extends State<_ScheduleSection> {
   }
 
   String _formatMonth(int m) {
-    const mStr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const mStr = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return mStr[m - 1];
   }
 }
@@ -2014,7 +2218,10 @@ class _ScrollArrow extends StatelessWidget {
           color: Colors.white,
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2)),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: Icon(icon, color: Colors.black, size: 20),
@@ -2047,14 +2254,16 @@ class _MagazineSectionState extends State<_MagazineSection> {
       final list = await widget.jikanService.getMagazines();
       if (mounted) {
         setState(() {
-          _magazines = list.take(8).toList(); // Reduced for faster, more reliable load
-          _loading = false; // Show the section immediately with shimmers/placeholders
+          _magazines =
+              list.take(8).toList(); // Reduced for faster, more reliable load
+          _loading =
+              false; // Show the section immediately with shimmers/placeholders
         });
-        
+
         // Fetch covers sequentially to avoid Jikan 429 Rate Limits
         for (final mag in _magazines) {
           if (!mounted || appState.currentMode != AppMode.manga) break;
-          
+
           final cover = await widget.jikanService.getMagazineCover(mag.malId);
           if (mounted) {
             setState(() {
@@ -2090,7 +2299,7 @@ class _MagazineSectionState extends State<_MagazineSection> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 200, 
+          height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2106,7 +2315,7 @@ class _MagazineSectionState extends State<_MagazineSection> {
               final gradient = gradients[index % gradients.length];
 
               return Container(
-                width: 140, 
+                width: 140,
                 margin: const EdgeInsets.only(right: 12),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -2125,31 +2334,34 @@ class _MagazineSectionState extends State<_MagazineSection> {
                             ),
                           ],
                         ),
-                        child: mag.imageUrl != null 
-                          ? PremiumImage(
-                              imageUrl: mag.imageUrl!,
-                              title: mag.name,
-                              height: double.infinity,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: gradient,
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
+                        child: mag.imageUrl != null
+                            ? PremiumImage(
+                                imageUrl: mag.imageUrl!,
+                                title: mag.name,
+                                height: double.infinity,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: gradient,
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: Opacity(
+                                  opacity: 0.15,
+                                  child: Center(
+                                    child: Icon(Icons.auto_stories_rounded,
+                                        size: 60,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.5)),
+                                  ),
                                 ),
                               ),
-                              child: Opacity(
-                                opacity: 0.15,
-                                child: Center(
-                                  child: Icon(Icons.auto_stories_rounded, size: 60, color: Colors.white.withValues(alpha: 0.5)),
-                                ),
-                              ),
-                            ),
                       ),
-                      
+
                       // Subtle dynamic overlay
                       Container(
                         decoration: BoxDecoration(
@@ -2164,7 +2376,7 @@ class _MagazineSectionState extends State<_MagazineSection> {
                           ),
                         ),
                       ),
-                      
+
                       // Top Right Arrow Button
                       Positioned(
                         top: 8,
@@ -2175,24 +2387,29 @@ class _MagazineSectionState extends State<_MagazineSection> {
                             color: Colors.white.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.north_east_rounded, size: 12, color: Colors.white),
+                          child: const Icon(Icons.north_east_rounded,
+                              size: 12, color: Colors.white),
                         ),
                       ),
-  
+
                       // Frosted Glass Footer
                       Positioned(
                         bottom: 0,
                         left: 0,
                         right: 0,
                         child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                          borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(12)),
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.4),
-                                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+                                border: Border(
+                                    top: BorderSide(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.1))),
                               ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
@@ -2200,13 +2417,19 @@ class _MagazineSectionState extends State<_MagazineSection> {
                                 children: [
                                   Text(
                                     mag.name,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: Colors.white),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
                                     '${mag.count} titles',
-                                    style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.7)),
+                                    style: TextStyle(
+                                        fontSize: 9,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.7)),
                                   ),
                                 ],
                               ),
@@ -2220,8 +2443,8 @@ class _MagazineSectionState extends State<_MagazineSection> {
                         child: PinterestMenuWrapper(
                           actions: [
                             PinterestMenuAction(
-                              icon: Icons.open_in_new_rounded, 
-                              label: 'Browse', 
+                              icon: Icons.open_in_new_rounded,
+                              label: 'Browse',
                               onAction: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -2266,7 +2489,8 @@ class _MagazineSectionState extends State<_MagazineSection> {
 class _TopUpcomingSection extends StatefulWidget {
   final List<MediaBase> upcomingItems;
   final bool isManga;
-  const _TopUpcomingSection({required this.upcomingItems, this.isManga = false});
+  const _TopUpcomingSection(
+      {required this.upcomingItems, this.isManga = false});
 
   @override
   State<_TopUpcomingSection> createState() => _TopUpcomingSectionState();
@@ -2277,7 +2501,9 @@ class _TopUpcomingSectionState extends State<_TopUpcomingSection> {
 
   @override
   Widget build(BuildContext context) {
-    final itemsToShow = _isExpanded ? widget.upcomingItems : widget.upcomingItems.take(4).toList();
+    final itemsToShow = _isExpanded
+        ? widget.upcomingItems
+        : widget.upcomingItems.take(4).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2322,14 +2548,17 @@ class _TopUpcomingSectionState extends State<_TopUpcomingSection> {
                             const SizedBox(height: 8),
                             Text(
                               item.displayTitle,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
                             Text(
                               item.mediaProgressText,
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                              style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  fontSize: 12),
                             ),
                           ],
                         ),
@@ -2338,55 +2567,65 @@ class _TopUpcomingSectionState extends State<_TopUpcomingSection> {
                           child: PinterestMenuWrapper(
                             actions: [
                               PinterestMenuAction(
-                                icon: Icons.bookmark_add_rounded, 
-                                label: 'Watchlist', 
-                                onAction: () async {
-                                  final uid = FirebaseAuth.instance.currentUser?.uid;
-                                  if (uid == null) {
-                                    FloatingNotification.show(
-                                      context,
-                                      title: 'Authentication',
-                                      message: 'Sign in to manage your watchlist',
-                                      icon: Icons.login_rounded,
-                                    );
-                                    return;
-                                  }
-                                  
-                                  final entry = await FirebaseService().getWatchlistEntry(
-                                    uid, item.malId, isManga: widget.isManga
-                                  );
-                                  
-                                  dynamic currentStatus;
-                                  if (entry != null) {
-                                    currentStatus = widget.isManga 
-                                      ? ReadStatus.fromString(entry['status']) 
-                                      : WatchStatus.fromString(entry['status']);
-                                  }
+                                  icon: Icons.bookmark_add_rounded,
+                                  label: 'Watchlist',
+                                  onAction: () async {
+                                    final uid =
+                                        FirebaseAuth.instance.currentUser?.uid;
+                                    if (uid == null) {
+                                      FloatingNotification.show(
+                                        context,
+                                        title: 'Authentication',
+                                        message:
+                                            'Sign in to manage your watchlist',
+                                        icon: Icons.login_rounded,
+                                      );
+                                      return;
+                                    }
 
-                                  if (context.mounted) {
-                                    await showMediaStatusSheet(
-                                      context,
-                                      media: item,
-                                      isManga: widget.isManga,
-                                      currentStatus: currentStatus,
-                                    );
-                                  }
-                                }
-                              ),
+                                    final entry = await FirebaseService()
+                                        .getWatchlistEntry(uid, item.malId,
+                                            isManga: widget.isManga);
+
+                                    dynamic currentStatus;
+                                    if (entry != null) {
+                                      currentStatus = widget.isManga
+                                          ? ReadStatus.fromString(
+                                              entry['status'])
+                                          : WatchStatus.fromString(
+                                              entry['status']);
+                                    }
+
+                                    if (context.mounted) {
+                                      await showMediaStatusSheet(
+                                        context,
+                                        media: item,
+                                        isManga: widget.isManga,
+                                        currentStatus: currentStatus,
+                                      );
+                                    }
+                                  }),
                               PinterestMenuAction(
-                                icon: Icons.info_outline_rounded, 
-                                label: 'Details', 
-                                onAction: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga)),
-                                )
-                              ),
+                                  icon: Icons.info_outline_rounded,
+                                  label: 'Details',
+                                  onAction: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => DetailScreen(
+                                                malId: item.malId,
+                                                isManga: widget.isManga)),
+                                      )),
                             ],
                             child: Material(
                               color: Colors.transparent,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(8),
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: item.malId, isManga: widget.isManga))),
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => DetailScreen(
+                                            malId: item.malId,
+                                            isManga: widget.isManga))),
                               ),
                             ),
                           ),
@@ -2438,7 +2677,7 @@ class _TopTenSectionState extends ConsumerState<_TopTenSection> {
         if (tab == 'Today') filter = 'bypopularity';
         if (tab == 'Week') filter = 'publishing';
         if (tab == 'Month') filter = 'favorite';
-        
+
         final list = await widget.jikanService!.getTopManga(filter: filter);
         if (mounted) {
           setState(() {
@@ -2454,7 +2693,8 @@ class _TopTenSectionState extends ConsumerState<_TopTenSection> {
 
   @override
   Widget build(BuildContext context) {
-    final topAnimeAsync = widget.isManga ? null : ref.watch(topAnimeProvider(_activeTab));
+    final topAnimeAsync =
+        widget.isManga ? null : ref.watch(topAnimeProvider(_activeTab));
     final isLoading = widget.isManga ? _loading : topAnimeAsync!.isLoading;
     final topList = widget.isManga
         ? _topList
@@ -2464,22 +2704,26 @@ class _TopTenSectionState extends ConsumerState<_TopTenSection> {
           );
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2B2D31),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Top 10', style: TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
-                Row(
-                   children: ['Today', 'Week', 'Month'].map((tab) {
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2B2D31),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Top 10',
+                      style: TextStyle(
+                          color: Colors.amber,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                  Row(
+                    children: ['Today', 'Week', 'Month'].map((tab) {
                       final isActive = _activeTab == tab;
                       return GestureDetector(
                         onTap: () {
@@ -2489,167 +2733,211 @@ class _TopTenSectionState extends ConsumerState<_TopTenSection> {
                           }
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: isActive ? Colors.amber[200] : Colors.transparent,
+                            color: isActive
+                                ? Colors.amber[200]
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                             tab,
-                             style: TextStyle(
-                                color: isActive ? Colors.black : Colors.white,
-                                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                                fontSize: 13,
-                             ),
+                            tab,
+                            style: TextStyle(
+                              color: isActive ? Colors.black : Colors.white,
+                              fontWeight: isActive
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       );
-                   }).toList(),
-                )
-              ],
+                    }).toList(),
+                  )
+                ],
+              ),
             ),
-          ),
-          
-          if (isLoading)
-             const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
-          else
-             ListView.builder(
-               padding: EdgeInsets.zero,
-               physics: const NeverScrollableScrollPhysics(),
-               shrinkWrap: true,
-               itemCount: topList.take(10).length,
-               itemBuilder: (context, index) {
-                 final anime = topList[index];
-                 final numStr = (index + 1).toString().padLeft(2, '0');
-                 return PinterestMenuWrapper(
-                    actions: [
-                      PinterestMenuAction(
-                        icon: Icons.bookmark_add_rounded, 
-                        label: 'Watchlist', 
-                        onAction: () async {
-                          final uid = FirebaseAuth.instance.currentUser?.uid;
-                          if (uid == null) {
-                            FloatingNotification.show(
-                              context,
-                              title: 'Authentication',
-                              message: 'Sign in to manage your watchlist',
-                              icon: Icons.login_rounded,
-                            );
-                            return;
-                          }
-                          
-                          final entry = await FirebaseService().getWatchlistEntry(
-                            uid, anime.malId, isManga: widget.isManga
-                          );
-                          
-                          dynamic currentStatus;
-                          if (entry != null) {
-                            currentStatus = widget.isManga 
-                              ? ReadStatus.fromString(entry['status']) 
-                              : WatchStatus.fromString(entry['status']);
-                          }
+            if (isLoading)
+              const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: CircularProgressIndicator()))
+            else
+              ListView.builder(
+                  padding: EdgeInsets.zero,
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount: topList.take(10).length,
+                  itemBuilder: (context, index) {
+                    final anime = topList[index];
+                    final numStr = (index + 1).toString().padLeft(2, '0');
+                    return PinterestMenuWrapper(
+                      actions: [
+                        PinterestMenuAction(
+                            icon: Icons.bookmark_add_rounded,
+                            label: 'Watchlist',
+                            onAction: () async {
+                              final uid =
+                                  FirebaseAuth.instance.currentUser?.uid;
+                              if (uid == null) {
+                                FloatingNotification.show(
+                                  context,
+                                  title: 'Authentication',
+                                  message: 'Sign in to manage your watchlist',
+                                  icon: Icons.login_rounded,
+                                );
+                                return;
+                              }
 
-                          if (context.mounted) {
-                            await showMediaStatusSheet(
-                              context,
-                              media: anime,
-                              isManga: widget.isManga,
-                              currentStatus: currentStatus,
-                            );
-                          }
-                        }
-                      ),
-                      PinterestMenuAction(
-                        icon: Icons.info_outline_rounded, 
-                        label: 'Details', 
-                        onAction: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId, isManga: widget.isManga)),
-                        )
-                      ),
-                    ],
-                    child: GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(malId: anime.malId, isManga: widget.isManga))),
-                      child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                        children: [
-                          // Large rank text
-                           SizedBox(
-                             width: 40,
-                             child: Column(
-                               children: [
-                                    Text(numStr, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                                    Container(height: 2, width: 20, color: Colors.white54, margin: const EdgeInsets.only(top: 4)),
-                                  ],
-                                )
+                              final entry = await FirebaseService()
+                                  .getWatchlistEntry(uid, anime.malId,
+                                      isManga: widget.isManga);
+
+                              dynamic currentStatus;
+                              if (entry != null) {
+                                currentStatus = widget.isManga
+                                    ? ReadStatus.fromString(entry['status'])
+                                    : WatchStatus.fromString(entry['status']);
+                              }
+
+                              if (context.mounted) {
+                                await showMediaStatusSheet(
+                                  context,
+                                  media: anime,
+                                  isManga: widget.isManga,
+                                  currentStatus: currentStatus,
+                                );
+                              }
+                            }),
+                        PinterestMenuAction(
+                            icon: Icons.info_outline_rounded,
+                            label: 'Details',
+                            onAction: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => DetailScreen(
+                                          malId: anime.malId,
+                                          isManga: widget.isManga)),
+                                )),
+                      ],
+                      child: GestureDetector(
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => DetailScreen(
+                                    malId: anime.malId,
+                                    isManga: widget.isManga))),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
+                              // Large rank text
+                              SizedBox(
+                                  width: 40,
+                                  child: Column(
+                                    children: [
+                                      Text(numStr,
+                                          style: const TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white)),
+                                      Container(
+                                          height: 2,
+                                          width: 20,
+                                          color: Colors.white54,
+                                          margin:
+                                              const EdgeInsets.only(top: 4)),
+                                    ],
+                                  )),
+                              // Small Poster
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: PremiumImage(
+                                  imageUrl: anime.displayImageUrl,
+                                  title: anime.displayTitle,
+                                  width: 50,
+                                  height: 70,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // Details
+                              Expanded(
+                                  child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    anime.displayTitle,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Badges (Simulating CC/Mic with Episodes/Score)
+                                  Row(
+                                    children: [
+                                      Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                              color: const Color(0xFFB1E5D5),
+                                              borderRadius:
+                                                  BorderRadius.circular(4)),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.closed_caption,
+                                                  size: 12,
+                                                  color: Colors.black),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                  anime.mediaProgressText
+                                                      .split(' ')
+                                                      .first,
+                                                  style: const TextStyle(
+                                                      color: Colors.black,
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                            ],
+                                          )),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                              color: const Color(0xFFE5B1D5),
+                                              borderRadius:
+                                                  BorderRadius.circular(4)),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.star_rounded,
+                                                  size: 12,
+                                                  color: Colors.black),
+                                              const SizedBox(width: 4),
+                                              Text(anime.scoreText,
+                                                  style: const TextStyle(
+                                                      color: Colors.black,
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                            ],
+                                          )),
+                                    ],
+                                  )
+                                ],
+                              ))
+                            ],
                           ),
-                          // Small Poster
-                          ClipRRect(
-                             borderRadius: BorderRadius.circular(4),
-                             child: PremiumImage(
-                               imageUrl: anime.displayImageUrl,
-                               title: anime.displayTitle,
-                               width: 50,
-                               height: 70,
-                               fit: BoxFit.cover,
-                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          // Details
-                          Expanded(
-                             child: Column(
-                               crossAxisAlignment: CrossAxisAlignment.start,
-                               children: [
-                                 Text(
-                                   anime.displayTitle,
-                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                   maxLines: 2,
-                                   overflow: TextOverflow.ellipsis,
-                                 ),
-                                 const SizedBox(height: 8),
-                                 // Badges (Simulating CC/Mic with Episodes/Score)
-                                 Row(
-                                   children: [
-                                     Container(
-                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                       decoration: BoxDecoration(color: const Color(0xFFB1E5D5), borderRadius: BorderRadius.circular(4)),
-                                       child: Row(
-                                         children: [
-                                           const Icon(Icons.closed_caption, size: 12, color: Colors.black),
-                                           const SizedBox(width: 4),
-                                           Text(anime.mediaProgressText.split(' ').first, style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
-                                         ],
-                                       )
-                                     ),
-                                     const SizedBox(width: 6),
-                                     Container(
-                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                       decoration: BoxDecoration(color: const Color(0xFFE5B1D5), borderRadius: BorderRadius.circular(4)),
-                                       child: Row(
-                                         children: [
-                                           const Icon(Icons.star_rounded, size: 12, color: Colors.black),
-                                           const SizedBox(width: 4),
-                                           Text(anime.scoreText, style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
-                                         ],
-                                       )
-                                     ),
-                                   ],
-                                 )
-                               ],
-                             )
-                          )
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                );
-               }
-             ),
-             const SizedBox(height: 8),
-        ],
-      )
-    );
+                    );
+                  }),
+            const SizedBox(height: 8),
+          ],
+        ));
   }
 }
 
@@ -2688,7 +2976,8 @@ class _HeroShimmer extends StatelessWidget {
             width: 140,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(24)),
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(24)),
             ),
           ),
           const SizedBox(width: 16),
@@ -2697,13 +2986,24 @@ class _HeroShimmer extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(height: 14, width: 100, color: Colors.white.withValues(alpha: 0.08)),
+                Container(
+                    height: 14,
+                    width: 100,
+                    color: Colors.white.withValues(alpha: 0.08)),
                 const SizedBox(height: 12),
-                Container(height: 20, width: 180, color: Colors.white.withValues(alpha: 0.08)),
+                Container(
+                    height: 20,
+                    width: 180,
+                    color: Colors.white.withValues(alpha: 0.08)),
                 const SizedBox(height: 8),
-                Container(height: 14, width: 140, color: Colors.white.withValues(alpha: 0.06)),
+                Container(
+                    height: 14,
+                    width: 140,
+                    color: Colors.white.withValues(alpha: 0.06)),
                 const SizedBox(height: 20),
-                Container(height: 40, width: 130,
+                Container(
+                    height: 40,
+                    width: 130,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
@@ -2742,8 +3042,11 @@ class _HeroCard extends StatelessWidget {
                 Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 13),
                 SizedBox(width: 4),
                 Text('Today For You',
-                    style: TextStyle(color: Colors.white,
-                        fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 0.3)),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        letterSpacing: 0.3)),
               ]),
             ),
             const SizedBox(width: 8),
@@ -2756,86 +3059,117 @@ class _HeroCard extends StatelessWidget {
 
         // Main card
         GestureDetector(
-          onTap: () => Navigator.push(context,
+          onTap: () => Navigator.push(
+              context,
               MaterialPageRoute(
-                  builder: (_) => DetailScreen(malId: anime.malId, isManga: false))),
+                  builder: (_) =>
+                      DetailScreen(malId: anime.malId, isManga: false))),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
               height: 230,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [BoxShadow(
-                  color: const Color(0xFF6C5CE7).withValues(alpha: 0.25),
-                  blurRadius: 24, offset: const Offset(0, 8))],
+                boxShadow: [
+                  BoxShadow(
+                      color: const Color(0xFF6C5CE7).withValues(alpha: 0.25),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8))
+                ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
                 child: Stack(fit: StackFit.expand, children: [
-                  PremiumImage(imageUrl: anime.displayImageUrl, fit: BoxFit.cover),
-                  DecoratedBox(decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                          begin: Alignment.centerLeft, end: Alignment.centerRight,
-                          colors: [Colors.black.withValues(alpha: 0.93),
-                            Colors.black.withValues(alpha: 0.55)]))),
+                  PremiumImage(
+                      imageUrl: anime.displayImageUrl, fit: BoxFit.cover),
+                  DecoratedBox(
+                      decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                        Colors.black.withValues(alpha: 0.93),
+                        Colors.black.withValues(alpha: 0.55)
+                      ]))),
                   Row(children: [
                     Container(
-                      width: 130, margin: const EdgeInsets.all(14),
-                      child: ClipRRect(borderRadius: BorderRadius.circular(16),
+                      width: 130,
+                      margin: const EdgeInsets.all(14),
+                      child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
                           child: PremiumImage(
-                              imageUrl: anime.displayImageUrl, fit: BoxFit.cover)),
+                              imageUrl: anime.displayImageUrl,
+                              fit: BoxFit.cover)),
                     ),
-                    Expanded(child: Padding(
+                    Expanded(
+                        child: Padding(
                       padding: const EdgeInsets.fromLTRB(4, 16, 16, 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            _ConfidenceBadge(confidence: hero.confidence),
-                            const SizedBox(height: 10),
-                            Text(anime.displayTitle, maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white, fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.3, height: 1.2)),
-                            const SizedBox(height: 6),
-                            Row(children: [
-                              const Icon(Icons.lightbulb_outline_rounded,
-                                  color: Color(0xFFa29bfe), size: 13),
-                              const SizedBox(width: 4),
-                              Expanded(child: Text(hero.explanation, maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: Color(0xFFa29bfe),
-                                      fontSize: 12, fontWeight: FontWeight.w500))),
-                            ]),
-                            const SizedBox(height: 8),
-                            Wrap(spacing: 6, runSpacing: 4, children: [
-                              if (anime.score != null)
-                                _StatChip('⭐ ${anime.scoreText}'),
-                              if (anime.episodes != null)
-                                _StatChip('${anime.episodes} eps'),
-                              if (anime.genres.isNotEmpty)
-                                _StatChip(anime.genres.first),
-                            ]),
-                          ]),
-                          SizedBox(width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: () => Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) =>
-                                      DetailScreen(malId: anime.malId, isManga: false))),
-                              icon: const Icon(Icons.play_circle_fill_rounded,
-                                  color: Colors.black, size: 18),
-                              label: const Text('Watch Now',
-                                  style: TextStyle(color: Colors.black,
-                                      fontWeight: FontWeight.w800, fontSize: 13)),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.amber,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12))),
-                            )),
+                          Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _ConfidenceBadge(confidence: hero.confidence),
+                                const SizedBox(height: 10),
+                                Text(anime.displayTitle,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.3,
+                                        height: 1.2)),
+                                const SizedBox(height: 6),
+                                Row(children: [
+                                  const Icon(Icons.lightbulb_outline_rounded,
+                                      color: Color(0xFFa29bfe), size: 13),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                      child: Text(hero.explanation,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              color: Color(0xFFa29bfe),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500))),
+                                ]),
+                                const SizedBox(height: 8),
+                                Wrap(spacing: 6, runSpacing: 4, children: [
+                                  if (anime.score != null)
+                                    _StatChip('⭐ ${anime.scoreText}'),
+                                  if (anime.episodes != null)
+                                    _StatChip('${anime.episodes} eps'),
+                                  if (anime.genres.isNotEmpty)
+                                    _StatChip(anime.genres.first),
+                                ]),
+                              ]),
+                          SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => DetailScreen(
+                                            malId: anime.malId,
+                                            isManga: false))),
+                                icon: const Icon(Icons.play_circle_fill_rounded,
+                                    color: Colors.black, size: 18),
+                                label: const Text('Watch Now',
+                                    style: TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13)),
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.amber,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12))),
+                              )),
                         ],
                       ),
                     )),
@@ -2855,10 +3189,12 @@ class _HeroCard extends StatelessWidget {
               Text('Other picks',
                   style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 12, fontWeight: FontWeight.w600)),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
               const SizedBox(width: 6),
-              Expanded(child: Divider(
-                  color: Colors.white.withValues(alpha: 0.08), height: 1)),
+              Expanded(
+                  child: Divider(
+                      color: Colors.white.withValues(alpha: 0.08), height: 1)),
             ]),
           ),
           const SizedBox(height: 8),
@@ -2872,9 +3208,11 @@ class _HeroCard extends StatelessWidget {
               itemBuilder: (context, i) {
                 final alt = hero.alternatives[i];
                 return GestureDetector(
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) =>
-                          DetailScreen(malId: alt.malId, isManga: false))),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              DetailScreen(malId: alt.malId, isManga: false))),
                   child: Container(
                     width: 240,
                     margin: const EdgeInsets.only(right: 10),
@@ -2887,21 +3225,29 @@ class _HeroCard extends StatelessWidget {
                       ClipRRect(
                         borderRadius: const BorderRadius.horizontal(
                             left: Radius.circular(14)),
-                        child: SizedBox(width: 48, height: double.infinity,
+                        child: SizedBox(
+                            width: 48,
+                            height: double.infinity,
                             child: PremiumImage(
-                                imageUrl: alt.displayImageUrl, fit: BoxFit.cover)),
+                                imageUrl: alt.displayImageUrl,
+                                fit: BoxFit.cover)),
                       ),
                       const SizedBox(width: 10),
-                      Expanded(child: Column(
+                      Expanded(
+                          child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(alt.displayTitle, maxLines: 1,
+                          Text(alt.displayTitle,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white,
-                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
-                          Text(alt.genres.take(2).join(' · '), maxLines: 1,
+                          Text(alt.genres.take(2).join(' · '),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.45),
@@ -2928,8 +3274,9 @@ class _ConfidenceBadge extends StatelessWidget {
   Color get _color {
     if (confidence >= 90) return const Color(0xFF00cec9); // teal
     if (confidence >= 75) return const Color(0xFF6C5CE7); // purple
-    return const Color(0xFFfdcb6e);                       // amber
+    return const Color(0xFFfdcb6e); // amber
   }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -2939,8 +3286,11 @@ class _ConfidenceBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: _color.withValues(alpha: 0.5))),
       child: Text('$confidence% match',
-          style: TextStyle(color: _color, fontSize: 11,
-              fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+          style: TextStyle(
+              color: _color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3)),
     );
   }
 }
@@ -2959,7 +3309,8 @@ class _StatChip extends StatelessWidget {
       child: Text(label,
           style: TextStyle(
               color: Colors.white.withValues(alpha: 0.65),
-              fontSize: 11, fontWeight: FontWeight.w500)),
+              fontSize: 11,
+              fontWeight: FontWeight.w500)),
     );
   }
 }

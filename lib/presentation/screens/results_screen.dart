@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:animatch/data/models/media_base.dart';
 import 'package:animatch/data/models/anime.dart';
@@ -83,16 +83,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 const SizedBox(height: 8),
                 Expanded(
                   child: GridView.builder(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                       childAspectRatio: 0.58,
                     ),
                     itemCount: widget.media.length,
-                    itemBuilder: (_, i) => _MediaCard(media: widget.media[i], isManga: widget.isManga),
+                    itemBuilder: (_, i) => _MediaCard(
+                        media: widget.media[i], isManga: widget.isManga),
                   ),
                 ),
               ],
@@ -111,7 +113,8 @@ class _SummaryChips extends StatelessWidget {
     final rawChips = [
       answers.mood,
       ...answers.genres.take(2),
-      if (answers.typeParam != null && answers.typeParam != 'any') answers.typeParam!,
+      if (answers.typeParam != null && answers.typeParam != 'any')
+        answers.typeParam!,
       answers.episodeRange,
       answers.status,
     ];
@@ -128,8 +131,7 @@ class _SummaryChips extends StatelessWidget {
           .map((label) => Chip(
                 label: Text(label,
                     style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSecondaryContainer)),
+                        fontSize: 12, color: colorScheme.onSecondaryContainer)),
                 backgroundColor: colorScheme.secondaryContainer,
                 padding: EdgeInsets.zero,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -165,13 +167,18 @@ class _MediaCardState extends State<_MediaCard> {
   Future<void> _loadAnilistImage() async {
     if (!mounted) return;
     setState(() => _loadingAnilist = true);
-    
+
     // Stage 1: Try by MAL ID
-    String? url = await _anilist.getCoverImageByMalId(widget.media.malId, isManga: widget.isManga).timeout(const Duration(seconds: 2), onTimeout: () => null);
-    
+    String? url = await _anilist
+        .getCoverImageByMalId(widget.media.malId, isManga: widget.isManga)
+        .timeout(const Duration(seconds: 2), onTimeout: () => null);
+
     // Stage 2: Try by Title if ID fails
     if (url == null && mounted) {
-      url = await _anilist.getCoverImageByTitle(widget.media.displayTitle, isManga: widget.isManga).timeout(const Duration(seconds: 2), onTimeout: () => null);
+      url = await _anilist
+          .getCoverImageByTitle(widget.media.displayTitle,
+              isManga: widget.isManga)
+          .timeout(const Duration(seconds: 2), onTimeout: () => null);
     }
 
     if (mounted) {
@@ -205,7 +212,7 @@ class _MediaCardState extends State<_MediaCard> {
       );
       return;
     }
-    
+
     final data = {
       'malId': widget.media.malId,
       'title': widget.media.displayTitle,
@@ -240,7 +247,8 @@ class _MediaCardState extends State<_MediaCard> {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => DetailScreen(malId: widget.media.malId, isManga: widget.isManga),
+          builder: (_) =>
+              DetailScreen(malId: widget.media.malId, isManga: widget.isManga),
         ),
       ),
       child: Container(
@@ -270,7 +278,8 @@ class _MediaCardState extends State<_MediaCard> {
                     )
                   else
                     PremiumImage(
-                      imageUrl: _anilistImageUrl ?? widget.media.displayImageUrl,
+                      imageUrl:
+                          _anilistImageUrl ?? widget.media.displayImageUrl,
                       title: widget.media.displayTitle,
                       fit: BoxFit.cover,
                     ),
@@ -321,9 +330,7 @@ class _MediaCardState extends State<_MediaCard> {
                               ? Icons.bookmark_rounded
                               : Icons.bookmark_border_rounded,
                           size: 16,
-                          color: _inList
-                              ? colorScheme.primary
-                              : Colors.white,
+                          color: _inList ? colorScheme.primary : Colors.white,
                         ),
                       ),
                     ),
@@ -350,7 +357,8 @@ class _MediaCardState extends State<_MediaCard> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: colorScheme.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
@@ -383,7 +391,8 @@ class _MediaCardState extends State<_MediaCard> {
                     Text(
                       widget.media.genres.take(2).join(' · '),
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        color:
+                            colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                         fontSize: 10,
                       ),
                       maxLines: 1,

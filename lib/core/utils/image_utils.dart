@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui';
@@ -11,18 +11,18 @@ class ImageUtils {
   /// Routes a network image URL through a CORS-safe proxy when running on Web.
   /// Uses 'images.weserv.nl' for high-speed, reliable proxying.
   static String getCORSUrl(String url) {
-    // Proxy disabled as per user request. 
+    // Proxy disabled as per user request.
     // This strategy requires running the app with --web-renderer html
     return url;
   }
 
-  /// Resolves an asset path, ensuring that on Flutter Web it doesn't double-prefix 
+  /// Resolves an asset path, ensuring that on Flutter Web it doesn't double-prefix
   /// with 'assets/'.
   static String resolveAsset(String path) {
     if (!kIsWeb) return path;
-    
-    // On many web hosting environments, the 'assets/' prefix is handled by the 
-    // static server or double-added by the build tools. 
+
+    // On many web hosting environments, the 'assets/' prefix is handled by the
+    // static server or double-added by the build tools.
     // Using simple relative mapping for Web is often more reliable.
     return path.startsWith('assets/') ? path.replaceFirst('assets/', '') : path;
   }
@@ -84,13 +84,14 @@ class PremiumImage extends StatelessWidget {
         width: width,
         height: height,
         child: buildWebImage(
-          imageUrl: imageUrl, 
+          imageUrl: imageUrl,
           fit: fit,
         ),
       );
     } else {
       image = CachedNetworkImage(
-        imageUrl: proxiedUrl, // This will be the raw URL since getCORSUrl is now a no-op
+        imageUrl:
+            proxiedUrl, // This will be the raw URL since getCORSUrl is now a no-op
         width: width,
         height: height,
         fit: fit,
@@ -127,7 +128,8 @@ class PremiumImage extends StatelessWidget {
           const SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
+            child:
+                CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
           ),
         ],
       ),
@@ -143,7 +145,8 @@ class PremiumImage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.broken_image_outlined, color: Colors.white24, size: 30),
+          const Icon(Icons.broken_image_outlined,
+              color: Colors.white24, size: 30),
           const SizedBox(height: 8),
           if (title != null)
             Text(
@@ -151,7 +154,10 @@ class PremiumImage extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold),
             ),
           const SizedBox(height: 4),
           const Text(

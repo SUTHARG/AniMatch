@@ -1,4 +1,4 @@
-﻿// lib/main.dart
+// lib/main.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,7 +29,7 @@ Future<void> main() async {
     );
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
-    // On unsupported platforms, we continue so the app still runs, 
+    // On unsupported platforms, we continue so the app still runs,
     // but auth and firestore will fail gracefully with the errors I added to LoginScreen.
   }
 

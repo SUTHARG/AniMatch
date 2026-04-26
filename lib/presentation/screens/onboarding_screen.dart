@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:animatch/presentation/screens/home_screen.dart';
 import 'package:animatch/core/app_state.dart';
@@ -20,21 +20,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       image: 'assets/images/final_app_logo.png',
       title: 'Discover Your\nNext Obsession',
       subtitle:
-      'Thousands of anime at your fingertips — from legendary classics to the latest seasonal hits.',
+          'Thousands of anime at your fingertips — from legendary classics to the latest seasonal hits.',
       gradient: [Color(0xFF1A1B1E), Color(0xFF2B2D31)],
     ),
     _OnboardPage(
       emoji: '✨',
       title: 'Personalized\nJust For You',
       subtitle:
-      'Answer a quick quiz about your mood and preferences. Get recommendations that actually match your taste.',
+          'Answer a quick quiz about your mood and preferences. Get recommendations that actually match your taste.',
       gradient: [Color(0xFF1A1B1E), Color(0xFF1E2024)],
     ),
     _OnboardPage(
       emoji: '📋',
       title: 'Track Everything\nYou Watch',
       subtitle:
-      'Mark anime as Watching, Completed, On Hold or Dropped. Rate them, write reviews, and track your progress.',
+          'Mark anime as Watching, Completed, On Hold or Dropped. Rate them, write reviews, and track your progress.',
       gradient: [Color(0xFF101112), Color(0xFF1A1B1F)],
     ),
   ];
@@ -107,7 +107,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     _pages.length,
-                        (i) => AnimatedContainer(
+                    (i) => AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       width: i == _currentPage ? 24 : 8,
@@ -205,8 +205,7 @@ class _OnboardPageView extends StatelessWidget {
                   ),
                 )
               else if (page.emoji != null)
-                Text(page.emoji!,
-                    style: const TextStyle(fontSize: 100)),
+                Text(page.emoji!, style: const TextStyle(fontSize: 100)),
               const SizedBox(height: 48),
               // Title
               Text(

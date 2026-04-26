@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,21 +15,31 @@ enum ReadStatus {
 
   String get label {
     switch (this) {
-      case ReadStatus.reading:    return 'Reading';
-      case ReadStatus.completed:  return 'Completed';
-      case ReadStatus.onHold:     return 'On Hold';
-      case ReadStatus.dropped:    return 'Dropped';
-      case ReadStatus.planToRead: return 'Plan to Read';
+      case ReadStatus.reading:
+        return 'Reading';
+      case ReadStatus.completed:
+        return 'Completed';
+      case ReadStatus.onHold:
+        return 'On Hold';
+      case ReadStatus.dropped:
+        return 'Dropped';
+      case ReadStatus.planToRead:
+        return 'Plan to Read';
     }
   }
 
   String get emoji {
     switch (this) {
-      case ReadStatus.reading:    return '📖';
-      case ReadStatus.completed:  return '✅';
-      case ReadStatus.onHold:     return '⏸️';
-      case ReadStatus.dropped:    return '🗑️';
-      case ReadStatus.planToRead: return '📋';
+      case ReadStatus.reading:
+        return '📖';
+      case ReadStatus.completed:
+        return '✅';
+      case ReadStatus.onHold:
+        return '⏸️';
+      case ReadStatus.dropped:
+        return '🗑️';
+      case ReadStatus.planToRead:
+        return '📋';
     }
   }
 
@@ -52,21 +62,31 @@ enum WatchStatus {
 
   String get label {
     switch (this) {
-      case WatchStatus.watching:    return 'Watching';
-      case WatchStatus.completed:   return 'Completed';
-      case WatchStatus.onHold:      return 'On Hold';
-      case WatchStatus.dropped:     return 'Dropped';
-      case WatchStatus.planToWatch: return 'Plan to Watch';
+      case WatchStatus.watching:
+        return 'Watching';
+      case WatchStatus.completed:
+        return 'Completed';
+      case WatchStatus.onHold:
+        return 'On Hold';
+      case WatchStatus.dropped:
+        return 'Dropped';
+      case WatchStatus.planToWatch:
+        return 'Plan to Watch';
     }
   }
 
   String get emoji {
     switch (this) {
-      case WatchStatus.watching:    return '▶️';
-      case WatchStatus.completed:   return '✅';
-      case WatchStatus.onHold:      return '⏸️';
-      case WatchStatus.dropped:     return '🗑️';
-      case WatchStatus.planToWatch: return '📋';
+      case WatchStatus.watching:
+        return '▶️';
+      case WatchStatus.completed:
+        return '✅';
+      case WatchStatus.onHold:
+        return '⏸️';
+      case WatchStatus.dropped:
+        return '🗑️';
+      case WatchStatus.planToWatch:
+        return '📋';
     }
   }
 
@@ -94,7 +114,8 @@ class FirebaseService {
     );
   }
 
-  Future<UserCredential?> registerWithEmail(String email, String password, {String? displayName}) async {
+  Future<UserCredential?> registerWithEmail(String email, String password,
+      {String? displayName}) async {
     try {
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
@@ -113,7 +134,8 @@ class FirebaseService {
   Future<UserCredential?> signInWithGoogle() async {
     try {
       final googleSignIn = GoogleSignIn(
-        serverClientId: '630393329450-snc00v3ch5rbe23jdiq7ln2qgjj9r4oo.apps.googleusercontent.com',
+        serverClientId:
+            '630393329450-snc00v3ch5rbe23jdiq7ln2qgjj9r4oo.apps.googleusercontent.com',
       );
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return null;
@@ -171,7 +193,8 @@ class FirebaseService {
   }
 
   // ── Watchlist (Anime) ─────────────────
-  Future<void> addToWatchlist(String uid, Map<String, dynamic> animeData) async {
+  Future<void> addToWatchlist(
+      String uid, Map<String, dynamic> animeData) async {
     await _db
         .collection('users')
         .doc(uid)
@@ -198,7 +221,8 @@ class FirebaseService {
         .update({'status': status});
   }
 
-  Future<void> updateMangaWatchStatus(String uid, int malId, String status) async {
+  Future<void> updateMangaWatchStatus(
+      String uid, int malId, String status) async {
     await _db
         .collection('users')
         .doc(uid)
@@ -216,7 +240,8 @@ class FirebaseService {
         .update({'episodeProgress': episode});
   }
 
-  Future<void> saveRating(String uid, int malId, double rating, String review, {bool isManga = false}) async {
+  Future<void> saveRating(String uid, int malId, double rating, String review,
+      {bool isManga = false}) async {
     final collection = isManga ? 'mangaWatchlist' : 'watchlist';
     await _db
         .collection('users')
@@ -229,25 +254,26 @@ class FirebaseService {
     });
   }
 
-  Stream<List<Map<String, dynamic>>> watchlistStream({String? uid, WatchStatus? filter}) {
+  Stream<List<Map<String, dynamic>>> watchlistStream(
+      {String? uid, WatchStatus? filter}) {
     final effectiveUid = uid ?? currentUser?.uid;
     if (effectiveUid == null) return Stream.value([]);
-    
-    Query<Map<String, dynamic>> query = _db
-        .collection('users')
-        .doc(effectiveUid)
-        .collection('watchlist');
+
+    Query<Map<String, dynamic>> query =
+        _db.collection('users').doc(effectiveUid).collection('watchlist');
 
     if (filter != null) {
       query = query.where('status', isEqualTo: filter.name);
     }
-    
-    return query.snapshots().map((snap) =>
-        snap.docs.map((doc) => doc.data()).toList());
+
+    return query
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => doc.data()).toList());
   }
 
   // ── Manga Watchlist ───────────────────
-  Future<void> addToMangaWatchlist(String uid, Map<String, dynamic> mangaData) async {
+  Future<void> addToMangaWatchlist(
+      String uid, Map<String, dynamic> mangaData) async {
     await _db
         .collection('users')
         .doc(uid)
@@ -265,7 +291,8 @@ class FirebaseService {
         .delete();
   }
 
-  Future<void> updateChapterProgress(String uid, int malId, int progress) async {
+  Future<void> updateChapterProgress(
+      String uid, int malId, int progress) async {
     await _db
         .collection('users')
         .doc(uid)
@@ -283,7 +310,8 @@ class FirebaseService {
         .update({'episodes': episodes});
   }
 
-  Future<void> updateMangaTotals(String uid, int malId, {int? chapters, int? volumes}) async {
+  Future<void> updateMangaTotals(String uid, int malId,
+      {int? chapters, int? volumes}) async {
     await _db
         .collection('users')
         .doc(uid)
@@ -312,7 +340,8 @@ class FirebaseService {
   }
 
   // ── Entry Retrieval ───────────────────
-  Future<Map<String, dynamic>?> getWatchlistEntry(String uid, int malId, {bool isManga = false}) async {
+  Future<Map<String, dynamic>?> getWatchlistEntry(String uid, int malId,
+      {bool isManga = false}) async {
     final collection = isManga ? 'mangaWatchlist' : 'watchlist';
     final doc = await _db
         .collection('users')
@@ -323,30 +352,36 @@ class FirebaseService {
     return doc.exists ? doc.data() : null;
   }
 
-  Future<Map<String, dynamic>?> getRatingAndReview(String uid, int malId, {bool isManga = false}) async {
+  Future<Map<String, dynamic>?> getRatingAndReview(String uid, int malId,
+      {bool isManga = false}) async {
     return await getWatchlistEntry(uid, malId, isManga: isManga);
   }
 
-  Stream<List<Map<String, dynamic>>> mangaWatchlistStream({String? uid, ReadStatus? filter}) {
+  Stream<List<Map<String, dynamic>>> mangaWatchlistStream(
+      {String? uid, ReadStatus? filter}) {
     final effectiveUid = uid ?? currentUser?.uid;
     if (effectiveUid == null) return Stream.value([]);
-    
-    Query<Map<String, dynamic>> query = _db
-        .collection('users')
-        .doc(effectiveUid)
-        .collection('mangaWatchlist');
+
+    Query<Map<String, dynamic>> query =
+        _db.collection('users').doc(effectiveUid).collection('mangaWatchlist');
 
     if (filter != null) {
       query = query.where('status', isEqualTo: filter.name);
     }
-    
-    return query.snapshots().map((snap) =>
-        snap.docs.map((doc) => doc.data()).toList());
+
+    return query
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => doc.data()).toList());
   }
 
-  Future<bool> toggleWatchlist(String uid, Map<String, dynamic> animeData) async {
+  Future<bool> toggleWatchlist(
+      String uid, Map<String, dynamic> animeData) async {
     final malId = animeData['malId'];
-    final doc = _db.collection('users').doc(uid).collection('watchlist').doc(malId.toString());
+    final doc = _db
+        .collection('users')
+        .doc(uid)
+        .collection('watchlist')
+        .doc(malId.toString());
     final snap = await doc.get();
     if (snap.exists) {
       await doc.delete();
@@ -357,9 +392,14 @@ class FirebaseService {
     }
   }
 
-  Future<bool> toggleMangaWatchlist(String uid, Map<String, dynamic> mangaData) async {
+  Future<bool> toggleMangaWatchlist(
+      String uid, Map<String, dynamic> mangaData) async {
     final malId = mangaData['malId'];
-    final doc = _db.collection('users').doc(uid).collection('mangaWatchlist').doc(malId.toString());
+    final doc = _db
+        .collection('users')
+        .doc(uid)
+        .collection('mangaWatchlist')
+        .doc(malId.toString());
     final snap = await doc.get();
     if (snap.exists) {
       await doc.delete();
@@ -371,12 +411,22 @@ class FirebaseService {
   }
 
   Future<bool> isInWatchlist(String uid, int malId) async {
-    final doc = await _db.collection('users').doc(uid).collection('watchlist').doc(malId.toString()).get();
+    final doc = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('watchlist')
+        .doc(malId.toString())
+        .get();
     return doc.exists;
   }
 
   Future<bool> isInMangaWatchlist(String uid, int malId) async {
-    final doc = await _db.collection('users').doc(uid).collection('mangaWatchlist').doc(malId.toString()).get();
+    final doc = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('mangaWatchlist')
+        .doc(malId.toString())
+        .get();
     return doc.exists;
   }
 
@@ -400,7 +450,7 @@ class FirebaseService {
       for (var data in items) {
         final episodes = (data['episodeProgress'] as int? ?? 0);
         totalEpisodes += episodes;
-        
+
         final rating = (data['rating'] as num?)?.toDouble();
         if (rating != null && rating > 0) {
           totalRating += rating;
@@ -456,7 +506,7 @@ class FirebaseService {
       for (var data in items) {
         totalChapters += (data['chapterProgress'] as int? ?? 0);
         totalVolumes += (data['volumes'] as int? ?? 0);
-        
+
         final rating = (data['rating'] as num?)?.toDouble();
         if (rating != null && rating > 0) {
           totalRating += rating;
@@ -510,7 +560,7 @@ class FirebaseService {
 
     // Use a sanitized ID to prevent duplicates and handle illegal characters like '/'
     final docId = sanitizedTerm.toLowerCase().replaceAll('/', '_');
-    
+
     await _db
         .collection('users')
         .doc(uid)
@@ -536,9 +586,12 @@ class FirebaseService {
             .toList());
   }
 
-
   Future<void> clearSearchHistory(String uid) async {
-    final snap = await _db.collection('users').doc(uid).collection('searchHistory').get();
+    final snap = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('searchHistory')
+        .get();
     final batch = _db.batch();
     for (var doc in snap.docs) {
       batch.delete(doc.reference);
@@ -547,7 +600,8 @@ class FirebaseService {
   }
 
   // ── Streaming Cache ───────────────────
-  Future<void> cacheStreamingLinks(String uid, int malId, List<dynamic> links) async {
+  Future<void> cacheStreamingLinks(
+      String uid, int malId, List<dynamic> links) async {
     await _db
         .collection('users')
         .doc(uid)
@@ -570,8 +624,7 @@ class FirebaseService {
     final data = doc.data()!;
     final Timestamp timestamp = data['timestamp'];
     if (DateTime.now().difference(timestamp.toDate()).inDays > 7) return null;
-    
+
     return data['links'] as List<dynamic>?;
   }
 }
-

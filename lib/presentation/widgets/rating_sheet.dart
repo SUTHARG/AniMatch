@@ -1,17 +1,17 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animatch/core/utils/snackbar_utils.dart' as snacks;
 import 'package:animatch/presentation/providers/watchlist_provider.dart';
 
 /// Shows a bottom sheet to rate and review an anime.
 Future<void> showRatingSheet(
-    BuildContext context, {
-      required int malId,
-      required String title,
-      bool isManga = false,
-      double? currentRating,
-      String? currentReview,
-    }) {
+  BuildContext context, {
+  required int malId,
+  required String title,
+  bool isManga = false,
+  double? currentRating,
+  String? currentReview,
+}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -63,13 +63,13 @@ class _RatingSheetState extends ConsumerState<_RatingSheet> {
   }
 
   String _ratingLabel(double r) {
-    if (r == 0)  return 'Tap to rate';
-    if (r <= 2)  return 'Awful 😖';
-    if (r <= 4)  return 'Bad 😕';
-    if (r <= 6)  return 'Okay 😐';
-    if (r <= 7)  return 'Good 🙂';
-    if (r <= 8)  return 'Great 😊';
-    if (r <= 9)  return 'Excellent 🤩';
+    if (r == 0) return 'Tap to rate';
+    if (r <= 2) return 'Awful 😖';
+    if (r <= 4) return 'Bad 😕';
+    if (r <= 6) return 'Okay 😐';
+    if (r <= 7) return 'Good 🙂';
+    if (r <= 8) return 'Great 😊';
+    if (r <= 9) return 'Excellent 🤩';
     return 'Masterpiece 🏆';
   }
 
@@ -89,7 +89,7 @@ class _RatingSheetState extends ConsumerState<_RatingSheet> {
       Navigator.pop(context);
       return;
     }
-    
+
     if (_rating == 0) {
       snacks.showError(context, 'Please select a rating first');
       return;
@@ -134,7 +134,8 @@ class _RatingSheetState extends ConsumerState<_RatingSheet> {
             // Drag handle
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(2),
@@ -224,7 +225,8 @@ class _RatingSheetState extends ConsumerState<_RatingSheet> {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 filled: true,
-                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                fillColor:
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               ),
             ),
             const SizedBox(height: 16),
@@ -242,12 +244,13 @@ class _RatingSheetState extends ConsumerState<_RatingSheet> {
                 ),
                 child: _saving
                     ? const SizedBox(
-                    height: 22, width: 22,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2.5, color: Colors.white))
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5, color: Colors.white))
                     : const Text('Save Rating',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           ],

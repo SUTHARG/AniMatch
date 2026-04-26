@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:animatch/core/app_state.dart';
 import 'package:animatch/data/models/media_base.dart';
@@ -37,64 +37,221 @@ class _QuizScreenState extends State<QuizScreen>
 
   // Quiz steps data
   static const _moods = [
-    {'value': 'dark', 'label': 'Dark & Intense', 'emoji': '🌑', 'sub': 'Thriller, Horror, Psychological'},
-    {'value': 'funny', 'label': 'Fun & Lighthearted', 'emoji': '😂', 'sub': 'Comedy, Parody, School'},
-    {'value': 'romantic', 'label': 'Romantic & Emotional', 'emoji': '💕', 'sub': 'Romance, Drama, Slice of life'},
-    {'value': 'action', 'label': 'Action-packed', 'emoji': '⚡', 'sub': 'Battles, Powers, Fights'},
-    {'value': 'chill', 'label': 'Relaxing & Chill', 'emoji': '🌸', 'sub': 'Slice of Life, Iyashikei'},
-    {'value': 'adventure', 'label': 'Epic Adventure', 'emoji': '🗺️', 'sub': 'Fantasy, Isekai, Journey'},
-    {'value': 'mystery', 'label': 'Mystery & Suspense', 'emoji': '🕵️', 'sub': 'Detective, Mind-bending'},
-    {'value': 'battles', 'label': 'Epic Battles', 'emoji': '🗡️', 'sub': 'Martial Arts, Swordplay'},
-    {'value': 'cozy', 'label': 'Cozy & Warm', 'emoji': '☕', 'sub': 'Comforting, Healing'},
-    {'value': 'gore', 'label': 'Horror & Gore', 'emoji': '🩸', 'sub': 'Terrifying, Bloody, Intense'},
-    {'value': 'sports', 'label': 'Sports & Hype', 'emoji': '🏆', 'sub': 'Action, Teamwork, Fire'},
-    {'value': 'sad', 'label': 'Sad & Melancholy', 'emoji': '💧', 'sub': 'Emotional, Tear-jerker'},
+    {
+      'value': 'dark',
+      'label': 'Dark & Intense',
+      'emoji': '🌑',
+      'sub': 'Thriller, Horror, Psychological'
+    },
+    {
+      'value': 'funny',
+      'label': 'Fun & Lighthearted',
+      'emoji': '😂',
+      'sub': 'Comedy, Parody, School'
+    },
+    {
+      'value': 'romantic',
+      'label': 'Romantic & Emotional',
+      'emoji': '💕',
+      'sub': 'Romance, Drama, Slice of life'
+    },
+    {
+      'value': 'action',
+      'label': 'Action-packed',
+      'emoji': '⚡',
+      'sub': 'Battles, Powers, Fights'
+    },
+    {
+      'value': 'chill',
+      'label': 'Relaxing & Chill',
+      'emoji': '🌸',
+      'sub': 'Slice of Life, Iyashikei'
+    },
+    {
+      'value': 'adventure',
+      'label': 'Epic Adventure',
+      'emoji': '🗺️',
+      'sub': 'Fantasy, Isekai, Journey'
+    },
+    {
+      'value': 'mystery',
+      'label': 'Mystery & Suspense',
+      'emoji': '🕵️',
+      'sub': 'Detective, Mind-bending'
+    },
+    {
+      'value': 'battles',
+      'label': 'Epic Battles',
+      'emoji': '🗡️',
+      'sub': 'Martial Arts, Swordplay'
+    },
+    {
+      'value': 'cozy',
+      'label': 'Cozy & Warm',
+      'emoji': '☕',
+      'sub': 'Comforting, Healing'
+    },
+    {
+      'value': 'gore',
+      'label': 'Horror & Gore',
+      'emoji': '🩸',
+      'sub': 'Terrifying, Bloody, Intense'
+    },
+    {
+      'value': 'sports',
+      'label': 'Sports & Hype',
+      'emoji': '🏆',
+      'sub': 'Action, Teamwork, Fire'
+    },
+    {
+      'value': 'sad',
+      'label': 'Sad & Melancholy',
+      'emoji': '💧',
+      'sub': 'Emotional, Tear-jerker'
+    },
   ];
 
   static const _genres = [
-    'Action', 'Adventure', 'Cars', 'Comedy', 'Dementia',
-    'Demons', 'Drama', 'Ecchi', 'Fantasy', 'Game',
-    'Harem', 'Historical', 'Horror', 'Isekai', 'Josei',
-    'Kids', 'Magic', 'Martial Arts', 'Mecha', 'Military',
-    'Music', 'Mystery', 'Parody', 'Police', 'Psychological',
-    'Romance', 'Samurai', 'School', 'Sci-Fi', 'Seinen',
-    'Shoujo', 'Shoujo Ai', 'Shounen', 'Shounen Ai',
-    'Slice of Life', 'Space', 'Sports', 'Super Power',
-    'Supernatural', 'Thriller', 'Vampire',
+    'Action',
+    'Adventure',
+    'Cars',
+    'Comedy',
+    'Dementia',
+    'Demons',
+    'Drama',
+    'Ecchi',
+    'Fantasy',
+    'Game',
+    'Harem',
+    'Historical',
+    'Horror',
+    'Isekai',
+    'Josei',
+    'Kids',
+    'Magic',
+    'Martial Arts',
+    'Mecha',
+    'Military',
+    'Music',
+    'Mystery',
+    'Parody',
+    'Police',
+    'Psychological',
+    'Romance',
+    'Samurai',
+    'School',
+    'Sci-Fi',
+    'Seinen',
+    'Shoujo',
+    'Shoujo Ai',
+    'Shounen',
+    'Shounen Ai',
+    'Slice of Life',
+    'Space',
+    'Sports',
+    'Super Power',
+    'Supernatural',
+    'Thriller',
+    'Vampire',
   ];
 
   static const _episodeRanges = [
     {'value': 'short', 'label': 'Short', 'sub': 'Under 13 eps', 'emoji': '⚡'},
     {'value': 'medium', 'label': 'Medium', 'sub': '13 - 50 eps', 'emoji': '📚'},
     {'value': 'long', 'label': 'Long', 'sub': '50+ eps', 'emoji': '🔥'},
-    {'value': 'any', 'label': 'Any length', 'sub': "I don't mind", 'emoji': '🎲'},
+    {
+      'value': 'any',
+      'label': 'Any length',
+      'sub': "I don't mind",
+      'emoji': '🎲'
+    },
   ];
 
   static const _chapterRanges = [
-    {'value': 'short', 'label': 'Short', 'sub': 'Under 20 chapters', 'emoji': '⚡'},
-    {'value': 'medium', 'label': 'Medium', 'sub': '20 - 100 chapters', 'emoji': '📚'},
+    {
+      'value': 'short',
+      'label': 'Short',
+      'sub': 'Under 20 chapters',
+      'emoji': '⚡'
+    },
+    {
+      'value': 'medium',
+      'label': 'Medium',
+      'sub': '20 - 100 chapters',
+      'emoji': '📚'
+    },
     {'value': 'long', 'label': 'Long', 'sub': '100+ chapters', 'emoji': '🔥'},
-    {'value': 'any', 'label': 'Any length', 'sub': "I don't mind", 'emoji': '🎲'},
+    {
+      'value': 'any',
+      'label': 'Any length',
+      'sub': "I don't mind",
+      'emoji': '🎲'
+    },
   ];
 
   static const _animeStatuses = [
-    {'value': 'completed', 'label': 'Completed', 'sub': 'Fully aired', 'emoji': '✅'},
-    {'value': 'ongoing', 'label': 'Ongoing', 'sub': 'Currently airing', 'emoji': '📡'},
+    {
+      'value': 'completed',
+      'label': 'Completed',
+      'sub': 'Fully aired',
+      'emoji': '✅'
+    },
+    {
+      'value': 'ongoing',
+      'label': 'Ongoing',
+      'sub': 'Currently airing',
+      'emoji': '📡'
+    },
     {'value': 'any', 'label': 'Either', 'sub': "Doesn't matter", 'emoji': '🎯'},
   ];
 
   static const _mangaStatuses = [
-    {'value': 'completed', 'label': 'Completed', 'sub': 'Finished publishing', 'emoji': '✅'},
-    {'value': 'ongoing', 'label': 'Ongoing', 'sub': 'Still publishing', 'emoji': '📡'},
+    {
+      'value': 'completed',
+      'label': 'Completed',
+      'sub': 'Finished publishing',
+      'emoji': '✅'
+    },
+    {
+      'value': 'ongoing',
+      'label': 'Ongoing',
+      'sub': 'Still publishing',
+      'emoji': '📡'
+    },
     {'value': 'any', 'label': 'Either', 'sub': "Doesn't matter", 'emoji': '🎯'},
   ];
-  
+
   static const _mangaTypes = [
-    {'value': 'manga', 'label': 'Traditional Manga', 'sub': 'Japanese comics', 'emoji': '🇯🇵'},
-    {'value': 'manhwa', 'label': 'Manhwa', 'sub': 'Korean webtoons/comics', 'emoji': '🇰🇷'},
-    {'value': 'manhua', 'label': 'Manhua', 'sub': 'Chinese comics', 'emoji': '🇨🇳'},
-    {'value': 'lightnovel', 'label': 'Light Novel', 'sub': 'Japanese prose novels', 'emoji': '📖'},
-    {'value': 'any', 'label': 'Any Type', 'sub': 'Bring me anything', 'emoji': '🎲'},
+    {
+      'value': 'manga',
+      'label': 'Traditional Manga',
+      'sub': 'Japanese comics',
+      'emoji': '🇯🇵'
+    },
+    {
+      'value': 'manhwa',
+      'label': 'Manhwa',
+      'sub': 'Korean webtoons/comics',
+      'emoji': '🇰🇷'
+    },
+    {
+      'value': 'manhua',
+      'label': 'Manhua',
+      'sub': 'Chinese comics',
+      'emoji': '🇨🇳'
+    },
+    {
+      'value': 'lightnovel',
+      'label': 'Light Novel',
+      'sub': 'Japanese prose novels',
+      'emoji': '📖'
+    },
+    {
+      'value': 'any',
+      'label': 'Any Type',
+      'sub': 'Bring me anything',
+      'emoji': '🎲'
+    },
   ];
 
   @override
@@ -181,7 +338,7 @@ class _QuizScreenState extends State<QuizScreen>
       } else {
         results = await _jikan.getRecommendations(answers);
       }
-      
+
       if (!mounted) return;
       Navigator.push(
         context,
@@ -195,7 +352,8 @@ class _QuizScreenState extends State<QuizScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      snacks.showError(context, 'Could not load recommendations. Please try again.');
+      snacks.showError(
+          context, 'Could not load recommendations. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -222,10 +380,7 @@ class _QuizScreenState extends State<QuizScreen>
       body: Column(
         children: [
           // Progress bar
-          _ProgressBar(
-            step: _currentStep, 
-            total: widget.isManga ? 5 : 4
-          ),
+          _ProgressBar(step: _currentStep, total: widget.isManga ? 5 : 4),
           const SizedBox(height: 8),
 
           // Step label
@@ -344,9 +499,7 @@ class _QuizScreenState extends State<QuizScreen>
       width: double.infinity,
       height: 54,
       child: FilledButton(
-        onPressed: enabled
-            ? (isLast ? _getRecommendations : _nextStep)
-            : null,
+        onPressed: enabled ? (isLast ? _getRecommendations : _nextStep) : null,
         style: FilledButton.styleFrom(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -389,7 +542,8 @@ class _ProgressBar extends StatelessWidget {
         child: LinearProgressIndicator(
           value: (step + 1) / total,
           minHeight: 5,
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          backgroundColor:
+              Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
       ),
     );
@@ -487,11 +641,9 @@ class _GenreStep extends StatelessWidget {
                 color: isSelected
                     ? colorScheme.onPrimaryContainer
                     : colorScheme.onSurface,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             );
           }).toList(),
         ),
@@ -595,9 +747,8 @@ class _SelectCard extends StatelessWidget {
               : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : colorScheme.outlineVariant,
+            color:
+                isSelected ? colorScheme.primary : colorScheme.outlineVariant,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -630,7 +781,8 @@ class _SelectCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       color: isSelected
-                          ? colorScheme.onPrimaryContainer.withValues(alpha: 0.75)
+                          ? colorScheme.onPrimaryContainer
+                              .withValues(alpha: 0.75)
                           : colorScheme.onSurfaceVariant,
                     ),
                   ),

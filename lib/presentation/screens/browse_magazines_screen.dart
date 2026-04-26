@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:animatch/data/models/media_base.dart';
 import 'package:animatch/data/sources/remote/jikan_service.dart';
 import 'package:animatch/presentation/screens/detail_screen.dart';
@@ -74,7 +74,8 @@ class _MagazineBrowseScreenState extends State<MagazineBrowseScreen> {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => DetailScreen(malId: (item as dynamic).malId, isManga: true),
+                          builder: (_) => DetailScreen(
+                              malId: (item as dynamic).malId, isManga: true),
                         ),
                       ),
                       child: Column(
@@ -112,7 +113,8 @@ class _MagazineBrowseScreenState extends State<MagazineBrowseScreen> {
         children: [
           Icon(Icons.auto_stories_outlined, size: 64, color: Colors.white24),
           const SizedBox(height: 16),
-          const Text('No manga found in this magazine', style: TextStyle(color: Colors.white54)),
+          const Text('No manga found in this magazine',
+              style: TextStyle(color: Colors.white54)),
         ],
       ),
     );

@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:animatch/data/sources/firebase/firebase_service.dart';
 import 'package:animatch/core/utils/image_utils.dart';
@@ -59,7 +59,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   ),
                 ),
               ),
-              
+
               SafeArea(
                 child: CustomScrollView(
                   slivers: [
@@ -67,16 +67,18 @@ class _StatsScreenState extends State<StatsScreen> {
                       floating: true,
                       backgroundColor: Colors.transparent,
                       elevation: 0,
-                      title: const Text('My Stats', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      title: const Text('My Stats',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                       leading: IconButton(
                         icon: const Icon(Icons.arrow_back_ios_new_rounded),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
-                    
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 8),
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.05),
@@ -84,11 +86,18 @@ class _StatsScreenState extends State<StatsScreen> {
                           ),
                           child: SegmentedButton<int>(
                             segments: const [
-                              ButtonSegment(value: 0, label: Text('Anime'), icon: Icon(Icons.movie_filter_rounded)),
-                              ButtonSegment(value: 1, label: Text('Manga'), icon: Icon(Icons.book_rounded)),
+                              ButtonSegment(
+                                  value: 0,
+                                  label: Text('Anime'),
+                                  icon: Icon(Icons.movie_filter_rounded)),
+                              ButtonSegment(
+                                  value: 1,
+                                  label: Text('Manga'),
+                                  icon: Icon(Icons.book_rounded)),
                             ],
                             selected: {_selectedMode},
-                            onSelectionChanged: (set) => setState(() => _selectedMode = set.first),
+                            onSelectionChanged: (set) =>
+                                setState(() => _selectedMode = set.first),
                             style: SegmentedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               selectedBackgroundColor: Colors.amber,
@@ -101,176 +110,282 @@ class _StatsScreenState extends State<StatsScreen> {
                         ),
                       ),
                     ),
-                    
                     SliverToBoxAdapter(
                       child: loading && stats.isEmpty
-                          ? const Center(child: Padding(padding: EdgeInsets.all(50), child: CircularProgressIndicator(color: Colors.amber)))
+                          ? const Center(
+                              child: Padding(
+                                  padding: EdgeInsets.all(50),
+                                  child: CircularProgressIndicator(
+                                      color: Colors.amber)))
                           : stats.isEmpty
-                          ? Center(child: Padding(padding: const EdgeInsets.all(50), child: Text('No data yet — start tracking ${_selectedMode == 0 ? "anime" : "manga"}!', style: const TextStyle(color: Colors.white70))))
-                          : Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Hero stat — total 
-                                  _GlassHeroStat(
-                                    value: '${_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga'] ?? 0}',
-                                    label: '${_selectedMode == 0 ? "Anime" : "Manga"} in your list',
-                                    icon: _selectedMode == 0 ? Icons.collections_bookmark_rounded : Icons.auto_stories_rounded,
-                                    color: _selectedMode == 0 ? Colors.amber : Colors.blueAccent,
-                                  ),
-                                  const SizedBox(height: 16),
-
-                                  // Grid layout for smaller stats
-                                  Row(
+                              ? Center(
+                                  child: Padding(
+                                      padding: const EdgeInsets.all(50),
+                                      child: Text(
+                                          'No data yet — start tracking ${_selectedMode == 0 ? "anime" : "manga"}!',
+                                          style: const TextStyle(
+                                              color: Colors.white70))))
+                              : Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: _GlassStatCard(
-                                          icon: _selectedMode == 0 ? Icons.personal_video_rounded : Icons.menu_book_rounded,
-                                          value: '${_selectedMode == 0 ? stats['totalEpisodes'] : stats['totalChapters'] ?? 0}',
-                                          label: _selectedMode == 0 ? 'Episodes' : 'Chapters',
-                                          color: const Color(0xFF00B4DB),
-                                        ),
+                                      // Hero stat — total
+                                      _GlassHeroStat(
+                                        value:
+                                            '${_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga'] ?? 0}',
+                                        label:
+                                            '${_selectedMode == 0 ? "Anime" : "Manga"} in your list',
+                                        icon: _selectedMode == 0
+                                            ? Icons.collections_bookmark_rounded
+                                            : Icons.auto_stories_rounded,
+                                        color: _selectedMode == 0
+                                            ? Colors.amber
+                                            : Colors.blueAccent,
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: _GlassStatCard(
-                                          icon: Icons.history_rounded,
-                                          value: _selectedMode == 0 
-                                              ? _formatMinutes(stats['minutesWatched'] as int? ?? 0)
-                                              : '${stats['totalVolumes'] ?? 0} volumes',
-                                          label: _selectedMode == 0 ? 'Time watched' : 'Volumes read',
-                                          color: const Color(0xFF6C5CE7),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
+                                      const SizedBox(height: 16),
 
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _GlassStatCard(
-                                          icon: Icons.star_rounded,
-                                          value: (stats['avgRating'] as double? ?? 0.0) == 0
-                                              ? 'N/A'
-                                              : (stats['avgRating'] as double).toStringAsFixed(1),
-                                          label: 'Avg Rating',
-                                          color: Colors.amber,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: _GlassStatCard(
-                                          icon: Icons.edit_note_rounded,
-                                          value: '${stats['ratingsGiven'] ?? 0}',
-                                          label: 'Reviews',
-                                          color: Colors.greenAccent,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 32),
-
-                                  // Status breakdown
-                                  Container(
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.04),
-                                      borderRadius: BorderRadius.circular(24),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Status breakdown',
-                                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
-                                        const SizedBox(height: 20),
-                                        _GlassStatusBar(
-                                          label: _selectedMode == 0 ? 'Watching' : 'Reading',
-                                          count: (_selectedMode == 0 ? stats['watching'] : stats['reading']) as int? ?? 0,
-                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
-                                          color: const Color(0xFF4CAF50),
-                                        ),
-                                        _GlassStatusBar(
-                                          label: 'Completed',
-                                          count: stats['completed'] as int? ?? 0,
-                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
-                                          color: const Color(0xFF9C27B0),
-                                        ),
-                                        _GlassStatusBar(
-                                          label: _selectedMode == 0 ? 'Plan to Watch' : 'Plan to Read',
-                                          count: (_selectedMode == 0 ? stats['planToWatch'] : stats['planToRead']) as int? ?? 0,
-                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
-                                          color: const Color(0xFF2196F3),
-                                        ),
-                                        _GlassStatusBar(
-                                          label: 'On Hold',
-                                          count: stats['onHold'] as int? ?? 0,
-                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
-                                          color: const Color(0xFFFF9800),
-                                        ),
-                                        _GlassStatusBar(
-                                          label: 'Dropped',
-                                          count: stats['dropped'] as int? ?? 0,
-                                          total: (_selectedMode == 0 ? stats['totalAnime'] : stats['totalManga']) as int? ?? 1,
-                                          color: const Color(0xFFF44336),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 32),
-
-                                  // Top genres
-                                  if ((stats['topGenres'] as List?)?.isNotEmpty == true) ...[
-                                    Text('Top Genres',
-                                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.white70)),
-                                    const SizedBox(height: 16),
-                                    Wrap(
-                                      spacing: 10,
-                                      runSpacing: 10,
-                                      children: (stats['topGenres'] as List<dynamic>)
-                                          .asMap()
-                                          .entries
-                                          .map((e) {
-                                        final colors = [
-                                          Colors.amber,
-                                          Colors.blueGrey.shade300,
-                                          Colors.brown.shade300,
-                                        ];
-                                        final iconColor = e.key < colors.length ? colors[e.key] : Colors.white24;
-                                        return ClipRRect(
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: BackdropFilter(
-                                            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white.withValues(alpha: 0.05),
-                                                borderRadius: BorderRadius.circular(12),
-                                                border: Border.all(color: iconColor.withValues(alpha: 0.3)),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(Icons.stars_rounded, size: 14, color: iconColor),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    '${e.value}',
-                                                    style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-                                                  ),
-                                                ],
-                                              ),
+                                      // Grid layout for smaller stats
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _GlassStatCard(
+                                              icon: _selectedMode == 0
+                                                  ? Icons.personal_video_rounded
+                                                  : Icons.menu_book_rounded,
+                                              value:
+                                                  '${_selectedMode == 0 ? stats['totalEpisodes'] : stats['totalChapters'] ?? 0}',
+                                              label: _selectedMode == 0
+                                                  ? 'Episodes'
+                                                  : 'Chapters',
+                                              color: const Color(0xFF00B4DB),
                                             ),
                                           ),
-                                        );
-                                      }).toList(),
-                                    ),
-                                    const SizedBox(height: 40),
-                                  ],
-                                ],
-                              ),
-                            ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: _GlassStatCard(
+                                              icon: Icons.history_rounded,
+                                              value: _selectedMode == 0
+                                                  ? _formatMinutes(
+                                                      stats['minutesWatched']
+                                                              as int? ??
+                                                          0)
+                                                  : '${stats['totalVolumes'] ?? 0} volumes',
+                                              label: _selectedMode == 0
+                                                  ? 'Time watched'
+                                                  : 'Volumes read',
+                                              color: const Color(0xFF6C5CE7),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _GlassStatCard(
+                                              icon: Icons.star_rounded,
+                                              value: (stats['avgRating']
+                                                              as double? ??
+                                                          0.0) ==
+                                                      0
+                                                  ? 'N/A'
+                                                  : (stats['avgRating']
+                                                          as double)
+                                                      .toStringAsFixed(1),
+                                              label: 'Avg Rating',
+                                              color: Colors.amber,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: _GlassStatCard(
+                                              icon: Icons.edit_note_rounded,
+                                              value:
+                                                  '${stats['ratingsGiven'] ?? 0}',
+                                              label: 'Reviews',
+                                              color: Colors.greenAccent,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 32),
+
+                                      // Status breakdown
+                                      Container(
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.04),
+                                          borderRadius:
+                                              BorderRadius.circular(24),
+                                          border: Border.all(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.08)),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Status breakdown',
+                                                style: theme
+                                                    .textTheme.titleMedium
+                                                    ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors.white)),
+                                            const SizedBox(height: 20),
+                                            _GlassStatusBar(
+                                              label: _selectedMode == 0
+                                                  ? 'Watching'
+                                                  : 'Reading',
+                                              count: (_selectedMode == 0
+                                                          ? stats['watching']
+                                                          : stats['reading'])
+                                                      as int? ??
+                                                  0,
+                                              total: (_selectedMode == 0
+                                                          ? stats['totalAnime']
+                                                          : stats['totalManga'])
+                                                      as int? ??
+                                                  1,
+                                              color: const Color(0xFF4CAF50),
+                                            ),
+                                            _GlassStatusBar(
+                                              label: 'Completed',
+                                              count:
+                                                  stats['completed'] as int? ??
+                                                      0,
+                                              total: (_selectedMode == 0
+                                                          ? stats['totalAnime']
+                                                          : stats['totalManga'])
+                                                      as int? ??
+                                                  1,
+                                              color: const Color(0xFF9C27B0),
+                                            ),
+                                            _GlassStatusBar(
+                                              label: _selectedMode == 0
+                                                  ? 'Plan to Watch'
+                                                  : 'Plan to Read',
+                                              count: (_selectedMode == 0
+                                                          ? stats['planToWatch']
+                                                          : stats['planToRead'])
+                                                      as int? ??
+                                                  0,
+                                              total: (_selectedMode == 0
+                                                          ? stats['totalAnime']
+                                                          : stats['totalManga'])
+                                                      as int? ??
+                                                  1,
+                                              color: const Color(0xFF2196F3),
+                                            ),
+                                            _GlassStatusBar(
+                                              label: 'On Hold',
+                                              count:
+                                                  stats['onHold'] as int? ?? 0,
+                                              total: (_selectedMode == 0
+                                                          ? stats['totalAnime']
+                                                          : stats['totalManga'])
+                                                      as int? ??
+                                                  1,
+                                              color: const Color(0xFFFF9800),
+                                            ),
+                                            _GlassStatusBar(
+                                              label: 'Dropped',
+                                              count:
+                                                  stats['dropped'] as int? ?? 0,
+                                              total: (_selectedMode == 0
+                                                          ? stats['totalAnime']
+                                                          : stats['totalManga'])
+                                                      as int? ??
+                                                  1,
+                                              color: const Color(0xFFF44336),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 32),
+
+                                      // Top genres
+                                      if ((stats['topGenres'] as List?)
+                                              ?.isNotEmpty ==
+                                          true) ...[
+                                        Text('Top Genres',
+                                            style: theme.textTheme.titleMedium
+                                                ?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white70)),
+                                        const SizedBox(height: 16),
+                                        Wrap(
+                                          spacing: 10,
+                                          runSpacing: 10,
+                                          children: (stats['topGenres']
+                                                  as List<dynamic>)
+                                              .asMap()
+                                              .entries
+                                              .map((e) {
+                                            final colors = [
+                                              Colors.amber,
+                                              Colors.blueGrey.shade300,
+                                              Colors.brown.shade300,
+                                            ];
+                                            final iconColor =
+                                                e.key < colors.length
+                                                    ? colors[e.key]
+                                                    : Colors.white24;
+                                            return ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: BackdropFilter(
+                                                filter: ImageFilter.blur(
+                                                    sigmaX: 5, sigmaY: 5),
+                                                child: Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 10),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white
+                                                        .withValues(
+                                                            alpha: 0.05),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                    border: Border.all(
+                                                        color: iconColor
+                                                            .withValues(
+                                                                alpha: 0.3)),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(Icons.stars_rounded,
+                                                          size: 14,
+                                                          color: iconColor),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        '${e.value}',
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color:
+                                                                Colors.white),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                        const SizedBox(height: 40),
+                                      ],
+                                    ],
+                                  ),
+                                ),
                     ),
                   ],
                 ),
@@ -289,8 +404,10 @@ class _GlassHeroStat extends StatelessWidget {
   final IconData icon;
   final Color color;
   const _GlassHeroStat({
-    required this.value, required this.label,
-    required this.icon, required this.color,
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
   });
 
   @override
@@ -350,8 +467,10 @@ class _GlassStatCard extends StatelessWidget {
   final String label;
   final Color color;
   const _GlassStatCard({
-    required this.icon, required this.value,
-    required this.label, required this.color,
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
   });
 
   @override
@@ -397,7 +516,9 @@ class _GlassStatusBar extends StatelessWidget {
   final int total;
   final Color color;
   const _GlassStatusBar({
-    required this.label, required this.count, required this.total,
+    required this.label,
+    required this.count,
+    required this.total,
     required this.color,
   });
 
@@ -411,7 +532,8 @@ class _GlassStatusBar extends StatelessWidget {
           Row(
             children: [
               Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white70)),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, color: Colors.white70)),
               const Spacer(),
               Text('$count',
                   style: TextStyle(

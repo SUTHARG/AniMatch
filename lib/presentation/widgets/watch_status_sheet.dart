@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animatch/data/sources/firebase/firebase_service.dart';
 import 'package:animatch/data/models/media_base.dart';
@@ -8,11 +8,11 @@ import 'package:animatch/presentation/providers/watchlist_provider.dart';
 /// Shows a bottom sheet to pick / change watch or read status.
 /// Returns the chosen status enum or null if dismissed.
 Future<dynamic> showMediaStatusSheet(
-    BuildContext context, {
-      required MediaBase media,
-      bool isManga = false,
-      dynamic currentStatus,
-    }) {
+  BuildContext context, {
+  required MediaBase media,
+  bool isManga = false,
+  dynamic currentStatus,
+}) {
   return showModalBottomSheet<dynamic>(
     context: context,
     isScrollControlled: true,
@@ -29,7 +29,8 @@ class _MediaStatusSheet extends ConsumerStatefulWidget {
   final MediaBase media;
   final bool isManga;
   final dynamic currentStatus;
-  const _MediaStatusSheet({required this.media, required this.isManga, this.currentStatus});
+  const _MediaStatusSheet(
+      {required this.media, required this.isManga, this.currentStatus});
 
   @override
   ConsumerState<_MediaStatusSheet> createState() => _MediaStatusSheetState();
@@ -45,7 +46,7 @@ class _MediaStatusSheetState extends ConsumerState<_MediaStatusSheet> {
   void initState() {
     super.initState();
     _selected = widget.currentStatus;
-    
+
     if (widget.isManga) {
       _options = [
         const _StatusOption(
@@ -124,7 +125,10 @@ class _MediaStatusSheetState extends ConsumerState<_MediaStatusSheet> {
       return;
     }
 
-    setState(() { _selected = status; _saving = true; });
+    setState(() {
+      _selected = status;
+      _saving = true;
+    });
 
     try {
       await actions.saveStatus(
@@ -136,7 +140,8 @@ class _MediaStatusSheetState extends ConsumerState<_MediaStatusSheet> {
       if (mounted) Navigator.pop(context, status);
     } catch (e) {
       if (mounted) {
-        snacks.showError(context, 'Could not update your watchlist. Try again.');
+        snacks.showError(
+            context, 'Could not update your watchlist. Try again.');
         setState(() => _saving = false);
       }
     }
@@ -216,7 +221,8 @@ class _MediaStatusSheetState extends ConsumerState<_MediaStatusSheet> {
           else
             Column(
               children: _options.map((opt) {
-                final status = widget.isManga ? opt.readStatus : opt.watchStatus;
+                final status =
+                    widget.isManga ? opt.readStatus : opt.watchStatus;
                 final isSelected = _selected == status;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -237,8 +243,8 @@ class _MediaStatusSheetState extends ConsumerState<_MediaStatusSheet> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: _remove,
-                icon: const Icon(Icons.delete_outline_rounded,
-                    color: Colors.red),
+                icon:
+                    const Icon(Icons.delete_outline_rounded, color: Colors.red),
                 label: const Text('Remove from list',
                     style: TextStyle(color: Colors.red)),
                 style: OutlinedButton.styleFrom(
@@ -326,9 +332,7 @@ class _StatusTile extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
-                      color: isSelected
-                          ? option.color
-                          : colorScheme.onSurface,
+                      color: isSelected ? option.color : colorScheme.onSurface,
                     ),
                   ),
                   Text(
@@ -342,8 +346,7 @@ class _StatusTile extends StatelessWidget {
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_circle_rounded,
-                  color: option.color, size: 22),
+              Icon(Icons.check_circle_rounded, color: option.color, size: 22),
           ],
         ),
       ),

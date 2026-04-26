@@ -1,16 +1,21 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
-void showError(BuildContext context, String message, {String? actionLabel, VoidCallback? onAction}) {
+void showError(BuildContext context, String message,
+    {String? actionLabel, VoidCallback? onAction}) {
   if (!context.mounted) return;
-  _show(context, message, Colors.redAccent, Icons.error_outline_rounded, actionLabel, onAction);
+  _show(context, message, Colors.redAccent, Icons.error_outline_rounded,
+      actionLabel, onAction);
 }
 
-void showSuccess(BuildContext context, String message, {String? actionLabel, VoidCallback? onAction}) {
+void showSuccess(BuildContext context, String message,
+    {String? actionLabel, VoidCallback? onAction}) {
   if (!context.mounted) return;
-  _show(context, message, Colors.greenAccent, Icons.check_circle_outline_rounded, actionLabel, onAction);
+  _show(context, message, Colors.greenAccent,
+      Icons.check_circle_outline_rounded, actionLabel, onAction);
 }
 
-void _show(BuildContext context, String message, Color color, IconData icon, String? actionLabel, VoidCallback? onAction) {
+void _show(BuildContext context, String message, Color color, IconData icon,
+    String? actionLabel, VoidCallback? onAction) {
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
@@ -21,7 +26,8 @@ void _show(BuildContext context, String message, Color color, IconData icon, Str
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w500),
             ),
           ),
         ],

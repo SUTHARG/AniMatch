@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AiringSchedule {
@@ -23,9 +23,9 @@ class AiringSchedule {
     final titleObj = media['title'] ?? {};
     final String title = titleObj['english'] ?? titleObj['romaji'] ?? 'Unknown';
     final coverImage = media['coverImage']?['large'] ?? '';
-    
+
     return AiringSchedule(
-      idMal: media['idMal'] ?? 0, 
+      idMal: media['idMal'] ?? 0,
       title: title,
       coverImage: coverImage,
       episode: json['episode'] ?? 0,
@@ -37,14 +37,15 @@ class AiringSchedule {
 
 class AnilistService {
   static const String _baseUrl = 'https://graphql.anilist.co';
-  
+
   // Cache storage
   final Map<String, dynamic> _cache = {};
   final Map<String, DateTime> _cacheTimestamps = {};
   static const Duration _cacheTtl = Duration(minutes: 5);
 
   /// Get airing schedules between two UNIX timestamps
-  Future<List<AiringSchedule>> getSchedules(int startTimestamp, int endTimestamp) async {
+  Future<List<AiringSchedule>> getSchedules(
+      int startTimestamp, int endTimestamp) async {
     const String query = '''
       query (\$start: Int, \$end: Int) {
         Page(page: 1, perPage: 50) {
@@ -64,7 +65,10 @@ class AnilistService {
     final variables = {'start': startTimestamp, 'end': endTimestamp};
     final data = await _postQuery(query, variables);
     final list = data['Page']?['airingSchedules'] as List<dynamic>? ?? [];
-    return list.map((e) => AiringSchedule.fromJson(e)).where((s) => s.idMal != 0).toList();
+    return list
+        .map((e) => AiringSchedule.fromJson(e))
+        .where((s) => s.idMal != 0)
+        .toList();
   }
 
   /// Get Trending Anime (CORS friendly)
@@ -172,7 +176,8 @@ class AnilistService {
   }
 
   /// Get CORS-friendly cover image from AniList by MAL ID
-  Future<String?> getCoverImageByMalId(int idMal, {bool isManga = false}) async {
+  Future<String?> getCoverImageByMalId(int idMal,
+      {bool isManga = false}) async {
     final String typeStr = isManga ? 'MANGA' : 'ANIME';
     final String query = '''
       query (\$id: Int) {
@@ -183,14 +188,16 @@ class AnilistService {
     ''';
     try {
       final data = await _postQuery(query, {'id': idMal});
-      return data['Media']?['coverImage']?['extraLarge'] ?? data['Media']?['coverImage']?['large'];
+      return data['Media']?['coverImage']?['extraLarge'] ??
+          data['Media']?['coverImage']?['large'];
     } catch (_) {
       return null;
     }
   }
 
   /// Get CORS-friendly cover image from AniList by Title (fallback for new MAL IDs)
-  Future<String?> getCoverImageByTitle(String title, {bool isManga = false}) async {
+  Future<String?> getCoverImageByTitle(String title,
+      {bool isManga = false}) async {
     final String typeStr = isManga ? 'MANGA' : 'ANIME';
     final String query = '''
       query (\$q: String) {
@@ -201,37 +208,44 @@ class AnilistService {
     ''';
     try {
       final data = await _postQuery(query, {'q': title});
-      return data['Media']?['coverImage']?['extraLarge'] ?? data['Media']?['coverImage']?['large'];
+      return data['Media']?['coverImage']?['extraLarge'] ??
+          data['Media']?['coverImage']?['large'];
     } catch (_) {
       return null;
     }
   }
 
-  Future<Map<String, dynamic>> _postQuery(String query, Map<String, dynamic> variables) async {
-    final String cacheKey = jsonEncode({'query': query, 'variables': variables});
-    
+  Future<Map<String, dynamic>> _postQuery(
+      String query, Map<String, dynamic> variables) async {
+    final String cacheKey =
+        jsonEncode({'query': query, 'variables': variables});
+
     // Check cache
     if (_cache.containsKey(cacheKey)) {
       final timestamp = _cacheTimestamps[cacheKey];
-      if (timestamp != null && DateTime.now().difference(timestamp) < _cacheTtl) {
+      if (timestamp != null &&
+          DateTime.now().difference(timestamp) < _cacheTtl) {
         return _cache[cacheKey];
       }
     }
 
     final response = await http.post(
       Uri.parse(_baseUrl),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       body: jsonEncode({'query': query, 'variables': variables}),
     );
-    
+
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
       final data = json['data'] ?? {};
-      
+
       // Store in cache
       _cache[cacheKey] = data;
       _cacheTimestamps[cacheKey] = DateTime.now();
-      
+
       return data;
     }
     throw Exception('AniList API error: ${response.statusCode}');

@@ -1,4 +1,4 @@
-﻿// lib/app_state.dart
+// lib/app_state.dart
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +9,7 @@ enum AppMode { anime, manga }
 class AppState extends ChangeNotifier {
   AppMode _mode = AppMode.anime;
   User? _user;
-  
+
   static const String _modeKey = 'app_mode';
 
   AppMode get mode => _mode;
@@ -49,7 +49,7 @@ class AppState extends ChangeNotifier {
     if (_mode == mode) return;
     _mode = mode;
     notifyListeners();
-    
+
     // Save locally
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_modeKey, mode.name);

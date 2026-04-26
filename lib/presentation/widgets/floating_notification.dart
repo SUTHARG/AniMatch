@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class FloatingNotification extends StatefulWidget {
@@ -79,7 +79,8 @@ class FloatingNotification extends StatefulWidget {
   }
 }
 
-class _FloatingNotificationState extends State<FloatingNotification> with SingleTickerProviderStateMixin {
+class _FloatingNotificationState extends State<FloatingNotification>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
   late Animation<double> _fadeAnimation;
@@ -180,7 +181,8 @@ class _FloatingNotificationState extends State<FloatingNotification> with Single
                       ),
                       IconButton(
                         onPressed: widget.onDismiss,
-                        icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 20),
+                        icon: const Icon(Icons.close_rounded,
+                            color: Colors.white60, size: 20),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
@@ -193,7 +195,8 @@ class _FloatingNotificationState extends State<FloatingNotification> with Single
                       children: [
                         TextButton(
                           onPressed: widget.onDismiss,
-                          child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                          child: const Text('Cancel',
+                              style: TextStyle(color: Colors.white54)),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
@@ -201,10 +204,13 @@ class _FloatingNotificationState extends State<FloatingNotification> with Single
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.amber,
                             foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
                           ),
-                          child: Text(widget.actionLabel!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          child: Text(widget.actionLabel!,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),

@@ -1,4 +1,4 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -94,10 +94,11 @@ class _PinterestMenuOverlay extends StatefulWidget {
   State<_PinterestMenuOverlay> createState() => _PinterestMenuOverlayState();
 }
 
-class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with SingleTickerProviderStateMixin {
+class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  
+
   int _selectedIndex = -1;
   static const double _radius = 70.0;
 
@@ -109,10 +110,9 @@ class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with Singl
       duration: const Duration(milliseconds: 250),
     );
     _scaleAnimation = CurvedAnimation(
-      parent: _controller, 
-      curve: Curves.easeOutBack,
-      reverseCurve: Curves.easeIn
-    );
+        parent: _controller,
+        curve: Curves.easeOutBack,
+        reverseCurve: Curves.easeIn);
     _controller.forward();
   }
 
@@ -139,7 +139,8 @@ class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with Singl
     for (int i = 0; i < widget.actions.length; i++) {
       final iconPos = _getIconOffset(i);
       final dist = (touchPos - iconPos).distance;
-      if (dist < 35) { // Selection radius
+      if (dist < 35) {
+        // Selection radius
         return i;
       }
     }
@@ -150,16 +151,16 @@ class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with Singl
     final screenSize = MediaQuery.of(context).size;
     final padding = MediaQuery.of(context).padding;
     final center = widget.center;
-    
+
     // Proximity detection
     final bool nearTop = center.dy < 200 + padding.top;
     final bool nearLeft = center.dx < 120;
     final bool nearRight = center.dx > screenSize.width - 120;
-    
+
     // Determine base direction (pointing away from edges)
     double baseAngle = -math.pi / 2; // Default: Up
     double spread = 1.0; // Total arc spread in radians
-    
+
     if (nearTop) {
       if (nearLeft) {
         baseAngle = math.pi / 4; // Down-Right
@@ -175,7 +176,7 @@ class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with Singl
         baseAngle = math.pi + 0.2; // Slightly Up-Left
       }
     }
-    
+
     // Distribute icons around the base angle
     double angle;
     if (widget.actions.length > 1) {
@@ -184,11 +185,12 @@ class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with Singl
     } else {
       angle = baseAngle;
     }
-    
-    return center + Offset(
-      math.cos(angle) * _radius,
-      math.sin(angle) * _radius,
-    );
+
+    return center +
+        Offset(
+          math.cos(angle) * _radius,
+          math.sin(angle) * _radius,
+        );
   }
 
   void finish() {
@@ -211,14 +213,15 @@ class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with Singl
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final padding = MediaQuery.of(context).padding;
-    
+
     // Calculate label position if an item is selected
     Widget? labelWidget;
     if (_selectedIndex != -1) {
       final rawPos = _getIconOffset(_selectedIndex);
       const double size = 58;
       const double radius = size / 2;
-      final double posY = rawPos.dy.clamp(radius + padding.top + 10, screenSize.height - radius - padding.bottom - 10);
+      final double posY = rawPos.dy.clamp(radius + padding.top + 10,
+          screenSize.height - radius - padding.bottom - 10);
 
       labelWidget = Positioned(
         left: 0,
@@ -230,26 +233,25 @@ class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with Singl
             child: ScaleTransition(
               scale: _scaleAnimation,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.amber,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3), 
-                      blurRadius: 10, 
-                      offset: const Offset(0, 4)
-                    )
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4))
                   ],
                 ),
                 child: Text(
                   widget.actions[_selectedIndex].label.toUpperCase(),
                   style: const TextStyle(
-                    color: Colors.black, 
-                    fontWeight: FontWeight.w900, 
-                    fontSize: 11,
-                    letterSpacing: 1.0
-                  ),
+                      color: Colors.black,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                      letterSpacing: 1.0),
                 ),
               ),
             ),
@@ -275,17 +277,19 @@ class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with Singl
                 ),
               ),
             ),
- 
+
             // Icons
             ...List.generate(widget.actions.length, (index) {
               final rawPos = _getIconOffset(index);
               final isSelected = _selectedIndex == index;
-              
+
               final double size = isSelected ? 58 : 48;
               final double radius = size / 2;
-              final double posX = rawPos.dx.clamp(radius + 10, screenSize.width - radius - 10);
-              final double posY = rawPos.dy.clamp(radius + padding.top + 10, screenSize.height - radius - padding.bottom - 10);
-              
+              final double posX =
+                  rawPos.dx.clamp(radius + 10, screenSize.width - radius - 10);
+              final double posY = rawPos.dy.clamp(radius + padding.top + 10,
+                  screenSize.height - radius - padding.bottom - 10);
+
               return Positioned(
                 left: posX - radius,
                 top: posY - radius,
@@ -298,18 +302,22 @@ class _PinterestMenuOverlayState extends State<_PinterestMenuOverlay> with Singl
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isSelected ? Colors.amber : Colors.transparent,
-                      boxShadow: isSelected ? [
-                        BoxShadow(
-                          color: Colors.amber.withValues(alpha: 0.4),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        )
-                      ] : [],
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: Colors.amber.withValues(alpha: 0.4),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                              )
+                            ]
+                          : [],
                     ),
                     child: Center(
                       child: Icon(
                         widget.actions[index].icon,
-                        color: isSelected ? Colors.black : Colors.white.withValues(alpha: 0.9),
+                        color: isSelected
+                            ? Colors.black
+                            : Colors.white.withValues(alpha: 0.9),
                         size: isSelected ? 28 : 24,
                       ),
                     ),

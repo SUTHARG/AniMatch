@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,21 +23,29 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen>
   AppMode _viewMode = AppMode.anime;
 
   static const _animeTabs = [
-    _TabConfig(label: 'All',           watchStatus: null,                      emoji: '📚'),
-    _TabConfig(label: 'Watching',      watchStatus: WatchStatus.watching,      emoji: '▶️'),
-    _TabConfig(label: 'Completed',     watchStatus: WatchStatus.completed,     emoji: '✅'),
-    _TabConfig(label: 'Plan to Watch', watchStatus: WatchStatus.planToWatch,   emoji: '📋'),
-    _TabConfig(label: 'On Hold',       watchStatus: WatchStatus.onHold,        emoji: '⏸️'),
-    _TabConfig(label: 'Dropped',       watchStatus: WatchStatus.dropped,       emoji: '🗑️'),
+    _TabConfig(label: 'All', watchStatus: null, emoji: '📚'),
+    _TabConfig(
+        label: 'Watching', watchStatus: WatchStatus.watching, emoji: '▶️'),
+    _TabConfig(
+        label: 'Completed', watchStatus: WatchStatus.completed, emoji: '✅'),
+    _TabConfig(
+        label: 'Plan to Watch',
+        watchStatus: WatchStatus.planToWatch,
+        emoji: '📋'),
+    _TabConfig(label: 'On Hold', watchStatus: WatchStatus.onHold, emoji: '⏸️'),
+    _TabConfig(
+        label: 'Dropped', watchStatus: WatchStatus.dropped, emoji: '🗑️'),
   ];
 
   static const _mangaTabs = [
-    _TabConfig(label: 'All',           readStatus: null,                       emoji: '📚'),
-    _TabConfig(label: 'Reading',       readStatus: ReadStatus.reading,         emoji: '📖'),
-    _TabConfig(label: 'Completed',      readStatus: ReadStatus.completed,       emoji: '✅'),
-    _TabConfig(label: 'Plan to Read', readStatus: ReadStatus.planToRead,      emoji: '📋'),
-    _TabConfig(label: 'On Hold',       readStatus: ReadStatus.onHold,          emoji: '⏸️'),
-    _TabConfig(label: 'Dropped',       readStatus: ReadStatus.dropped,         emoji: '🗑️'),
+    _TabConfig(label: 'All', readStatus: null, emoji: '📚'),
+    _TabConfig(label: 'Reading', readStatus: ReadStatus.reading, emoji: '📖'),
+    _TabConfig(
+        label: 'Completed', readStatus: ReadStatus.completed, emoji: '✅'),
+    _TabConfig(
+        label: 'Plan to Read', readStatus: ReadStatus.planToRead, emoji: '📋'),
+    _TabConfig(label: 'On Hold', readStatus: ReadStatus.onHold, emoji: '⏸️'),
+    _TabConfig(label: 'Dropped', readStatus: ReadStatus.dropped, emoji: '🗑️'),
   ];
 
   @override
@@ -82,121 +90,144 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen>
     final tabs = _viewMode == AppMode.manga ? _mangaTabs : _animeTabs;
 
     return Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            elevation: 0,
-            title: const Text('My Library', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout_rounded, color: Colors.white70),
-                tooltip: 'Log out',
-                onPressed: () => ref.read(watchlistActionsProvider).signOut(),
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(100),
-              child: Column(
-                children: [
-                  // Anime/Manga Switcher
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _setViewMode(AppMode.anime),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                decoration: BoxDecoration(
-                                  color: _viewMode == AppMode.anime ? Colors.amber : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text('ANIME', style: TextStyle(color: _viewMode == AppMode.anime ? Colors.black : Colors.white60, fontWeight: FontWeight.bold, fontSize: 12)),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _setViewMode(AppMode.manga),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                decoration: BoxDecoration(
-                                  color: _viewMode == AppMode.manga ? Colors.amber : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text('MANGA', style: TextStyle(color: _viewMode == AppMode.manga ? Colors.black : Colors.white60, fontWeight: FontWeight.bold, fontSize: 12)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        title: const Text('My Library',
+            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.white70),
+            tooltip: 'Log out',
+            onPressed: () => ref.read(watchlistActionsProvider).signOut(),
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(100),
+          child: Column(
+            children: [
+              // Anime/Manga Switcher
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
-                  // Sub-tabs (Watching, Reading, etc)
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      dividerColor: Colors.transparent,
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      indicator: BoxDecoration(
-                        borderRadius: BorderRadius.circular(25),
-                        color: Colors.amber.withValues(alpha: 0.2),
-                        border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
-                      ),
-                      labelColor: Colors.amber,
-                      unselectedLabelColor: Colors.white60,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      tabs: tabs
-                          .map((t) => Tab(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(t.emoji, style: const TextStyle(fontSize: 14)),
-                              const SizedBox(width: 8),
-                              Text(t.label),
-                            ],
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _setViewMode(AppMode.anime),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: _viewMode == AppMode.anime
+                                  ? Colors.amber
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text('ANIME',
+                                style: TextStyle(
+                                    color: _viewMode == AppMode.anime
+                                        ? Colors.black
+                                        : Colors.white60,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12)),
                           ),
                         ),
-                      ))
-                          .toList(),
-                    ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _setViewMode(AppMode.manga),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: _viewMode == AppMode.manga
+                                  ? Colors.amber
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text('MANGA',
+                                style: TextStyle(
+                                    color: _viewMode == AppMode.manga
+                                        ? Colors.black
+                                        : Colors.white60,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+              // Sub-tabs (Watching, Reading, etc)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  dividerColor: Colors.transparent,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(25),
+                    color: Colors.amber.withValues(alpha: 0.2),
+                    border:
+                        Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                  ),
+                  labelColor: Colors.amber,
+                  unselectedLabelColor: Colors.white60,
+                  labelStyle: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13),
+                  tabs: tabs
+                      .map((t) => Tab(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(t.emoji,
+                                      style: const TextStyle(fontSize: 14)),
+                                  const SizedBox(width: 8),
+                                  Text(t.label),
+                                ],
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ],
           ),
-          body: TabBarView(
-            controller: _tabController,
-            key: ValueKey(_viewMode), // Force rebuild when switching Anime/Manga
-            children: tabs
-                .map((t) => _WatchlistTab(
-              uid: user.uid,
-              isManga: _viewMode == AppMode.manga,
-              watchStatus: t.watchStatus,
-              readStatus: t.readStatus,
-            ))
-                .toList(),
-          ),
-        );
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        key: ValueKey(_viewMode), // Force rebuild when switching Anime/Manga
+        children: tabs
+            .map((t) => _WatchlistTab(
+                  uid: user.uid,
+                  isManga: _viewMode == AppMode.manga,
+                  watchStatus: t.watchStatus,
+                  readStatus: t.readStatus,
+                ))
+            .toList(),
+      ),
+    );
   }
 }
 
@@ -205,7 +236,11 @@ class _TabConfig {
   final WatchStatus? watchStatus;
   final ReadStatus? readStatus;
   final String emoji;
-  const _TabConfig({required this.label, this.watchStatus, this.readStatus, required this.emoji});
+  const _TabConfig(
+      {required this.label,
+      this.watchStatus,
+      this.readStatus,
+      required this.emoji});
 }
 
 class _WatchlistTab extends ConsumerWidget {
@@ -213,7 +248,11 @@ class _WatchlistTab extends ConsumerWidget {
   final bool isManga;
   final WatchStatus? watchStatus;
   final ReadStatus? readStatus;
-  const _WatchlistTab({required this.uid, required this.isManga, this.watchStatus, this.readStatus});
+  const _WatchlistTab(
+      {required this.uid,
+      required this.isManga,
+      this.watchStatus,
+      this.readStatus});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -228,8 +267,11 @@ class _WatchlistTab extends ConsumerWidget {
       loading: () => const WatchlistShimmer(),
       error: (error, _) => Center(child: Text('Error: $error')),
       data: (items) {
-
-        if (items.isEmpty) return _EmptyTab(isManga: isManga, watchStatus: watchStatus, readStatus: readStatus);
+        if (items.isEmpty)
+          return _EmptyTab(
+              isManga: isManga,
+              watchStatus: watchStatus,
+              readStatus: readStatus);
 
         // Auto-Patch missing data logic
         _triggerAutoPatch(uid, items, isManga, ref);
@@ -241,7 +283,8 @@ class _WatchlistTab extends ConsumerWidget {
           color: Colors.amber,
           backgroundColor: Colors.black,
           child: GridView.builder(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics()),
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
@@ -250,7 +293,8 @@ class _WatchlistTab extends ConsumerWidget {
               childAspectRatio: 0.60,
             ),
             itemCount: items.length,
-            itemBuilder: (_, i) => _WatchlistCard(item: items[i], isManga: isManga),
+            itemBuilder: (_, i) =>
+                _WatchlistCard(item: items[i], isManga: isManga),
           ),
         );
       },
@@ -260,7 +304,8 @@ class _WatchlistTab extends ConsumerWidget {
   // Set to track IDs currently being patched in this session
   static final Set<int> _patchingIds = {};
 
-  void _triggerAutoPatch(String uid, List<Map<String, dynamic>> items, bool isManga, WidgetRef ref) {
+  void _triggerAutoPatch(String uid, List<Map<String, dynamic>> items,
+      bool isManga, WidgetRef ref) {
     if (uid.isEmpty) return;
 
     for (var item in items) {
@@ -281,13 +326,14 @@ class _WatchlistTab extends ConsumerWidget {
     }
   }
 
-  Future<void> _performPatch(String uid, int malId, bool isManga, WidgetRef ref) async {
+  Future<void> _performPatch(
+      String uid, int malId, bool isManga, WidgetRef ref) async {
     try {
       await ref.read(watchlistActionsProvider).updateMissingTotals(
-        uid: uid,
-        malId: malId,
-        isManga: isManga,
-      );
+            uid: uid,
+            malId: malId,
+            isManga: isManga,
+          );
     } catch (e) {
       debugPrint('Auto-patch failed for ID $malId: $e');
     } finally {
@@ -304,19 +350,29 @@ class _WatchlistCard extends StatelessWidget {
   Color _statusColor(dynamic s) {
     if (s is WatchStatus) {
       switch (s) {
-        case WatchStatus.watching:    return const Color(0xFF4CAF50);
-        case WatchStatus.completed:   return const Color(0xFF9C27B0);
-        case WatchStatus.onHold:      return const Color(0xFFFF9800);
-        case WatchStatus.dropped:     return const Color(0xFFF44336);
-        case WatchStatus.planToWatch: return const Color(0xFF2196F3);
+        case WatchStatus.watching:
+          return const Color(0xFF4CAF50);
+        case WatchStatus.completed:
+          return const Color(0xFF9C27B0);
+        case WatchStatus.onHold:
+          return const Color(0xFFFF9800);
+        case WatchStatus.dropped:
+          return const Color(0xFFF44336);
+        case WatchStatus.planToWatch:
+          return const Color(0xFF2196F3);
       }
     } else if (s is ReadStatus) {
       switch (s) {
-        case ReadStatus.reading:      return const Color(0xFF4CAF50);
-        case ReadStatus.completed:    return const Color(0xFF9C27B0);
-        case ReadStatus.onHold:       return const Color(0xFFFF9800);
-        case ReadStatus.dropped:      return const Color(0xFFF44336);
-        case ReadStatus.planToRead:   return const Color(0xFF2196F3);
+        case ReadStatus.reading:
+          return const Color(0xFF4CAF50);
+        case ReadStatus.completed:
+          return const Color(0xFF9C27B0);
+        case ReadStatus.onHold:
+          return const Color(0xFFFF9800);
+        case ReadStatus.dropped:
+          return const Color(0xFFF44336);
+        case ReadStatus.planToRead:
+          return const Color(0xFF2196F3);
       }
     }
     return Colors.amber;
@@ -325,7 +381,7 @@ class _WatchlistCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final malId = item['malId'] as int;
-    final dynamic status = isManga 
+    final dynamic status = isManga
         ? ReadStatus.fromString(item['status'] as String?)
         : WatchStatus.fromString(item['status'] as String?);
 
@@ -334,7 +390,8 @@ class _WatchlistCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => DetailScreen(malId: malId, isManga: isManga)),
+        MaterialPageRoute(
+            builder: (_) => DetailScreen(malId: malId, isManga: isManga)),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -357,7 +414,7 @@ class _WatchlistCard extends StatelessWidget {
               title: item['title'] as String? ?? 'Anime',
               fit: BoxFit.cover,
             ),
-            
+
             // Premium Gradient Overlay
             Positioned.fill(
               child: Container(
@@ -384,16 +441,19 @@ class _WatchlistCard extends StatelessWidget {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: _statusColor(status).withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(status.emoji, style: const TextStyle(fontSize: 12)),
+                        Text(status.emoji,
+                            style: const TextStyle(fontSize: 12)),
                         const SizedBox(width: 4),
                         Text(
                           status.label.split(' ').first, // Shorter label
@@ -420,19 +480,25 @@ class _WatchlistCard extends StatelessWidget {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.1)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                        const Icon(Icons.star_rounded,
+                            size: 14, color: Colors.amber),
                         const SizedBox(width: 2),
                         Text(
                           '${item['score'] ?? 'N/A'}',
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -458,14 +524,19 @@ class _WatchlistCard extends StatelessWidget {
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       height: 1.2,
-                      shadows: [Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1))],
+                      shadows: [
+                        Shadow(
+                            color: Colors.black,
+                            blurRadius: 4,
+                            offset: Offset(0, 1))
+                      ],
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    isManga 
-                      ? '${item['chapterProgress'] ?? 0} / ${item['chapters'] ?? '?'} chps' 
-                      : '${item['episodeProgress'] ?? 0} / ${item['episodes'] ?? '?'} eps',
+                    isManga
+                        ? '${item['chapterProgress'] ?? 0} / ${item['chapters'] ?? '?'} chps'
+                        : '${item['episodeProgress'] ?? 0} / ${item['episodes'] ?? '?'} eps',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 11,
@@ -511,22 +582,38 @@ class _EmptyTab extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.05),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
-                  child: Text(isManga ? (readStatus?.emoji ?? '📚') : (watchStatus?.emoji ?? '📚'), style: const TextStyle(fontSize: 64)),
+                  child: Text(
+                      isManga
+                          ? (readStatus?.emoji ?? '📚')
+                          : (watchStatus?.emoji ?? '📚'),
+                      style: const TextStyle(fontSize: 64)),
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  (!isManga && watchStatus == null) || (isManga && readStatus == null) ? 'Your journey is waiting' : 'No ${isManga ? "manga" : "anime"} found here',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5),
+                  (!isManga && watchStatus == null) ||
+                          (isManga && readStatus == null)
+                      ? 'Your journey is waiting'
+                      : 'No ${isManga ? "manga" : "anime"} found here',
+                  style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: -0.5),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  (!isManga && watchStatus == null) || (isManga && readStatus == null)
+                  (!isManga && watchStatus == null) ||
+                          (isManga && readStatus == null)
                       ? 'Start exploring worlds and track your favorite ${isManga ? "manga" : "anime"} right here.'
                       : 'You haven\'t marked any ${isManga ? "manga" : "anime"} as "${isManga ? readStatus!.label : watchStatus!.label}" yet.',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16, height: 1.6),
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 16,
+                      height: 1.6),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -581,22 +668,33 @@ class _NotLoggedIn extends StatelessWidget {
                       color: Colors.amber.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                       boxShadow: [
-                        BoxShadow(color: Colors.amber.withValues(alpha: 0.2), blurRadius: 40, spreadRadius: 5),
+                        BoxShadow(
+                            color: Colors.amber.withValues(alpha: 0.2),
+                            blurRadius: 40,
+                            spreadRadius: 5),
                       ],
                     ),
-                    child: Icon(Icons.bookmark_outline_rounded, size: 80, color: Colors.amber),
+                    child: Icon(Icons.bookmark_outline_rounded,
+                        size: 80, color: Colors.amber),
                   ),
                   const SizedBox(height: 48),
-                  
+
                   const Text(
                     'Your Library Awaits',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1),
+                    style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: -1),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'Login to sync your watchlist across all devices and never lose track of your progress.',
-                    style: TextStyle(fontSize: 16, color: Colors.white.withValues(alpha: 0.6), height: 1.6),
+                    style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        height: 1.6),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
@@ -610,11 +708,16 @@ class _NotLoggedIn extends StatelessWidget {
                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                       ),
                       icon: const Icon(Icons.login_rounded),
-                      label: const Text('JOIN THE WORLD OF ANIME', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                      label: const Text('JOIN THE WORLD OF ANIME',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                         foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
                         elevation: 0,
                       ),
                     ),
@@ -623,12 +726,16 @@ class _NotLoggedIn extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Small header for consistency
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
             left: 20,
-            child: Text('Watchlist', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
+            child: Text('Watchlist',
+                style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white)),
           ),
         ],
       ),

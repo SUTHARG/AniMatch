@@ -31,22 +31,22 @@ class HeroRecommendation {
   bool get needsUserInput => mode == RecommendationMode.explore;
 
   // ── Score breakdown (for transparency / debugging) ─────────────────────────
-  final double contentScore;    // cosine similarity  [0, 1]
-  final double behaviorScore;   // 1 - KL divergence  [0, 1]
-  final double temporalScore;   // recency cosine     [0, 1]
+  final double contentScore; // cosine similarity  [0, 1]
+  final double behaviorScore; // 1 - KL divergence  [0, 1]
+  final double temporalScore; // recency cosine     [0, 1]
   final double popularityScore; // Bayesian rating    [0, 1]
-  final double noveltyScore;    // anti-repetition    [0, 1]
+  final double noveltyScore; // anti-repetition    [0, 1]
 
   const HeroRecommendation({
     required this.anime,
     required this.confidence,
     required this.explanation,
-    this.alternatives    = const [],
-    this.mode            = RecommendationMode.confident,
-    this.contentScore    = 0,
-    this.behaviorScore   = 0,
-    this.temporalScore   = 0,
+    this.alternatives = const [],
+    this.mode = RecommendationMode.confident,
+    this.contentScore = 0,
+    this.behaviorScore = 0,
+    this.temporalScore = 0,
     this.popularityScore = 0,
-    this.noveltyScore    = 0,
+    this.noveltyScore = 0,
   });
 }

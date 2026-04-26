@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:animatch/data/sources/firebase/firebase_service.dart';
@@ -12,7 +12,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -149,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               'assets/images/login_bg.png',
             ),
           ),
-          
+
           // Blur Overlay
           Positioned.fill(
             child: BackdropFilter(
@@ -165,7 +166,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      icon:
+                          const Icon(Icons.close_rounded, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -191,7 +193,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       borderRadius: BorderRadius.circular(28),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: colorScheme.primary.withValues(alpha: 0.15),
+                                          color: colorScheme.primary
+                                              .withValues(alpha: 0.15),
                                           blurRadius: 40,
                                           spreadRadius: 2,
                                         ),
@@ -203,7 +206,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         'assets/images/final_app_logo.png',
                                         height: 110,
                                         width: 110,
-                                        fit: BoxFit.contain, // Changed to contain to show the full logo
+                                        fit: BoxFit
+                                            .contain, // Changed to contain to show the full logo
                                       ),
                                     ),
                                   ),
@@ -239,7 +243,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     label: 'Display name',
                                     icon: Icons.person_outline_rounded,
                                     validator: (v) {
-                                      if (!_isLogin && (v == null || v.trim().isEmpty)) {
+                                      if (!_isLogin &&
+                                          (v == null || v.trim().isEmpty)) {
                                         return 'Please enter your name';
                                       }
                                       return null;
@@ -254,8 +259,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   icon: Icons.email_outlined,
                                   keyboardType: TextInputType.emailAddress,
                                   validator: (v) {
-                                    if (v == null || v.trim().isEmpty) return 'Please enter email';
-                                    if (!v.contains('@')) return 'Invalid email';
+                                    if (v == null || v.trim().isEmpty)
+                                      return 'Please enter email';
+                                    if (!v.contains('@'))
+                                      return 'Invalid email';
                                     return null;
                                   },
                                 ),
@@ -267,10 +274,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   icon: Icons.lock_outline_rounded,
                                   obscureText: _obscurePassword,
                                   isPassword: true,
-                                  onToggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
+                                  onToggleVisibility: () => setState(() =>
+                                      _obscurePassword = !_obscurePassword),
                                   validator: (v) {
-                                    if (v == null || v.isEmpty) return 'Please enter password';
-                                    if (!_isLogin && v.length < 6) return 'Too short';
+                                    if (v == null || v.isEmpty)
+                                      return 'Please enter password';
+                                    if (!_isLogin && v.length < 6)
+                                      return 'Too short';
                                     return null;
                                   },
                                 ),
@@ -283,11 +293,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(16),
                                       gradient: LinearGradient(
-                                        colors: [Colors.amber, Colors.orange.shade800],
+                                        colors: [
+                                          Colors.amber,
+                                          Colors.orange.shade800
+                                        ],
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.amber.withValues(alpha: 0.3),
+                                          color: Colors.amber
+                                              .withValues(alpha: 0.3),
                                           blurRadius: 15,
                                           offset: const Offset(0, 5),
                                         ),
@@ -299,14 +313,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
                                         ),
                                       ),
                                       child: _isLoading
                                           ? const SizedBox(
                                               height: 24,
                                               width: 24,
-                                              child: CircularProgressIndicator(color: Colors.black, strokeWidth: 3),
+                                              child: CircularProgressIndicator(
+                                                  color: Colors.black,
+                                                  strokeWidth: 3),
                                             )
                                           : Text(
                                               _isLogin ? 'Log in' : 'Sign up',
@@ -326,18 +343,26 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
-                                      _isLogin ? "Don't have an account? " : 'Already have an account? ',
-                                      style: const TextStyle(color: Colors.white70),
+                                      _isLogin
+                                          ? "Don't have an account? "
+                                          : 'Already have an account? ',
+                                      style: const TextStyle(
+                                          color: Colors.white70),
                                     ),
                                     TextButton(
-                                      onPressed: _isLoading ? null : () {
-                                        setState(() => _isLogin = !_isLogin);
-                                        _animController.reset();
-                                        _animController.forward();
-                                      },
+                                      onPressed: _isLoading
+                                          ? null
+                                          : () {
+                                              setState(
+                                                  () => _isLogin = !_isLogin);
+                                              _animController.reset();
+                                              _animController.forward();
+                                            },
                                       child: Text(
                                         _isLogin ? 'Sign up' : 'Log in',
-                                        style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                            color: Colors.amber,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                     ),
                                   ],
@@ -347,9 +372,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 // Divider
                                 Row(
                                   children: [
-                                    Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.1))),
+                                    Expanded(
+                                        child: Divider(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.1))),
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16),
                                       child: Text(
                                         'OR CONTINUE WITH',
                                         style: textTheme.labelSmall?.copyWith(
@@ -359,7 +388,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ),
                                       ),
                                     ),
-                                    Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.1))),
+                                    Expanded(
+                                        child: Divider(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.1))),
                                   ],
                                 ),
                                 const SizedBox(height: 24),
@@ -398,7 +430,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     } on FirebaseAuthException catch (e) {
       _showError(_friendlyError(e.code));
     } catch (e) {
-      _showError('Google login failed. Please ensure Google Sign-In is enabled in Firebase.');
+      _showError(
+          'Google login failed. Please ensure Google Sign-In is enabled in Firebase.');
       debugPrint('Google Sign-In error: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -424,7 +457,8 @@ class _PremiumSocialButton extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
+          border:
+              Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),
@@ -477,16 +511,29 @@ class _GoogleLogoPainter extends CustomPainter {
     final double h = size.height;
     final double strokeWidth = w * 0.22;
 
-    final Paint bluePaint = Paint()..color = const Color(0xFF4285F4)..style = PaintingStyle.stroke..strokeWidth = strokeWidth;
-    final Paint greenPaint = Paint()..color = const Color(0xFF34A853)..style = PaintingStyle.stroke..strokeWidth = strokeWidth;
-    final Paint yellowPaint = Paint()..color = const Color(0xFFFBBC05)..style = PaintingStyle.stroke..strokeWidth = strokeWidth;
-    final Paint redPaint = Paint()..color = const Color(0xFFEA4335)..style = PaintingStyle.stroke..strokeWidth = strokeWidth;
+    final Paint bluePaint = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    final Paint greenPaint = Paint()
+      ..color = const Color(0xFF34A853)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    final Paint yellowPaint = Paint()
+      ..color = const Color(0xFFFBBC05)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    final Paint redPaint = Paint()
+      ..color = const Color(0xFFEA4335)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
 
-    final Rect rect = Rect.fromCircle(center: Offset(w/2, h/2), radius: (w - strokeWidth) / 2);
+    final Rect rect = Rect.fromCircle(
+        center: Offset(w / 2, h / 2), radius: (w - strokeWidth) / 2);
 
     // Blue section (Right part and the horizontal bar)
     canvas.drawArc(rect, -0.7, 0.7 + 0.5, false, bluePaint);
-    canvas.drawLine(Offset(w/2, h/2), Offset(w, h/2), bluePaint);
+    canvas.drawLine(Offset(w / 2, h / 2), Offset(w, h / 2), bluePaint);
 
     // Green section (Bottom)
     canvas.drawArc(rect, 0.5, 1.8, false, greenPaint);
@@ -537,7 +584,9 @@ class _GlassField extends StatelessWidget {
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
-                  obscureText ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  obscureText
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
                   color: Colors.white38,
                   size: 20,
                 ),
@@ -562,7 +611,8 @@ class _GlassField extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Colors.red),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
       validator: validator,
     );

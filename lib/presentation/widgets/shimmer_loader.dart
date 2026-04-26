@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
 class ShimmerSkeleton extends StatelessWidget {
@@ -66,7 +66,8 @@ class HomeShimmer extends StatelessWidget {
               itemCount: 5,
               itemBuilder: (_, __) => Padding(
                 padding: const EdgeInsets.only(right: 12),
-                child: ShimmerSkeleton(width: 140, height: 200, borderRadius: 12),
+                child:
+                    ShimmerSkeleton(width: 140, height: 200, borderRadius: 12),
               ),
             ),
           ),
@@ -79,7 +80,8 @@ class HomeShimmer extends StatelessWidget {
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ShimmerSkeleton(width: double.infinity, height: 160, borderRadius: 20),
+            child: ShimmerSkeleton(
+                width: double.infinity, height: 160, borderRadius: 20),
           ),
         ],
       ),
@@ -164,9 +166,17 @@ class DetailShimmer extends StatelessWidget {
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    Expanded(child: ShimmerSkeleton(width: double.infinity, height: 50, borderRadius: 25)),
+                    Expanded(
+                        child: ShimmerSkeleton(
+                            width: double.infinity,
+                            height: 50,
+                            borderRadius: 25)),
                     const SizedBox(width: 12),
-                    Expanded(child: ShimmerSkeleton(width: double.infinity, height: 50, borderRadius: 25)),
+                    Expanded(
+                        child: ShimmerSkeleton(
+                            width: double.infinity,
+                            height: 50,
+                            borderRadius: 25)),
                   ],
                 ),
                 const SizedBox(height: 32),

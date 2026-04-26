@@ -1,4 +1,4 @@
-﻿import 'package:animatch/data/models/media_base.dart';
+import 'package:animatch/data/models/media_base.dart';
 
 class Manga implements MediaBase {
   @override
@@ -14,7 +14,8 @@ class Manga implements MediaBase {
   final int? chapters;
   final int? volumes;
   final String? status;
-  final String? type; // Manga, Novel, Light Novel, One-shot, Doujinshi, Manhwa, Manhua, OEL
+  final String?
+      type; // Manga, Novel, Light Novel, One-shot, Doujinshi, Manhwa, Manhua, OEL
   @override
   final List<String> genres;
   final int? rank;
@@ -95,7 +96,8 @@ class Manga implements MediaBase {
   }
 
   @override
-  String get displayTitle => titleEnglish?.isNotEmpty == true ? titleEnglish! : title;
+  String get displayTitle =>
+      titleEnglish?.isNotEmpty == true ? titleEnglish! : title;
 
   String get chapterText {
     if (chapters == null) {
@@ -106,7 +108,7 @@ class Manga implements MediaBase {
     if (chapters == 1) return '1 chapter';
     return '$chapters chapters';
   }
-  
+
   String get volumeText {
     if (volumes == null) return 'Unknown volumes';
     if (volumes == 1) return '1 volume';
@@ -118,7 +120,7 @@ class Manga implements MediaBase {
 
   @override
   String get mediaProgressText => chapterText;
-  
+
   @override
   String get mediaTypeBadge => type ?? 'Manga';
 
@@ -157,7 +159,8 @@ class MangaCharacter {
     return MangaCharacter(
       id: char['mal_id'] as int? ?? 0,
       name: char['name'] as String? ?? 'Unknown',
-      imageUrl: char['images']?['jpg']?['image_url'] as String? ?? 'https://via.placeholder.com/150',
+      imageUrl: char['images']?['jpg']?['image_url'] as String? ??
+          'https://via.placeholder.com/150',
       role: json['role'] as String? ?? 'Supporting',
     );
   }

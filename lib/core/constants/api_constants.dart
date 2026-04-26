@@ -16,8 +16,8 @@ class ApiConstants {
 
   // ── Streaming deep-link schemes ─────────────────────────────────────────────
   static const String crunchyrollScheme = 'crunchyroll://';
-  static const String netflixScheme     = 'netflix://';
+  static const String netflixScheme = 'netflix://';
   static const String amazonPrimeScheme = 'aiv://';
-  static const String funimationScheme  = 'funimation://';
-  static const String disneyPlusScheme  = 'disneyplus://';
+  static const String funimationScheme = 'funimation://';
+  static const String disneyPlusScheme = 'disneyplus://';
 }

@@ -1,4 +1,4 @@
-﻿import 'dart:ui_web' as ui;
+import 'dart:ui_web' as ui;
 import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
@@ -19,9 +19,13 @@ Widget buildWebImage({required String imageUrl, BoxFit fit = BoxFit.cover}) {
 
 String _getFit(BoxFit fit) {
   switch (fit) {
-    case BoxFit.contain: return 'contain';
-    case BoxFit.fill: return 'fill';
-    case BoxFit.cover: return 'cover';
-    default: return 'cover';
+    case BoxFit.contain:
+      return 'contain';
+    case BoxFit.fill:
+      return 'fill';
+    case BoxFit.cover:
+      return 'cover';
+    default:
+      return 'cover';
   }
 }

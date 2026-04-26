@@ -304,47 +304,52 @@ class AnimeRepositoryImpl implements AnimeRepository {
       final priorBoost = 0.15 * best.popularityScore + 0.05 * rating;
       final adjusted = (best.totalScore * 0.8 + priorBoost).clamp(0.0, 1.0);
       return HeroRecommendation(
-        anime:          best.anime,
-        confidence:     _engine.confidencePercent(adjusted, penalty: 1.0),
-        explanation:    'Start rating more anime to get personalized picks!',
-        alternatives:   alts,
-        mode:           RecommendationMode.explore,
+        anime: best.anime,
+        confidence: _engine.confidencePercent(adjusted, penalty: 1.0),
+        explanation: 'Start rating more anime to get personalized picks!',
+        alternatives: alts,
+        mode: RecommendationMode.explore,
       );
     }
 
     // 3. Sigmoid confidence (now gap and quality-aware)
-    final gap = ranked.length > 1 ? best.totalScore - ranked[1].totalScore : 0.0;
+    final gap =
+        ranked.length > 1 ? best.totalScore - ranked[1].totalScore : 0.0;
     final normalizedGap = gap / (best.totalScore + 1e-6);
 
     final fit = 0.5 * best.contentScore + 0.5 * best.temporalScore;
-    final quality = 0.5 * best.popularityScore + 0.3 * ((best.anime.score ?? 7.0) / 10.0) + 0.2 * fit;
+    final quality = 0.5 * best.popularityScore +
+        0.3 * ((best.anime.score ?? 7.0) / 10.0) +
+        0.2 * fit;
 
     // Dynamic Thresholds
     final threshold = _engine.percentileThreshold(ranked, 0.7);
     final entropy = _engine.normalizedEntropy(ranked);
     final isHighQuality = quality > 0.65;
-    
+
     // Soft absolute floor
-    final floor = math.max(0.52, _engine.percentileThreshold(ranked, 0.6) - 0.04);
+    final floor =
+        math.max(0.52, _engine.percentileThreshold(ranked, 0.6) - 0.04);
     final passesAbsolute = best.totalScore > floor;
-    
+
     // Graded entropy influence (non-linear)
     final e = entropy.clamp(0.0, 1.0);
     final entropyPenalty = math.pow(math.max(0.0, e - 0.85), 1.5).toDouble();
     final effectiveScore = best.totalScore - 0.2 * entropyPenalty;
     final hasDominantSignal = effectiveScore > 0.78;
 
-    final isConfident =
-        hasDominantSignal || 
+    final isConfident = hasDominantSignal ||
         (best.totalScore > threshold &&
-         passesAbsolute &&
-         normalizedGap > 0.02 &&
-         isHighQuality &&
-         entropyPenalty == 0.0);
+            passesAbsolute &&
+            normalizedGap > 0.02 &&
+            isHighQuality &&
+            entropyPenalty == 0.0);
 
     final RecommendationMode mode = isConfident
         ? RecommendationMode.confident
-        : (best.totalScore > threshold * 0.9 && passesAbsolute && entropyPenalty < 0.1
+        : (best.totalScore > threshold * 0.9 &&
+                passesAbsolute &&
+                entropyPenalty < 0.1
             ? RecommendationMode.weak
             : RecommendationMode.explore);
 
@@ -363,16 +368,16 @@ class AnimeRepositoryImpl implements AnimeRepository {
     final explanation = buildHeroExplanation(best, mood, _engine.weights);
 
     return HeroRecommendation(
-      anime:          best.anime,
-      confidence:     confidence,
-      explanation:    explanation,
-      alternatives:   alts,
-      mode:           mode,
-      contentScore:    best.contentScore,
-      behaviorScore:   best.behaviorScore,
-      temporalScore:   best.temporalScore,
+      anime: best.anime,
+      confidence: confidence,
+      explanation: explanation,
+      alternatives: alts,
+      mode: mode,
+      contentScore: best.contentScore,
+      behaviorScore: best.behaviorScore,
+      temporalScore: best.temporalScore,
       popularityScore: best.popularityScore,
-      noveltyScore:    best.noveltyScore,
+      noveltyScore: best.noveltyScore,
     );
   }
 }

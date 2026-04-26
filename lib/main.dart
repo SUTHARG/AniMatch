@@ -1,8 +1,11 @@
 // lib/main.dart
+import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,6 +30,24 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // ── Crashlytics setup (release builds only) ──────────────────────────
+    // In debug mode this is a no-op so local development is never spammed.
+    // All uncaught Flutter framework errors and async zone errors are
+    // forwarded to Firebase Crashlytics in production.
+    if (!kDebugMode) {
+      await FirebaseCrashlytics.instance
+          .setCrashlyticsCollectionEnabled(true);
+      // Capture Flutter framework errors (widget build failures, etc.)
+      FlutterError.onError =
+          FirebaseCrashlytics.instance.recordFlutterFatalError;
+      // Capture errors on the platform dispatcher (e.g. image codec errors)
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+    }
+    // ─────────────────────────────────────────────────────────────────────
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
     // On unsupported platforms, we continue so the app still runs,
@@ -39,13 +60,24 @@ Future<void> main() async {
   final appState = AppState();
   await appState.init(); // loads saved appMode from Firestore if signed in
 
-  runApp(
-    ProviderScope(
-      child: AniMatchApp(
-        seenOnboarding: seenOnboarding,
-        appState: appState,
+  // Wrap runApp in runZonedGuarded so async errors thrown outside Flutter's
+  // error handler (e.g. in isolates, Futures, Streams) are also captured.
+  runZonedGuarded(
+    () => runApp(
+      ProviderScope(
+        child: AniMatchApp(
+          seenOnboarding: seenOnboarding,
+          appState: appState,
+        ),
       ),
     ),
+    (error, stack) {
+      if (!kDebugMode) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      } else {
+        debugPrint('Unhandled error: $error\n$stack');
+      }
+    },
   );
 }
 

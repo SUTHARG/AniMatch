@@ -19,7 +19,7 @@ AniMatch is not just another tracker — it's an **Anime Decision Engine**. Desi
 </div>
 
 ---
-## 📱 Demo
+##  Demo
 
 ### Home Screen
 https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/home_screen.mp4
@@ -33,16 +33,16 @@ https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/where_to_watch_and_watc
 ### Watchlist
 https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/Watchlist_saving.mp4
 
-## ✨ Features
+##  Features
 
-### 🏠 Home Dashboard
+###  Home Dashboard
 - **Anime of the Day** — deterministically selected daily (`dayOfYear % topAnime.length`), changes at midnight
 - **Spotlight Banner** — curated trending picks from AniList GraphQL
 - **Currently Airing** — live seasonal data from AniList
 - **Top Rated All Time** — highest-ranked titles from MyAnimeList via Jikan
 - **Anime / Manga mode toggle** — switches the entire feed, synced to cloud
 
-### 🧠 The Recommendation Engine
+###  The Recommendation Engine
 A production-grade **On-Device Hybrid Recommendation Engine**:
 - **3 Recommendation Modes** — Standard, Quiz-targeted, Discovery (hidden gems)
 - **Mathematical Scoring Pipeline:**
@@ -52,7 +52,7 @@ S(a,u) = α(Content Similarity) + β(Behavioral Match) + γ(Temporal Recency) + 
 - **Deterministic Jitter** — stable picks over a 24-hour window, different every day
 - Results are filtered, boosted for decisive margins, and never repeat the same show two days running
 
-### 🎯 Mood-Based Quiz
+###  Mood-Based Quiz
 A 4-step animated quiz acting as a rapid filter for the recommendation engine:
 
 | Step | Options |
@@ -62,7 +62,7 @@ A 4-step animated quiz acting as a rapid filter for the recommendation engine:
 | 3 — Length | Short (< 13 eps) · Medium (13–50) · Long (50+) · Any |
 | 4 — Status | Completed · Ongoing · Either |
 
-### 🎬 Where to Watch
+###  Where to Watch
 - Live streaming availability fetched from Jikan v4 per anime
 - Platform tiles with favicons (Crunchyroll, Netflix, Funimation, Disney+, HIDIVE, Amazon)
 - **One tap opens the native streaming app** via URI deep-links
@@ -78,31 +78,31 @@ A 4-step animated quiz acting as a rapid filter for the recommendation engine:
 | Amazon Prime | `aiv://` |
 | Others | Browser fallback |
 
-### 📋 Cloud-Synced Watchlist
+###  Cloud-Synced Watchlist
 - Status: **Watching · Completed · On Hold · Dropped · Plan to Watch**
 - Episode-by-episode progress tracking
 - Personal ratings (0–10 stars) and text reviews
 - Filter tabs by status — synced to Firestore in real time with offline persistence
 
-### 🔎 Search
+###  Search
 - Real-time search with **600ms debounce**
 - Recent search history stored in Firestore
 - History chips for one-tap re-search + Clear history button
 - Results sorted by MAL score
 
-### 📊 Personal Stats
+###  Personal Stats
 - Total anime tracked, episodes watched, estimated watch time
 - Average personal rating · Top 3 favourite genres
 
-### 👤 Profile & Auth
+###  Profile & Auth
 - Email/Password + **Google Sign-In** (one-tap)
 - Display name management · App mode synced to cloud
 
-### 🧭 Onboarding
+###  Onboarding
 - First-launch screen shown **exactly once** via SharedPreferences
 - Uses `Navigator.pushReplacement` — user can never navigate back
 
-### 🛡️ Crashlytics
+###  Crashlytics
 - All uncaught Flutter framework errors captured automatically
 - All async zone errors captured via `runZonedGuarded`
 - Non-fatal API errors logged with context (endpoint, reason)
@@ -111,7 +111,7 @@ A 4-step animated quiz acting as a rapid filter for the recommendation engine:
 
 ---
 
-## 📐 Architecture
+##  Architecture
 
 AniMatch follows a strictly layered, unidirectional architecture.
 
@@ -284,7 +284,7 @@ main()
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
@@ -306,20 +306,20 @@ main()
 
 ---
 
-## 🌐 Supported Platforms
+##  Supported Platforms
 
 | Platform | Status |
 |----------|--------|
-| Android | ✅ Supported (min SDK 21) |
-| iOS | ✅ Supported |
-| Web (Chrome / Edge) | ✅ Supported |
-| Windows | ✅ Supported |
-| macOS | ✅ Supported |
-| Linux | ✅ Supported |
+| Android |  Supported (min SDK 21) |
+| iOS |  Supported |
+| Web (Chrome / Edge) |  Supported |
+| Windows |  Supported |
+| macOS |  Supported |
+| Linux |  Supported |
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### 1. Clone
 ```bash
@@ -357,7 +357,7 @@ service cloud.firestore {
 5. Download `google-services.json` → place in `android/app/`
 6. Download `GoogleService-Info.plist` → place in `ios/Runner/`
 
-> ⚠️ These files are in `.gitignore`. Never commit them to a public repo.
+> These files are in `.gitignore`. Never commit them to a public repo.
 
 ### 5. Run
 ```bash
@@ -368,7 +368,7 @@ flutter run -d chrome --web-renderer html  # Web
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
@@ -381,15 +381,15 @@ flutter run -d chrome --web-renderer html  # Web
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
 
-## 🗺️ Roadmap
+##  Roadmap
 
-### ✅ Completed
+### Completed
 - Flutter multi-platform setup · Riverpod architecture
 - Jikan REST v4 + AniList GraphQL integrations
 - On-Device Hybrid Recommendation Engine (3 modes)
@@ -397,10 +397,10 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 - Firebase Auth (Email + Google) · Firestore sync
 - Firebase Crashlytics (release-only)
 - Shimmer loading · App icon · Splash screen
-- Onboarding (show once) · `flutter analyze` passing ✅
-- Release APK verified (55.7 MB) ✅
+- Onboarding (show once) · `flutter analyze` passing 
+- Release APK verified (55.7 MB) 
 
-### 🔜 Upcoming
+### Upcoming
 - Firebase Analytics · Collaborative filtering
 - Social layer (friend lists, watchlist sharing)
 - CI/CD pipeline (GitHub Actions + Fastlane)
@@ -410,7 +410,7 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ---
 
-## 📄 License
+## License
 
 MIT License — see [LICENSE](LICENSE) for details.
 
@@ -418,7 +418,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-⭐ **If you find AniMatch useful, please star the repository!** ⭐
+ **If you find AniMatch useful, please star the repository!** 
 
 *Anime data from [MyAnimeList](https://myanimelist.net/) via [Jikan API](https://jikan.moe/) · Trending data from [AniList](https://anilist.co/)*
 

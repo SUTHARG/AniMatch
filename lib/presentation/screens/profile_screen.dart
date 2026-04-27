@@ -23,9 +23,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (_) => _AvatarPickerDialog(current: current),
     );
     if (picked != null) {
-      // Store in SharedPreferences or Firestore as needed
-      // For simplicity, just rebuild
-      setState(() {});
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await _firebase.updateAvatar(uid, picked);
+        setState(() {});
+      }
     }
   }
 
@@ -35,7 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final theme = Theme.of(context);
 
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: FirebaseAuth.instance.userChanges(),
       builder: (context, snap) {
         final user = snap.data;
 
@@ -47,6 +49,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? user.displayName!
             : 'Anime Fan';
         final email = user.email ?? '';
+        final avatar = user.photoURL;
+        final hasImage = avatar != null && avatar.startsWith('http');
+        final hasEmoji = avatar != null && !avatar.startsWith('http') && avatar.isNotEmpty;
         final initials = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
         return Scaffold(
@@ -122,13 +127,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   child: CircleAvatar(
                                     radius: 40,
                                     backgroundColor: Colors.white10,
-                                    child: Text(
-                                      initials,
-                                      style: const TextStyle(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.amber),
-                                    ),
+                                    backgroundImage: hasImage ? NetworkImage(avatar!) : null,
+                                    child: hasImage
+                                        ? null
+                                        : Text(
+                                            hasEmoji ? avatar! : initials,
+                                            style: TextStyle(
+                                                fontSize: hasEmoji ? 40 : 32,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.amber),
+                                          ),
                                   ),
                                 ),
                               ),

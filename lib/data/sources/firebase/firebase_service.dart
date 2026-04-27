@@ -171,6 +171,13 @@ class FirebaseService {
     }, SetOptions(merge: true));
   }
 
+  Future<void> updateAvatar(String uid, String avatar) async {
+    await FirebaseAuth.instance.currentUser?.updatePhotoURL(avatar);
+    await _db.collection('users').doc(uid).set({
+      'avatar': avatar,
+    }, SetOptions(merge: true));
+  }
+
   // ── App Mode ─────────────────────────
   Future<void> saveAppMode(String uid, String mode) async {
     await _db.collection('users').doc(uid).set({

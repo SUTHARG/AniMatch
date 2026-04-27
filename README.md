@@ -19,6 +19,15 @@ AniMatch is not just another tracker — it's an **Anime Decision Engine**. Desi
 </div>
 
 ---
+## 📱 Demo
+
+| Home Screen | Mood Quiz |
+|:-----------:|:---------:|
+| <video src="assets/demo/home_screen.mp4" width="200" controls muted></video> | <video src="assets/demo/Quiz_Flow.mp4" width="200" controls muted></video> |
+
+| Where to Watch | Watchlist |
+|:--------------:|:---------:|
+| <video src="assets/demo/where_to_watch_and_watch_trailer.mp4" width="200" controls muted></video> | <video src="assets/demo/Watchlist_saving.mp4" width="200" controls muted></video> |
 
 ## ✨ Features
 

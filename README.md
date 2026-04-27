@@ -21,13 +21,17 @@ AniMatch is not just another tracker — it's an **Anime Decision Engine**. Desi
 ---
 ## 📱 Demo
 
-| Home Screen | Mood Quiz |
-|:-----------:|:---------:|
-| <video src="https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/home_screen.mp4" width="200" controls muted></video> | <video src="https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/Quiz_Flow.mp4" width="200" controls muted></video> |
+### Home Screen
+https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/home_screen.mp4
 
-| Where to Watch | Watchlist |
-|:--------------:|:---------:|
-| <video src="https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/where_to_watch_and_watch_trailer.mp4" width="200" controls muted></video> | <video src="https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/Watchlist_saving.mp4" width="200" controls muted></video> |
+### Mood Quiz
+https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/Quiz_Flow.mp4
+
+### Where to Watch
+https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/where_to_watch_and_watch_trailer.mp4
+
+### Watchlist
+https://github.com/SUTHARG/AniMatch/raw/main/assets/demo/Watchlist_saving.mp4
 
 ## ✨ Features
 

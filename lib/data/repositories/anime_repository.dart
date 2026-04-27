@@ -19,7 +19,7 @@ abstract class AnimeRepository {
   });
   Future<List<Manga>> searchManga(String query);
   Future<String?> getCoverImage(
-    int malId,
+    int? malId,
     String title, {
     bool isManga = false,
   });
@@ -235,14 +235,17 @@ class AnimeRepositoryImpl implements AnimeRepository {
 
   @override
   Future<String?> getCoverImage(
-    int malId,
+    int? malId,
     String title, {
     bool isManga = false,
   }) async {
-    var url = await anilistService.getCoverImageByMalId(
-      malId,
-      isManga: isManga,
-    );
+    String? url;
+    if (malId != null) {
+      url = await anilistService.getCoverImageByMalId(
+        malId,
+        isManga: isManga,
+      );
+    }
 
     url ??= await anilistService.getCoverImageByTitle(
       title,

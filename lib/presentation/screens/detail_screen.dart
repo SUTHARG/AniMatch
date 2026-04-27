@@ -17,7 +17,7 @@ import 'package:animatch/core/utils/image_utils.dart';
 import 'package:animatch/presentation/widgets/shimmer_loader.dart';
 
 class DetailScreen extends StatefulWidget {
-  final int malId;
+  final int? malId;
   final bool isManga;
   const DetailScreen({super.key, required this.malId, this.isManga = false});
 
@@ -58,14 +58,14 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<List<StreamingLink>> _getStreamingLinks() async {
-    if (widget.isManga)
+    if (widget.isManga || widget.malId == null)
       return []; // Manga doesn't have streaming links typically through this endpoint
 
     final uid = _firebase.currentUser?.uid;
     if (uid != null) {
       try {
         final cached =
-            await _firebase.getCachedStreamingLinks(uid, widget.malId);
+            await _firebase.getCachedStreamingLinks(uid, widget.malId!);
         if (cached != null) {
           return cached
               .map((e) => StreamingLink.fromJson(e as Map<String, dynamic>))
@@ -73,11 +73,11 @@ class _DetailScreenState extends State<DetailScreen> {
         }
       } catch (_) {}
     }
-    final links = await _jikan.fetchStreamingLinks(widget.malId);
+    final links = await _jikan.fetchStreamingLinks(widget.malId!);
     if (uid != null && links.isNotEmpty) {
       _firebase
           .cacheStreamingLinks(
-              uid, widget.malId, links.map((e) => e.toJson()).toList())
+              uid, widget.malId!, links.map((e) => e.toJson()).toList())
           .ignore();
     }
     return links;
@@ -121,14 +121,24 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> _load() async {
+    if (widget.malId == null) {
+      if (mounted) {
+        setState(() {
+          _error = 'Detail page is unavailable for this item (No MAL ID).';
+          _loading = false;
+        });
+      }
+      return;
+    }
+
     try {
       // 1. Fetch core detail
       MediaBase media;
       if (widget.isManga) {
-        final manga = await _jikan.getMangaDetail(widget.malId);
+        final manga = await _jikan.getMangaDetail(widget.malId!);
         media = manga;
       } else {
-        final anime = await _jikan.getAnimeDetail(widget.malId);
+        final anime = await _jikan.getAnimeDetail(widget.malId!);
         media = anime;
       }
 
@@ -139,7 +149,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
       Map<String, dynamic>? entry;
       if (uid != null)
-        entry = await _firebase.getWatchlistEntry(uid, widget.malId,
+        entry = await _firebase.getWatchlistEntry(uid, widget.malId!,
             isManga: widget.isManga);
 
       if (mounted) {
@@ -163,26 +173,26 @@ class _DetailScreenState extends State<DetailScreen> {
 
       // 2. Fetch similar (awaited sequentially to prevent 429)
       if (widget.isManga) {
-        final similarList = await _jikan.getSimilarManga(widget.malId);
+        final similarList = await _jikan.getSimilarManga(widget.malId!);
         if (mounted) setState(() => _similar = similarList);
       } else {
-        final similarList = await _jikan.getSimilarAnime(widget.malId);
+        final similarList = await _jikan.getSimilarAnime(widget.malId!);
         if (mounted) setState(() => _similar = similarList);
       }
 
       // 3. Fetch characters (awaited sequentially)
       if (widget.isManga) {
-        final charList = await _jikan.getMangaCharacters(widget.malId);
+        final charList = await _jikan.getMangaCharacters(widget.malId!);
         if (mounted) setState(() => _characters = charList);
       } else {
-        final charList = await _jikan.getCharacters(widget.malId);
+        final charList = await _jikan.getCharacters(widget.malId!);
         if (mounted) setState(() => _characters = charList);
       }
 
       // 4. Fetch CORS-friendly cover from AniList on Web
       if (kIsWeb) {
         setState(() => _loadingAnilist = true);
-        final url = await _anilist.getCoverImageByMalId(widget.malId) ??
+        final url = await _anilist.getCoverImageByMalId(widget.malId!) ??
             await _anilist.getCoverImageByTitle(media.displayTitle);
         if (mounted) {
           setState(() {
@@ -194,11 +204,16 @@ class _DetailScreenState extends State<DetailScreen> {
 
       if (mounted) setState(() => _loading = false);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
-          _error = e.toString();
+          if (e.toString().contains('404')) {
+            _error = 'This item is not yet available in our database.';
+          } else {
+            _error = 'Failed to load details. Please try again.';
+          }
           _loading = false;
         });
+      }
     }
   }
 
@@ -246,13 +261,13 @@ class _DetailScreenState extends State<DetailScreen> {
     }
     await showRatingSheet(
       context,
-      malId: widget.malId,
+      malId: widget.malId!,
       title: _media!.displayTitle,
       isManga: widget.isManga,
       currentRating: _userRating,
       currentReview: _userReview,
     );
-    final data = await _firebase.getRatingAndReview(uid, widget.malId,
+    final data = await _firebase.getRatingAndReview(uid, widget.malId!,
         isManga: widget.isManga);
     if (mounted && data != null) {
       setState(() {
@@ -269,9 +284,9 @@ class _DetailScreenState extends State<DetailScreen> {
       return;
     }
     if (widget.isManga) {
-      await _firebase.updateChapterProgress(uid, widget.malId, val);
+      await _firebase.updateChapterProgress(uid, widget.malId!, val);
     } else {
-      await _firebase.updateEpisodeProgress(uid, widget.malId, val);
+      await _firebase.updateEpisodeProgress(uid, widget.malId!, val);
     }
     if (mounted) setState(() => _progress = val);
   }
@@ -458,8 +473,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             color: Colors.white12),
                       _Badge(label: 'HD', color: Colors.amber),
                       _Badge(
-                          label:
-                              '${total ?? "?"} ${widget.isManga ? 'chps' : 'eps'}',
+                          label: media.mediaProgressText,
                           color: const Color(0xFFB1E5D5),
                           textColor: Colors.black),
                       if (widget.isManga)

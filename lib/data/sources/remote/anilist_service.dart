@@ -53,6 +53,7 @@ class AnilistService {
             airingAt
             episode
             media {
+              id
               idMal
               title { romaji english }
               coverImage { large }

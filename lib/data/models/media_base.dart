@@ -1,5 +1,6 @@
-﻿abstract class MediaBase {
-  int get malId;
+abstract class MediaBase {
+  int? get anilistId;
+  int? get malId;
   String get displayTitle;
   String get displayImageUrl;
   double? get score;

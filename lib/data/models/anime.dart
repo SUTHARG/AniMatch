@@ -25,7 +25,9 @@ class StreamingLink {
 
 class Anime implements MediaBase {
   @override
-  final int malId;
+  final int? anilistId;
+  @override
+  final int? malId;
   final String title;
   final String? titleEnglish;
   final String imageUrl;
@@ -64,7 +66,8 @@ class Anime implements MediaBase {
   final String? source;
 
   const Anime({
-    required this.malId,
+    this.anilistId,
+    this.malId,
     required this.title,
     this.titleEnglish,
     required this.imageUrl,
@@ -102,9 +105,35 @@ class Anime implements MediaBase {
   @override
   String get scoreText => score != null ? score!.toStringAsFixed(1) : 'N/A';
 
+  String formatEpisodeCount() {
+    String t = type ?? 'TV';
+    
+    // Normalize type strings
+    if (t.toUpperCase() == 'MOVIE') return 'Movie';
+    if (t.toUpperCase() == 'TV_SHORT') t = 'TV';
+    
+    String displayType = t;
+    if (['TV', 'OVA', 'ONA', 'PV', 'CM'].contains(t.toUpperCase())) {
+      displayType = t.toUpperCase();
+    } else if (t.isNotEmpty) {
+      displayType = t[0].toUpperCase() + t.substring(1).toLowerCase();
+    }
+
+    final isAiring = status?.toLowerCase() == 'airing' || 
+                     status?.toLowerCase() == 'releasing' ||
+                     status?.toLowerCase() == 'currently airing';
+
+    if (episodes != null && episodes! > 0) {
+      return '$displayType ($episodes eps)';
+    } else if (isAiring) {
+      return '$displayType • Airing';
+    } else {
+      return '$displayType • Unknown';
+    }
+  }
+
   @override
-  String get mediaProgressText =>
-      '${type ?? 'TV'} (${episodes?.toString() ?? '?'} eps)';
+  String get mediaProgressText => formatEpisodeCount();
 
   @override
   String get mediaTypeBadge => type ?? 'TV';
@@ -131,7 +160,7 @@ class Anime implements MediaBase {
         .map((g) => g['name'] as String)
         .toList();
 
-    final malId = json['mal_id'] as int;
+    final malId = json['mal_id'] as int?;
 
     return Anime(
       malId: malId,
@@ -148,7 +177,7 @@ class Anime implements MediaBase {
       trailerUrl: _parseTrailerUrl(json['trailer']),
       rank: json['rank'] as int?,
       members: json['members'] as int?,
-      malUrl: 'https://myanimelist.net/anime/$malId',
+      malUrl: malId != null ? 'https://myanimelist.net/anime/$malId' : null,
       streamingLinks: (json['streaming'] as List<dynamic>?)
           ?.map((e) => StreamingLink.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -187,8 +216,13 @@ class Anime implements MediaBase {
         .map((e) => e.toString())
         .toList();
 
+    final malId = json['idMal'] as int?;
+    final anilistId = json['id'] as int?;
+    print('DEBUG [Anime]: AniList parsed -> AniList ID: $anilistId | MAL ID: $malId');
+    
     return Anime(
-      malId: json['idMal'] ?? 0,
+      anilistId: anilistId,
+      malId: malId,
       title: title,
       titleEnglish: titleEnglish,
       imageUrl: imageUrl,
@@ -199,12 +233,13 @@ class Anime implements MediaBase {
           : null,
       episodes: json['episodes'] as int?,
       status: json['status'] as String?,
+      type: json['format'] as String?,
       genres: genres,
-      malUrl: 'https://myanimelist.net/anime/${json['idMal']}',
+      malUrl: malId != null ? 'https://myanimelist.net/anime/$malId' : null,
     );
   }
 
-  String get malPageUrl => malUrl ?? 'https://myanimelist.net/anime/$malId';
+  String get malPageUrl => malUrl ?? (malId != null ? 'https://myanimelist.net/anime/$malId' : 'https://myanimelist.net');
 
   static String? _parseTrailerUrl(Map<String, dynamic>? trailer) {
     if (trailer == null) return null;

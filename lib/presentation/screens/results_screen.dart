@@ -168,10 +168,12 @@ class _MediaCardState extends State<_MediaCard> {
     if (!mounted) return;
     setState(() => _loadingAnilist = true);
 
-    // Stage 1: Try by MAL ID
-    String? url = await _anilist
-        .getCoverImageByMalId(widget.media.malId, isManga: widget.isManga)
-        .timeout(const Duration(seconds: 2), onTimeout: () => null);
+    String? url;
+    if (widget.media.malId != null) {
+      url = await _anilist
+          .getCoverImageByMalId(widget.media.malId!, isManga: widget.isManga)
+          .timeout(const Duration(seconds: 2), onTimeout: () => null);
+    }
 
     // Stage 2: Try by Title if ID fails
     if (url == null && mounted) {
@@ -191,8 +193,8 @@ class _MediaCardState extends State<_MediaCard> {
 
   Future<void> _checkInList() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    final result = await _firebase.isInWatchlist(uid, widget.media.malId);
+    if (uid == null || widget.media.malId == null) return;
+    final result = await _firebase.isInWatchlist(uid, widget.media.malId!);
     if (mounted) setState(() => _inList = result);
   }
 
@@ -213,8 +215,13 @@ class _MediaCardState extends State<_MediaCard> {
       return;
     }
 
+    if (widget.media.malId == null) {
+      snacks.showError(context, 'Cannot save this item (No ID)');
+      return;
+    }
+
     final data = {
-      'malId': widget.media.malId,
+      'malId': widget.media.malId!,
       'title': widget.media.displayTitle,
       'imageUrl': widget.media.displayImageUrl,
       'score': widget.media.score,
@@ -222,9 +229,9 @@ class _MediaCardState extends State<_MediaCard> {
 
     if (_inList) {
       if (widget.isManga) {
-        await _firebase.removeFromMangaWatchlist(uid, widget.media.malId);
+        await _firebase.removeFromMangaWatchlist(uid, widget.media.malId!);
       } else {
-        await _firebase.removeFromWatchlist(uid, widget.media.malId);
+        await _firebase.removeFromWatchlist(uid, widget.media.malId!);
       }
       if (mounted) snacks.showError(context, 'Removed from list');
     } else {

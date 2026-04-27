@@ -26,6 +26,7 @@ import 'package:animatch/presentation/providers/anime_provider.dart';
 import 'package:animatch/presentation/providers/recommendation_provider.dart';
 import 'package:animatch/presentation/providers/watchlist_provider.dart';
 import 'package:animatch/data/models/hero_recommendation.dart';
+import 'package:animatch/core/utils/snackbar_utils.dart' as snacks;
 
 class HomeScreen extends StatefulWidget {
   final AppState appState;
@@ -1259,8 +1260,13 @@ class _TrendingListState extends State<_TrendingList> {
                                     return;
                                   }
 
+                                  if (item.malId == null) {
+                                    snacks.showError(
+                                        context, 'Cannot manage watchlist (No ID)');
+                                    return;
+                                  }
                                   final entry = await FirebaseService()
-                                      .getWatchlistEntry(uid, item.malId,
+                                      .getWatchlistEntry(uid, item.malId!,
                                           isManga: widget.isManga);
 
                                   dynamic currentStatus;
@@ -2583,8 +2589,13 @@ class _TopUpcomingSectionState extends State<_TopUpcomingSection> {
                                       return;
                                     }
 
+                                    if (item.malId == null) {
+                                      snacks.showError(context,
+                                          'Cannot manage watchlist (No ID)');
+                                      return;
+                                    }
                                     final entry = await FirebaseService()
-                                        .getWatchlistEntry(uid, item.malId,
+                                        .getWatchlistEntry(uid, item.malId!,
                                             isManga: widget.isManga);
 
                                     dynamic currentStatus;
@@ -2789,8 +2800,13 @@ class _TopTenSectionState extends ConsumerState<_TopTenSection> {
                                 return;
                               }
 
+                              if (anime.malId == null) {
+                                snacks.showError(
+                                    context, 'Cannot manage watchlist (No ID)');
+                                return;
+                              }
                               final entry = await FirebaseService()
-                                  .getWatchlistEntry(uid, anime.malId,
+                                  .getWatchlistEntry(uid, anime.malId!,
                                       isManga: widget.isManga);
 
                               dynamic currentStatus;
@@ -3140,8 +3156,7 @@ class _HeroCard extends StatelessWidget {
                                 Wrap(spacing: 6, runSpacing: 4, children: [
                                   if (anime.score != null)
                                     _StatChip('⭐ ${anime.scoreText}'),
-                                  if (anime.episodes != null)
-                                    _StatChip('${anime.episodes} eps'),
+                                  _StatChip(anime.mediaProgressText),
                                   if (anime.genres.isNotEmpty)
                                     _StatChip(anime.genres.first),
                                 ]),

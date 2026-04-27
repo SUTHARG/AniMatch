@@ -155,7 +155,7 @@ class _MediaStatusSheetState extends ConsumerState<_MediaStatusSheet> {
     try {
       await actions.remove(
         uid: uid,
-        malId: widget.media.malId,
+        malId: widget.media.malId!,
         isManga: widget.isManga,
       );
       if (mounted) Navigator.pop(context, null);

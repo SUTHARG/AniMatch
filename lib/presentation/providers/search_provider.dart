@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:animatch/data/models/media_base.dart';
@@ -105,7 +105,7 @@ class SearchRequest {
 
 @immutable
 class CoverImageRequest {
-  final int malId;
+  final int? malId;
   final String title;
   final bool isManga;
 

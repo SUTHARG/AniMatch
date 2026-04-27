@@ -266,8 +266,13 @@ class _SearchMediaCard extends ConsumerWidget {
                     context, 'Please log in to manage your watchlist.');
                 return;
               }
+              if (media.malId == null) {
+                snacks.showError(
+                    context, 'Cannot manage watchlist for this item (No ID).');
+                return;
+              }
               final entry =
-                  await actions.getEntry(uid, media.malId, isManga: isManga);
+                  await actions.getEntry(uid, media.malId!, isManga: isManga);
 
               dynamic currentStatus;
               if (entry != null) {
@@ -288,12 +293,18 @@ class _SearchMediaCard extends ConsumerWidget {
         PinterestMenuAction(
             icon: Icons.info_outline_rounded,
             label: 'Details',
-            onAction: () => Navigator.push(
+            onAction: () {
+              if (media.malId == null) {
+                snacks.showError(context, 'Detail unavailable (No ID)');
+              } else {
+                Navigator.push(
                   context,
                   MaterialPageRoute(
                       builder: (_) =>
                           DetailScreen(malId: media.malId, isManga: isManga)),
-                )),
+                );
+              }
+            }),
       ],
       child: ListTile(
         leading: ClipRRect(
@@ -330,6 +341,10 @@ class _SearchMediaCard extends ConsumerWidget {
             : null,
         onTap: () {
           onTap();
+          if (media.malId == null) {
+            snacks.showError(context, 'Detail unavailable (No ID)');
+            return;
+          }
           Navigator.push(
             context,
             MaterialPageRoute(

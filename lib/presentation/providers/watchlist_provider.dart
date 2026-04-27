@@ -1,4 +1,4 @@
-﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -67,13 +67,13 @@ class WatchlistActions {
       final readStatus = status as ReadStatus;
       final alreadyIn = await watchlistRepository.getWatchlistEntry(
         uid,
-        media.malId,
+        media.malId!,
         isManga: true,
       );
       if (alreadyIn != null) {
         await watchlistRepository.updateStatus(
           uid,
-          media.malId,
+          media.malId!,
           readStatus.name,
           isManga: true,
         );
@@ -81,7 +81,7 @@ class WatchlistActions {
         await watchlistRepository.addToWatchlist(
             uid,
             {
-              'malId': media.malId,
+              'malId': media.malId!,
               'title': media.displayTitle,
               'imageUrl': media.displayImageUrl,
               'score': media.score,
@@ -96,17 +96,17 @@ class WatchlistActions {
       final watchStatus = status as WatchStatus;
       final alreadyIn = await watchlistRepository.getWatchlistEntry(
         uid,
-        media.malId,
+        media.malId!,
       );
       if (alreadyIn != null) {
         await watchlistRepository.updateStatus(
           uid,
-          media.malId,
+          media.malId!,
           watchStatus.name,
         );
       } else {
         await watchlistRepository.addToWatchlist(uid, {
-          'malId': media.malId,
+          'malId': media.malId!,
           'title': media.displayTitle,
           'imageUrl': media.displayImageUrl,
           'score': media.score,

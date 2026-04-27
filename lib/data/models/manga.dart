@@ -2,7 +2,9 @@ import 'package:animatch/data/models/media_base.dart';
 
 class Manga implements MediaBase {
   @override
-  final int malId;
+  final int? anilistId;
+  @override
+  final int? malId;
   final String title;
   final String? titleEnglish;
   final String imageUrl;
@@ -32,7 +34,8 @@ class Manga implements MediaBase {
   final List<String> serializations;
 
   const Manga({
-    required this.malId,
+    this.anilistId,
+    this.malId,
     required this.title,
     this.titleEnglish,
     required this.imageUrl,
@@ -63,7 +66,7 @@ class Manga implements MediaBase {
         .map((g) => g['name'] as String)
         .toList();
 
-    final malId = json['mal_id'] as int;
+    final malId = json['mal_id'] as int?;
 
     return Manga(
       malId: malId,
@@ -79,7 +82,7 @@ class Manga implements MediaBase {
       genres: genreList,
       rank: json['rank'] as int?,
       members: json['members'] as int?,
-      malUrl: 'https://myanimelist.net/manga/$malId',
+      malUrl: malId != null ? 'https://myanimelist.net/manga/$malId' : null,
       titleJapanese: json['title_japanese'] as String?,
       synonyms: (json['titles'] as List<dynamic>? ?? [])
           .where((t) => t['type'] != 'Default')
@@ -124,7 +127,7 @@ class Manga implements MediaBase {
   @override
   String get mediaTypeBadge => type ?? 'Manga';
 
-  String get malPageUrl => malUrl ?? 'https://myanimelist.net/manga/$malId';
+  String get malPageUrl => malUrl ?? (malId != null ? 'https://myanimelist.net/manga/$malId' : 'https://myanimelist.net');
 
   @override
   bool get isCompleted => status?.toLowerCase() == 'finished';

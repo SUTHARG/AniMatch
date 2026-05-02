@@ -1,20 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const { ANIME } = require('@consumet/extensions');
 
-const ANIWATCH_URL = process.env.ANIWATCH_API_URL;
+// Initialize the Hianime (Zoro) provider locally
+const zoro = new ANIME.Zoro();
+
 const REDIS_TTL_SEARCH = 3600;      // 1 hour
 const REDIS_TTL_EPISODES = 3600;    // 1 hour
-const REDIS_TTL_SOURCES = 300;      // 5 minutes (sources expire fast)
-const REDIS_TTL_SKIP = 86400;       // 24 hours (skip times rarely change)
+const REDIS_TTL_SOURCES = 300;      // 5 minutes
+const REDIS_TTL_SKIP = 86400;       // 24 hours
 
-// Helper: get Redis client from app (already set up in your backend)
 function getRedis(req) {
-  return req.app.get('redis'); // adjust to however you access redis
+  return req.app.get('redis');
 }
 
 // ── SEARCH anime by title ──────────────────────────────────────────────────
-// GET /api/stream/search?q=attack+on+titan
 router.get('/search', async (req, res) => {
   const q = req.query.q?.trim();
   if (!q || q.length < 2) {
@@ -27,26 +28,35 @@ router.get('/search', async (req, res) => {
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
-    const response = await axios.get(
-      `${ANIWATCH_URL}/api/v2/hianime/search`,
-      {
-        params: { q, page: 1 },
-        timeout: 10000,
+    // Use Consumet locally
+    const results = await zoro.search(q);
+    
+    // Map Consumet format to our existing API format
+    const data = {
+      success: true,
+      data: {
+        animes: results.results.map(a => ({
+          id: a.id,
+          name: a.title,
+          poster: a.image,
+          type: a.type || 'TV',
+          episodes: {
+            sub: a.episodeCount || 0,
+            dub: 0
+          }
+        }))
       }
-    );
+    };
 
-    const data = response.data;
     await redis.setex(cacheKey, REDIS_TTL_SEARCH, JSON.stringify(data));
     return res.json(data);
   } catch (err) {
     console.error('[stream/search] error:', err.message);
-    return res.status(502).json({ error: 'Search failed', detail: err.message });
+    return res.status(500).json({ error: 'Search failed', detail: err.message });
   }
 });
 
-// ── GET episode list for a hianime anime ID ────────────────────────────────
-// GET /api/stream/episodes/:animeId
-// animeId example: "attack-on-titan-112"
+// ── GET episode list ───────────────────────────────────────────────────────
 router.get('/episodes/:animeId', async (req, res) => {
   const { animeId } = req.params;
   const cacheKey = `stream:episodes:${animeId}`;
@@ -55,26 +65,30 @@ router.get('/episodes/:animeId', async (req, res) => {
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
-    const response = await axios.get(
-      `${ANIWATCH_URL}/api/v2/hianime/anime/${animeId}/episodes`,
-      { timeout: 10000 }
-    );
+    const info = await zoro.fetchAnimeInfo(animeId);
+    
+    const data = {
+      success: true,
+      data: {
+        episodes: info.episodes.map(e => ({
+          episodeId: e.id,
+          number: e.number,
+          title: e.title || `Episode ${e.number}`
+        }))
+      }
+    };
 
-    const data = response.data;
     await redis.setex(cacheKey, REDIS_TTL_EPISODES, JSON.stringify(data));
     return res.json(data);
   } catch (err) {
     console.error('[stream/episodes] error:', err.message);
-    return res.status(502).json({ error: 'Episode fetch failed' });
+    return res.status(500).json({ error: 'Episode fetch failed' });
   }
 });
 
-// ── GET streaming sources for an episode ──────────────────────────────────
-// GET /api/stream/sources?episodeId=attack-on-titan-112?ep=230&category=sub
-// category: "sub" | "dub" | "raw"
-// server: "hd-1" | "hd-2" (default hd-1)
+// ── GET streaming sources ──────────────────────────────────────────────────
 router.get('/sources', async (req, res) => {
-  const { episodeId, category = 'sub', server = 'hd-1' } = req.query;
+  const { episodeId, category = 'sub', server = 'vidcloud' } = req.query;
   if (!episodeId) {
     return res.status(400).json({ error: 'episodeId required' });
   }
@@ -85,28 +99,36 @@ router.get('/sources', async (req, res) => {
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
-    const response = await axios.get(
-      `${ANIWATCH_URL}/api/v2/hianime/episode/sources`,
-      {
-        params: { animeEpisodeId: episodeId, server, category },
-        timeout: 15000,
+    const sources = await zoro.fetchEpisodeSources(episodeId, server);
+    
+    const data = {
+      success: true,
+      data: {
+        sources: sources.sources.map(s => ({
+          url: s.url,
+          isM3U8: s.isM3U8,
+          quality: s.quality || 'auto'
+        })),
+        tracks: sources.subtitles ? sources.subtitles.map(t => ({
+          file: t.url,
+          label: t.lang,
+          kind: 'captions',
+          default: t.lang === 'English'
+        })) : []
       }
-    );
+    };
 
-    const data = response.data;
-    // Only cache successful responses with actual sources
-    if (data?.data?.sources?.length > 0) {
+    if (data.data.sources.length > 0) {
       await redis.setex(cacheKey, REDIS_TTL_SOURCES, JSON.stringify(data));
     }
     return res.json(data);
   } catch (err) {
     console.error('[stream/sources] error:', err.message);
-    return res.status(502).json({ error: 'Source fetch failed' });
+    return res.status(500).json({ error: 'Source fetch failed' });
   }
 });
 
 // ── GET AniSkip OP/ED timestamps ──────────────────────────────────────────
-// GET /api/stream/skip?malId=16498&episode=1&episodeLength=1417
 router.get('/skip', async (req, res) => {
   const { malId, episode, episodeLength } = req.query;
   if (!malId || !episode) {
@@ -119,11 +141,8 @@ router.get('/skip', async (req, res) => {
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
-    // AniSkip v2 API — no auth needed
     const url = `https://api.aniskip.com/v2/skip-times/${malId}/${episode}`;
-    const params = {
-      'types[]': ['op', 'ed'],
-    };
+    const params = { 'types[]': ['op', 'ed'] };
     if (episodeLength) params.episodeLength = episodeLength;
 
     const response = await axios.get(url, { params, timeout: 5000 });
@@ -132,12 +151,10 @@ router.get('/skip', async (req, res) => {
     await redis.setex(cacheKey, REDIS_TTL_SKIP, JSON.stringify(data));
     return res.json(data);
   } catch (err) {
-    // AniSkip returns 404 when no skip times exist — that is normal
     if (err.response?.status === 404) {
       return res.json({ found: false, results: [] });
     }
-    console.error('[stream/skip] error:', err.message);
-    return res.status(502).json({ error: 'Skip fetch failed' });
+    return res.status(500).json({ error: 'Skip fetch failed' });
   }
 });
 

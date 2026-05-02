@@ -28,9 +28,16 @@ router.get('/search', async (req, res) => {
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
-    // Use Consumet locally
-    const results = await zoro.search(q);
+    // Use Consumet locally with a timeout
+    const results = await zoro.search(q).catch(e => {
+      console.error('[Consumet Search Error]:', e.message);
+      return { results: [] };
+    });
     
+    if (!results || !results.results) {
+      return res.json({ success: true, data: { animes: [] } });
+    }
+
     // Map Consumet format to our existing API format
     const data = {
       success: true,
@@ -65,7 +72,14 @@ router.get('/episodes/:animeId', async (req, res) => {
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
-    const info = await zoro.fetchAnimeInfo(animeId);
+    const info = await zoro.fetchAnimeInfo(animeId).catch(e => {
+      console.error('[Consumet Info Error]:', e.message);
+      return null;
+    });
+
+    if (!info || !info.episodes) {
+      return res.status(404).json({ error: 'Anime or episodes not found' });
+    }
     
     const data = {
       success: true,
@@ -99,8 +113,15 @@ router.get('/sources', async (req, res) => {
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
-    const sources = await zoro.fetchEpisodeSources(episodeId, server);
+    const sources = await zoro.fetchEpisodeSources(episodeId, server).catch(e => {
+      console.error('[Consumet Sources Error]:', e.message);
+      return null;
+    });
     
+    if (!sources || !sources.sources) {
+      return res.status(404).json({ error: 'Sources not found' });
+    }
+
     const data = {
       success: true,
       data: {

@@ -29,7 +29,7 @@ class HianimeService {
     debugPrint('[HianimeService] search: $uri');
 
     try {
-      final res = await _client.get(uri).timeout(const Duration(seconds: 12));
+      final res = await _client.get(uri).timeout(const Duration(seconds: 25));
       debugPrint('[HianimeService] search status: ${res.statusCode}');
       if (res.statusCode != 200) return null;
 
@@ -56,7 +56,7 @@ class HianimeService {
     debugPrint('[HianimeService] episodes: $uri');
 
     try {
-      final res = await _client.get(uri).timeout(const Duration(seconds: 12));
+      final res = await _client.get(uri).timeout(const Duration(seconds: 25));
       if (res.statusCode != 200) return null;
 
       final json = jsonDecode(res.body) as Map<String, dynamic>;
@@ -89,7 +89,7 @@ class HianimeService {
     debugPrint('[HianimeService] sources: $uri');
 
     try {
-      final res = await _client.get(uri).timeout(const Duration(seconds: 18));
+      final res = await _client.get(uri).timeout(const Duration(seconds: 30));
       debugPrint('[HianimeService] sources status: ${res.statusCode}');
       debugPrint('[HianimeService] sources body: ${res.body}');
       if (res.statusCode != 200) return null;

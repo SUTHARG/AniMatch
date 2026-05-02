@@ -3,8 +3,8 @@ const router = express.Router();
 const axios = require('axios');
 const { ANIME } = require('@consumet/extensions');
 
-// Initialize the Hianime (Zoro) provider locally
-const zoro = new ANIME.Zoro();
+// Initialize the Hianime provider locally
+const zoro = new ANIME.Hianime();
 
 const REDIS_TTL_SEARCH = 3600;      // 1 hour
 const REDIS_TTL_EPISODES = 3600;    // 1 hour

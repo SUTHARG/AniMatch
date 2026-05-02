@@ -12,7 +12,9 @@ app.use(cors());
 app.use(express.json());
 
 // Redis setup
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+console.log('Connecting to Redis:', redisUrl.startsWith('rediss') ? 'Secure Remote' : 'Localhost');
+const redis = new Redis(redisUrl);
 redis.on('connect', () => console.log('Redis connected'));
 redis.on('error', (err) => console.error('Redis error:', err));
 

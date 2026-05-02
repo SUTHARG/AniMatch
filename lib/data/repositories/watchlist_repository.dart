@@ -1,4 +1,4 @@
-﻿import 'package:animatch/data/sources/firebase/firebase_service.dart';
+import 'package:animatch/data/sources/firebase/firebase_service.dart';
 
 abstract class WatchlistRepository {
   Stream<List<Map<String, dynamic>>> getWatchlist(
@@ -40,6 +40,8 @@ abstract class WatchlistRepository {
     int malId, {
     bool isManga = false,
   });
+
+  Future<void> updateEpisodeProgress(String userId, int malId, int episode);
 
   Future<void> updateAnimeTotals(String userId, int malId, int? episodes);
 
@@ -151,6 +153,11 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
       malId,
       isManga: isManga,
     );
+  }
+
+  @override
+  Future<void> updateEpisodeProgress(String userId, int malId, int episode) {
+    return firebaseService.updateEpisodeProgress(userId, malId, episode);
   }
 
   @override

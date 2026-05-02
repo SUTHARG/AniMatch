@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' as foundation;
 
 import 'package:animatch/data/models/anime.dart';
 import 'package:animatch/data/models/hero_recommendation.dart';
@@ -267,8 +268,6 @@ class AnimeRepositoryImpl implements AnimeRepository {
 
   // ── Decision Engine (delegates to ScoringEngine) ────────────────────────────
 
-  static final _engine = const ScoringEngine();
-
   @override
   Future<HeroRecommendation> getHeroRecommendation({
     String? userId,
@@ -286,101 +285,130 @@ class AnimeRepositoryImpl implements AnimeRepository {
       throw StateError('No recommendations for mood: $mood');
     }
 
-    // 2. Rank using the full hybrid scoring engine
-    final ranked = _engine.rank(
-      pool,
+    // Pass computation to another isolate using compute()
+    return await foundation.compute(_computeHeroRecommendation, _HeroComputationParams(
+      pool: pool,
       userId: userId,
       watchlistItems: watchlistItems,
       watchedIds: watchedIds,
-    );
+      mood: mood,
+    ));
+  }
+}
 
-    if (ranked.isEmpty) {
-      throw StateError('All candidates already watched');
-    }
+class _HeroComputationParams {
+  final List<Anime> pool;
+  final String? userId;
+  final List<Map<String, dynamic>> watchlistItems;
+  final Set<int> watchedIds;
+  final String mood;
 
-    final best = ranked.first;
-    final alts = ranked.skip(1).take(3).map((s) => s.anime).toList();
+  _HeroComputationParams({
+    required this.pool,
+    this.userId,
+    required this.watchlistItems,
+    required this.watchedIds,
+    required this.mood,
+  });
+}
 
-    // Cold Start Handling & Prior Boost
-    if (watchlistItems.length < 3) {
-      final rating = (best.anime.score ?? 7.0) / 10.0;
-      final priorBoost = 0.15 * best.popularityScore + 0.05 * rating;
-      final adjusted = (best.totalScore * 0.8 + priorBoost).clamp(0.0, 1.0);
-      return HeroRecommendation(
-        anime: best.anime,
-        confidence: _engine.confidencePercent(adjusted, penalty: 1.0),
-        explanation: 'Start rating more anime to get personalized picks!',
-        alternatives: alts,
-        mode: RecommendationMode.explore,
-      );
-    }
+HeroRecommendation _computeHeroRecommendation(_HeroComputationParams params) {
+  final engine = const ScoringEngine();
+  
+  // 2. Rank using the full hybrid scoring engine
+  final ranked = engine.rank(
+    params.pool,
+    userId: params.userId,
+    watchlistItems: params.watchlistItems,
+    watchedIds: params.watchedIds,
+  );
 
-    // 3. Sigmoid confidence (now gap and quality-aware)
-    final gap =
-        ranked.length > 1 ? best.totalScore - ranked[1].totalScore : 0.0;
-    final normalizedGap = gap / (best.totalScore + 1e-6);
+  if (ranked.isEmpty) {
+    throw StateError('All candidates already watched');
+  }
 
-    final fit = 0.5 * best.contentScore + 0.5 * best.temporalScore;
-    final quality = 0.5 * best.popularityScore +
-        0.3 * ((best.anime.score ?? 7.0) / 10.0) +
-        0.2 * fit;
+  final best = ranked.first;
+  final alts = ranked.skip(1).take(3).map((s) => s.anime).toList();
 
-    // Dynamic Thresholds
-    final threshold = _engine.percentileThreshold(ranked, 0.7);
-    final entropy = _engine.normalizedEntropy(ranked);
-    final isHighQuality = quality > 0.65;
-
-    // Soft absolute floor
-    final floor =
-        math.max(0.52, _engine.percentileThreshold(ranked, 0.6) - 0.04);
-    final passesAbsolute = best.totalScore > floor;
-
-    // Graded entropy influence (non-linear)
-    final e = entropy.clamp(0.0, 1.0);
-    final entropyPenalty = math.pow(math.max(0.0, e - 0.85), 1.5).toDouble();
-    final effectiveScore = best.totalScore - 0.2 * entropyPenalty;
-    final hasDominantSignal = effectiveScore > 0.78;
-
-    final isConfident = hasDominantSignal ||
-        (best.totalScore > threshold &&
-            passesAbsolute &&
-            normalizedGap > 0.02 &&
-            isHighQuality &&
-            entropyPenalty == 0.0);
-
-    final RecommendationMode mode = isConfident
-        ? RecommendationMode.confident
-        : (best.totalScore > threshold * 0.9 &&
-                passesAbsolute &&
-                entropyPenalty < 0.1
-            ? RecommendationMode.weak
-            : RecommendationMode.explore);
-
-    double modePenalty = 0.0;
-    if (mode == RecommendationMode.weak) modePenalty = 0.5;
-    if (mode == RecommendationMode.explore) modePenalty = 1.0;
-
-    final confidence = _engine.confidencePercent(
-      best.totalScore,
-      normalizedGap: normalizedGap,
-      quality: quality,
-      penalty: modePenalty,
-    );
-
-    // 4. Explanation from dominant score factor
-    final explanation = buildHeroExplanation(best, mood, _engine.weights);
-
+  // Cold Start Handling & Prior Boost
+  if (params.watchlistItems.length < 3) {
+    final rating = (best.anime.score ?? 7.0) / 10.0;
+    final priorBoost = 0.15 * best.popularityScore + 0.05 * rating;
+    final adjusted = (best.totalScore * 0.8 + priorBoost).clamp(0.0, 1.0);
     return HeroRecommendation(
       anime: best.anime,
-      confidence: confidence,
-      explanation: explanation,
+      confidence: engine.confidencePercent(adjusted, penalty: 1.0),
+      explanation: 'Start rating more anime to get personalized picks!',
       alternatives: alts,
-      mode: mode,
-      contentScore: best.contentScore,
-      behaviorScore: best.behaviorScore,
-      temporalScore: best.temporalScore,
-      popularityScore: best.popularityScore,
-      noveltyScore: best.noveltyScore,
+      mode: RecommendationMode.explore,
     );
   }
+
+  // 3. Sigmoid confidence (now gap and quality-aware)
+  final gap =
+      ranked.length > 1 ? best.totalScore - ranked[1].totalScore : 0.0;
+  final normalizedGap = gap / (best.totalScore + 1e-6);
+
+  final fit = 0.5 * best.contentScore + 0.5 * best.temporalScore;
+  final quality = 0.5 * best.popularityScore +
+      0.3 * ((best.anime.score ?? 7.0) / 10.0) +
+      0.2 * fit;
+
+  // Dynamic Thresholds
+  final threshold = engine.percentileThreshold(ranked, 0.7);
+  final entropy = engine.normalizedEntropy(ranked);
+  final isHighQuality = quality > 0.65;
+
+  // Soft absolute floor
+  final floor =
+      math.max(0.52, engine.percentileThreshold(ranked, 0.6) - 0.04);
+  final passesAbsolute = best.totalScore > floor;
+
+  // Graded entropy influence (non-linear)
+  final e = entropy.clamp(0.0, 1.0);
+  final entropyPenalty = math.pow(math.max(0.0, e - 0.85), 1.5).toDouble();
+  final effectiveScore = best.totalScore - 0.2 * entropyPenalty;
+  final hasDominantSignal = effectiveScore > 0.78;
+
+  final isConfident = hasDominantSignal ||
+      (best.totalScore > threshold &&
+          passesAbsolute &&
+          normalizedGap > 0.02 &&
+          isHighQuality &&
+          entropyPenalty == 0.0);
+
+  final RecommendationMode mode = isConfident
+      ? RecommendationMode.confident
+      : (best.totalScore > threshold * 0.9 &&
+              passesAbsolute &&
+              entropyPenalty < 0.1
+          ? RecommendationMode.weak
+          : RecommendationMode.explore);
+
+  double modePenalty = 0.0;
+  if (mode == RecommendationMode.weak) modePenalty = 0.5;
+  if (mode == RecommendationMode.explore) modePenalty = 1.0;
+
+  final confidence = engine.confidencePercent(
+    best.totalScore,
+    normalizedGap: normalizedGap,
+    quality: quality,
+    penalty: modePenalty,
+  );
+
+  // 4. Explanation from dominant score factor
+  final explanation = buildHeroExplanation(best, params.mood, engine.weights);
+
+  return HeroRecommendation(
+    anime: best.anime,
+    confidence: confidence,
+    explanation: explanation,
+    alternatives: alts,
+    mode: mode,
+    contentScore: best.contentScore,
+    behaviorScore: best.behaviorScore,
+    temporalScore: best.temporalScore,
+    popularityScore: best.popularityScore,
+    noveltyScore: best.noveltyScore,
+  );
 }

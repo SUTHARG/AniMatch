@@ -1099,40 +1099,23 @@ class _TrendingList extends StatefulWidget {
 }
 
 class _TrendingListState extends State<_TrendingList> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 200,
-      child: AnimatedBuilder(
-        animation: _scrollController,
-        builder: (context, child) {
-          return ListView.builder(
-            controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: widget.trendingItems.length,
-            itemBuilder: (context, index) {
-              final item = widget.trendingItems[index];
-              final String numStr = (index + 1).toString().padLeft(2, '0');
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemExtent: 152.0,
+        addRepaintBoundaries: true,
+        addAutomaticKeepAlives: false,
+        itemCount: widget.trendingItems.length,
+        itemBuilder: (context, index) {
+          final item = widget.trendingItems[index];
+          final String numStr = (index + 1).toString().padLeft(2, '0');
 
-              double scrollOffset = 0.0;
-              if (_scrollController.hasClients) {
-                // Approximate parallax based on index and controller offset
-                // Width of item (140) + margin (12) = 152
-                double itemPos = index * 152.0;
-                scrollOffset = (itemPos - _scrollController.offset) / 152.0;
-              }
-
-              return Container(
+          return Container(
                 width: 140,
                 margin: const EdgeInsets.only(right: 12),
                 child: ClipRRect(
@@ -1143,7 +1126,7 @@ class _TrendingListState extends State<_TrendingList> {
                       PremiumImage(
                         imageUrl: item.displayImageUrl,
                         fit: BoxFit.cover,
-                        alignment: Alignment(scrollOffset * 0.3, 0),
+                        alignment: Alignment.center,
                       ),
                       // Rank Overlay
                       Positioned(
@@ -1335,9 +1318,7 @@ class _TrendingListState extends State<_TrendingList> {
                 ),
               );
             },
-          );
-        },
-      ),
+          ),
     );
   }
 }

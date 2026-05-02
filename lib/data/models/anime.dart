@@ -218,7 +218,7 @@ class Anime implements MediaBase {
 
     final malId = json['idMal'] as int?;
     final anilistId = json['id'] as int?;
-    print('DEBUG [Anime]: AniList parsed -> AniList ID: $anilistId | MAL ID: $malId');
+
     
     return Anime(
       anilistId: anilistId,
@@ -356,8 +356,9 @@ class QuizAnswers {
     for (final g in genres) {
       final id = genreNameToId[g];
       if (id != null) ids.add(int.parse(id));
-      if (ids.length >= 2)
+      if (ids.length >= 2) {
         break; // Limit to max 2 genres to avoid over-filtering
+      }
     }
 
     // Fallback to mood genre only if no user genres were selected

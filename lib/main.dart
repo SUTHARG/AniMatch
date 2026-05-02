@@ -20,6 +20,13 @@ Future<void> main() async {
   await dotenv.load(fileName: ".env");
   await Hive.initFlutter();
 
+  PaintingBinding.instance.imageCache.maximumSize = 150;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 80 << 20; // 80 MB
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+  );
+
   // Lock to portrait on mobile; allow all orientations on desktop/web
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

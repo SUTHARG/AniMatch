@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:animatch/data/sources/firebase/firebase_service.dart';
@@ -127,11 +128,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   child: CircleAvatar(
                                     radius: 40,
                                     backgroundColor: Colors.white10,
-                                    backgroundImage: hasImage ? NetworkImage(avatar!) : null,
+                                    backgroundImage: hasImage ? NetworkImage(avatar) : null,
                                     child: hasImage
                                         ? null
                                         : Text(
-                                            hasEmoji ? avatar! : initials,
+                                            hasEmoji ? avatar : initials,
                                             style: TextStyle(
                                                 fontSize: hasEmoji ? 40 : 32,
                                                 fontWeight: FontWeight.bold,
@@ -630,6 +631,23 @@ class _NotLoggedInProfile extends StatelessWidget {
                       onPressed: () async {
                         try {
                           await FirebaseService().signInWithGoogle();
+                        } on FirebaseAuthException catch (e) {
+                          if (!context.mounted) return;
+                          final isNetworkFailure =
+                              e.code == 'network-request-failed';
+                          snacks.showError(
+                            context,
+                            isNetworkFailure
+                                ? 'Internet required. Please connect to continue.'
+                                : 'Google Sign-In failed',
+                            actionLabel: isNetworkFailure ? 'Retry' : null,
+                            onAction: isNetworkFailure
+                                  ? () {
+                                      unawaited(FirebaseService()
+                                          .signInWithGoogle());
+                                    }
+                                : null,
+                          );
                         } catch (e) {
                           if (context.mounted) {
                             snacks.showError(context, 'Google Sign-In failed');

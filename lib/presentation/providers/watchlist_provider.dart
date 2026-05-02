@@ -133,6 +133,15 @@ class WatchlistActions {
     ref.invalidate(watchlistProvider);
   }
 
+  Future<void> updateProgress({
+    required String malId,
+    required int episodeProgress,
+  }) async {
+    final uid = currentUserId;
+    if (uid == null) return;
+    await watchlistRepository.updateEpisodeProgress(uid, int.parse(malId), episodeProgress);
+  }
+
   Future<void> saveRating({
     required String uid,
     required int malId,

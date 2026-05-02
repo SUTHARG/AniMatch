@@ -267,11 +267,12 @@ class _WatchlistTab extends ConsumerWidget {
       loading: () => const WatchlistShimmer(),
       error: (error, _) => Center(child: Text('Error: $error')),
       data: (items) {
-        if (items.isEmpty)
+        if (items.isEmpty) {
           return _EmptyTab(
               isManga: isManga,
               watchStatus: watchStatus,
               readStatus: readStatus);
+        }
 
         // Auto-Patch missing data logic
         _triggerAutoPatch(uid, items, isManga, ref);

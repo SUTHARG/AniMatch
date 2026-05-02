@@ -103,6 +103,7 @@ enum WatchStatus {
 
 class FirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  List<String>? _cachedSearchHistory;
 
   // ── Auth ──────────────────────────────
   User? get currentUser => FirebaseAuth.instance.currentUser;
@@ -155,8 +156,25 @@ class FirebaseService {
         debugPrint('Error Details: ${e.details}');
         debugPrint('Error Message: ${e.message}');
       }
-      return null;
+      if (_looksLikeNetworkFailure(e)) {
+        throw FirebaseAuthException(
+          code: 'network-request-failed',
+          message: 'Internet required. Please connect to continue.',
+        );
+      }
+      rethrow;
     }
+  }
+
+  bool _looksLikeNetworkFailure(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('network-request-failed') ||
+        message.contains('socketexception') ||
+        message.contains('failed host lookup') ||
+        message.contains('internet') ||
+        message.contains('network error') ||
+        message.contains('connection refused') ||
+        message.contains('service unavailable');
   }
 
   Future<void> signOut() async {
@@ -580,20 +598,35 @@ class FirebaseService {
       'term': sanitizedTerm, // Store original display term
       'timestamp': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    
+    if (_cachedSearchHistory != null) {
+      _cachedSearchHistory!.remove(sanitizedTerm);
+      _cachedSearchHistory!.insert(0, sanitizedTerm);
+      if (_cachedSearchHistory!.length > 10) {
+        _cachedSearchHistory = _cachedSearchHistory!.sublist(0, 10);
+      }
+    }
   }
 
-  Stream<List<String>> getRecentSearchesStream(String uid) {
-    return _db
+  Stream<List<String>> getRecentSearchesStream(String uid) async* {
+    if (_cachedSearchHistory != null) {
+      yield _cachedSearchHistory!;
+    }
+    yield* _db
         .collection('users')
         .doc(uid)
         .collection('searchHistory')
         .orderBy('timestamp', descending: true)
         .limit(10)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((doc) => doc.data()['term'] as String?)
-            .whereType<String>() // Only take valid strings
-            .toList());
+        .map((snap) {
+      final list = snap.docs
+          .map((doc) => doc.data()['term'] as String?)
+          .whereType<String>()
+          .toList();
+      _cachedSearchHistory = list;
+      return list;
+    });
   }
 
   Future<void> clearSearchHistory(String uid) async {
@@ -607,6 +640,7 @@ class FirebaseService {
       batch.delete(doc.reference);
     }
     await batch.commit();
+    _cachedSearchHistory?.clear();
   }
 
   // ── Streaming Cache ───────────────────

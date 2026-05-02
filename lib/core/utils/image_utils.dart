@@ -90,12 +90,15 @@ class PremiumImage extends StatelessWidget {
       );
     } else {
       image = CachedNetworkImage(
-        imageUrl:
-            proxiedUrl, // This will be the raw URL since getCORSUrl is now a no-op
+        imageUrl: proxiedUrl,
         width: width,
         height: height,
         fit: fit,
         alignment: alignment,
+        memCacheWidth: width != null ? (width! * 2).toInt() : 240,
+        memCacheHeight: height != null ? (height! * 2).toInt() : 360,
+        fadeInDuration: const Duration(milliseconds: 200),
+        fadeOutDuration: const Duration(milliseconds: 100),
         placeholder: (context, url) => _buildPlaceholder(),
         errorWidget: (context, url, error) => _buildError(),
       );

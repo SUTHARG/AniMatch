@@ -15,6 +15,7 @@ import 'package:animatch/core/utils/streaming_utils.dart';
 import 'package:animatch/core/utils/snackbar_utils.dart' as snacks;
 import 'package:animatch/core/utils/image_utils.dart';
 import 'package:animatch/presentation/widgets/shimmer_loader.dart';
+import '../widgets/watch_button.dart';
 
 class DetailScreen extends StatefulWidget {
   final int? malId;
@@ -33,7 +34,7 @@ class _DetailScreenState extends State<DetailScreen> {
   MediaBase? _media;
   String? _anilistImageUrl;
   bool _loading = true;
-  bool _showWhereToWatch = false;
+
   WatchStatus? _watchStatus;
   ReadStatus? _readStatus;
   int _progress = 0; // either episode or chapter
@@ -46,42 +47,15 @@ class _DetailScreenState extends State<DetailScreen> {
 
   MediaBase get media => _media!;
 
-  late final Future<List<StreamingLink>> _streamingFuture;
   final ScrollController _scrollController = ScrollController();
-  final GlobalKey _streamingKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _streamingFuture = _getStreamingLinks();
     _load();
   }
 
-  Future<List<StreamingLink>> _getStreamingLinks() async {
-    if (widget.isManga || widget.malId == null)
-      return []; // Manga doesn't have streaming links typically through this endpoint
 
-    final uid = _firebase.currentUser?.uid;
-    if (uid != null) {
-      try {
-        final cached =
-            await _firebase.getCachedStreamingLinks(uid, widget.malId!);
-        if (cached != null) {
-          return cached
-              .map((e) => StreamingLink.fromJson(e as Map<String, dynamic>))
-              .toList();
-        }
-      } catch (_) {}
-    }
-    final links = await _jikan.fetchStreamingLinks(widget.malId!);
-    if (uid != null && links.isNotEmpty) {
-      _firebase
-          .cacheStreamingLinks(
-              uid, widget.malId!, links.map((e) => e.toJson()).toList())
-          .ignore();
-    }
-    return links;
-  }
 
   Future<void> _launchUrl(String rawUrl,
       {String? platformName, BuildContext? ctx}) async {
@@ -148,9 +122,10 @@ class _DetailScreenState extends State<DetailScreen> {
       }
 
       Map<String, dynamic>? entry;
-      if (uid != null)
+      if (uid != null) {
         entry = await _firebase.getWatchlistEntry(uid, widget.malId!,
             isManga: widget.isManga);
+      }
 
       if (mounted) {
         setState(() {
@@ -217,19 +192,7 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  void _scrollToStreaming() {
-    if (!_showWhereToWatch) {
-      setState(() => _showWhereToWatch = true);
-    }
-    // Delay slightly to allow the section to be built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_streamingKey.currentContext != null) {
-        Scrollable.ensureVisible(_streamingKey.currentContext!,
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeInOut);
-      }
-    });
-  }
+
 
   Future<void> _openStatusSheet() async {
     if (!_firebase.isLoggedIn) {
@@ -320,9 +283,10 @@ class _DetailScreenState extends State<DetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (_loading) return const Scaffold(body: DetailShimmer());
-    if (_error != null || _media == null)
+    if (_error != null || _media == null) {
       return Scaffold(
           appBar: AppBar(), body: Center(child: Text(_error ?? 'Failed')));
+    }
 
     final media = _media!;
     final inList = widget.isManga ? _readStatus != null : _watchStatus != null;
@@ -337,6 +301,7 @@ class _DetailScreenState extends State<DetailScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E1E),
       extendBodyBehindAppBar: true,
+      floatingActionButton: widget.isManga ? null : WatchButton(anime: media as Anime, compact: true),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -503,28 +468,26 @@ class _DetailScreenState extends State<DetailScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: FilledButton.icon(
-                          onPressed: widget.isManga
-                              ? () => _launchUrl(
-                                  'https://mangadex.org/search?q=${Uri.encodeComponent(media.displayTitle)}')
-                              : _scrollToStreaming,
-                          icon: Icon(
-                              widget.isManga
-                                  ? Icons.menu_book_rounded
-                                  : Icons.play_arrow_rounded,
-                              color: Colors.black),
-                          label: Text(widget.isManga ? 'Read now' : 'Watch now',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold)),
-                          style: FilledButton.styleFrom(
-                              backgroundColor: Colors.amber,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30))),
-                        ),
+                        child: widget.isManga
+                            ? FilledButton.icon(
+                                onPressed: () => _launchUrl(
+                                    'https://mangadex.org/search?q=${Uri.encodeComponent(media.displayTitle)}'),
+                                icon: const Icon(Icons.menu_book_rounded,
+                                    color: Colors.black),
+                                label: const Text('Read now',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold)),
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.amber,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30))),
+                              )
+                            : WatchButton(anime: media as Anime),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -694,18 +657,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         onEdit: _openRatingSheet),
                     const SizedBox(height: 24),
                   ],
-                  if (_showWhereToWatch && _media is Anime) ...[
-                    _WhereToWatchSection(
-                      key: _streamingKey,
-                      anime: _media as Anime,
-                      streamingFuture: _streamingFuture,
-                      showHeader: true,
-                      onLaunch: (link) => _launchUrl(link.url,
-                          platformName: link.name, ctx: context),
-                      onLaunchMal: () => _launchUrl(_media!.malUrl ?? ''),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
+
                   // Characters Section
                   if (_characters.isNotEmpty) ...[
                     _DetailSectionHeader(title: 'Cast & Characters'),
@@ -940,202 +892,6 @@ class _UserRatingCard extends StatelessWidget {
   }
 }
 
-class _WhereToWatchSection extends StatelessWidget {
-  final Anime anime;
-  final Future<List<StreamingLink>> streamingFuture;
-  final bool showHeader;
-  final void Function(StreamingLink) onLaunch;
-  final VoidCallback onLaunchMal;
-
-  const _WhereToWatchSection(
-      {super.key,
-      required this.anime,
-      required this.streamingFuture,
-      this.showHeader = true,
-      required this.onLaunch,
-      required this.onLaunchMal});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (showHeader) ...[
-          const Divider(height: 32),
-          Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Text('🎬 Where to Watch',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                      color: Colors.white, fontWeight: FontWeight.bold)))
-        ],
-        FutureBuilder<List<StreamingLink>>(
-          future: streamingFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting)
-              return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()));
-            final links = snapshot.data ?? [];
-            if (links.isEmpty)
-              return _EmptyStreamingState(
-                  anime: anime,
-                  colorScheme: colorScheme,
-                  onLaunchMal: onLaunchMal);
-            return Column(
-              children: [
-                ...links.map((link) => _StreamingLinkTile(
-                    link: link, onTap: () => onLaunch(link))),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [
-                          colorScheme.primary.withValues(alpha: 0.85),
-                          colorScheme.secondary.withValues(alpha: 0.85)
-                        ]),
-                        borderRadius: BorderRadius.circular(16)),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                          onTap: onLaunchMal,
-                          borderRadius: BorderRadius.circular(16),
-                          child: const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.link, color: Colors.white),
-                                    SizedBox(width: 8),
-                                    Text('View on MyAnimeList',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold))
-                                  ]))),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _EmptyStreamingState extends StatelessWidget {
-  final Anime anime;
-  final ColorScheme colorScheme;
-  final VoidCallback onLaunchMal;
-  const _EmptyStreamingState(
-      {required this.anime,
-      required this.colorScheme,
-      required this.onLaunchMal});
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Card(
-        color: Colors.white.withValues(alpha: 0.05),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const Icon(Icons.live_tv_outlined,
-                  size: 40, color: Colors.white24),
-              const SizedBox(height: 12),
-              const Text('No streaming links available',
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              TextButton.icon(
-                  onPressed: onLaunchMal,
-                  icon: const Icon(Icons.open_in_new),
-                  label: const Text('Open on MyAnimeList')),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StreamingLinkTile extends StatelessWidget {
-  final StreamingLink link;
-  final VoidCallback onTap;
-  const _StreamingLinkTile({required this.link, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: Colors.white.withValues(alpha: 0.05),
-            border: Border.all(color: Colors.white10)),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                _StreamingIcon(link: link),
-                const SizedBox(width: 16),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text(link.name,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
-                      Text(link.url,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white38, fontSize: 12))
-                    ])),
-                const Icon(Icons.play_arrow, color: Colors.amber),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StreamingIcon extends StatelessWidget {
-  final StreamingLink link;
-  const _StreamingIcon({required this.link});
-  @override
-  Widget build(BuildContext context) {
-    if (kIsWeb) {
-      // Use a themed material icon for web to bypass CORS favicon issues
-      return Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-            color: Colors.amber.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8)),
-        child: const Icon(Icons.play_circle_fill_rounded,
-            color: Colors.amber, size: 20),
-      );
-    }
-    final host = Uri.tryParse(link.url)?.host ?? '';
-    final faviconUrl = 'https://www.google.com/s2/favicons?sz=64&domain=$host';
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: SizedBox(
-          width: 32,
-          height: 32,
-          child: PremiumImage(imageUrl: faviconUrl, fit: BoxFit.cover)),
-    );
-  }
-}
 
 class _DetailSectionHeader extends StatelessWidget {
   final String title;

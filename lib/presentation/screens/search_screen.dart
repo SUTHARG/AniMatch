@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,11 +24,19 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _controller = TextEditingController();
+  Timer? _debounce;
+  String _localQuery = '';
 
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
   void _onChanged(String value) {
-    ref.read(searchQueryProvider.notifier).setQuery(value);
+    setState(() {
+      _localQuery = value;
+    });
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      ref.read(searchQueryProvider.notifier).setQuery(value);
+    });
   }
 
   void _searchFromHistory(String query) {
@@ -37,6 +46,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -44,16 +54,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final query = ref.watch(searchQueryProvider);
+    final debouncedQuery = ref.watch(searchQueryProvider);
     final searchAsync = ref.watch(searchProvider(SearchRequest(
-      query: query,
+      query: debouncedQuery,
       isManga: appState.isMangaMode,
     )));
     final results = searchAsync.maybeWhen(
       data: (items) => items,
       orElse: () => const <MediaBase>[],
     );
-    final loading = query.trim().isNotEmpty && searchAsync.isLoading;
+    final loading = debouncedQuery.trim().isNotEmpty && searchAsync.isLoading;
 
     return Scaffold(
       appBar: AppBar(
@@ -77,11 +87,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 appState.isMangaMode ? 'Search manga...' : 'Search anime...',
             hintStyle: const TextStyle(color: Colors.white38),
             border: InputBorder.none,
-            suffixIcon: query.isNotEmpty
+            suffixIcon: _localQuery.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear, color: Colors.white70),
                     onPressed: () {
                       _controller.clear();
+                      setState(() {
+                        _localQuery = '';
+                      });
+                      if (_debounce?.isActive ?? false) _debounce!.cancel();
                       ref.read(searchQueryProvider.notifier).setQuery('');
                     },
                   )
@@ -92,9 +106,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       body: loading
           ? const SearchShimmer()
           : results.isEmpty
-              ? query.isEmpty
+              ? _localQuery.isEmpty
                   ? _buildRecentSearchChips()
-                  : _buildEmptyState(colorScheme)
+                  : _buildEmptyState(colorScheme, _localQuery)
               : ListView.builder(
                   physics: const BouncingScrollPhysics(
                       parent: AlwaysScrollableScrollPhysics()),
@@ -119,7 +133,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildEmptyState(ColorScheme colorScheme) {
+  Widget _buildEmptyState(ColorScheme colorScheme, String currentQuery) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -127,7 +141,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           const Text('🔍', style: TextStyle(fontSize: 48)),
           const SizedBox(height: 12),
           Text(
-            'No results for "${ref.watch(searchQueryProvider).trim()}"',
+            'No results for "${currentQuery.trim()}"',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -139,10 +153,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildRecentSearchChips() {
     final uid = _uid;
-    if (uid == null)
+    if (uid == null) {
       return const Center(
           child: Text('Sign in to see history',
               style: TextStyle(color: Colors.white38)));
+    }
 
     return ref.watch(recentSearchesProvider(uid)).when(
           loading: () => const Center(

@@ -79,7 +79,15 @@ class _LoginScreenState extends State<LoginScreen>
     } on FirebaseAuthException catch (e) {
       // Map Firebase error codes to friendly messages
       final message = _friendlyError(e.code);
-      _showError(message);
+      if (e.code == 'network-request-failed') {
+        _showError(
+          message,
+          actionLabel: 'Retry',
+          onAction: _submit,
+        );
+      } else {
+        _showError(message);
+      }
     } catch (e) {
       _showError('Something went wrong. Please try again.');
       debugPrint('Auth error: $e');
@@ -103,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen>
       case 'too-many-requests':
         return 'Too many attempts. Please wait a moment.';
       case 'network-request-failed':
-        return 'Network error. Check your internet connection.';
+        return 'Internet required. Please connect to continue.';
       case 'invalid-credential':
         return 'Email or password is incorrect. Check your credentials.';
       case 'sign_in_failed':
@@ -116,9 +124,15 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  void _showError(String message) {
+  void _showError(String message,
+      {String? actionLabel, VoidCallback? onAction}) {
     if (!mounted) return;
-    snacks.showError(context, message);
+    snacks.showError(
+      context,
+      message,
+      actionLabel: actionLabel,
+      onAction: onAction,
+    );
   }
 
   void _showSuccess(String message) {
@@ -259,10 +273,12 @@ class _LoginScreenState extends State<LoginScreen>
                                   icon: Icons.email_outlined,
                                   keyboardType: TextInputType.emailAddress,
                                   validator: (v) {
-                                    if (v == null || v.trim().isEmpty)
+                                    if (v == null || v.trim().isEmpty) {
                                       return 'Please enter email';
-                                    if (!v.contains('@'))
+                                    }
+                                    if (!v.contains('@')) {
                                       return 'Invalid email';
+                                    }
                                     return null;
                                   },
                                 ),
@@ -277,10 +293,12 @@ class _LoginScreenState extends State<LoginScreen>
                                   onToggleVisibility: () => setState(() =>
                                       _obscurePassword = !_obscurePassword),
                                   validator: (v) {
-                                    if (v == null || v.isEmpty)
+                                    if (v == null || v.isEmpty) {
                                       return 'Please enter password';
-                                    if (!_isLogin && v.length < 6)
+                                    }
+                                    if (!_isLogin && v.length < 6) {
                                       return 'Too short';
+                                    }
                                     return null;
                                   },
                                 ),
@@ -428,7 +446,16 @@ class _LoginScreenState extends State<LoginScreen>
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
-      _showError(_friendlyError(e.code));
+      final message = _friendlyError(e.code);
+      if (e.code == 'network-request-failed') {
+        _showError(
+          message,
+          actionLabel: 'Retry',
+          onAction: _googleSignIn,
+        );
+      } else {
+        _showError(message);
+      }
     } catch (e) {
       _showError(
           'Google login failed. Please ensure Google Sign-In is enabled in Firebase.');

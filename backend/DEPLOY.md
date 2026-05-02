@@ -19,17 +19,19 @@ ANIWATCH_API_URL=https://api-aniwatch.onrender.com
 ## 3. Deployment Options
 
 ### Option A: Railway (Recommended)
-1. **Push to GitHub**: Ensure your `backend/` folder is part of your repository.
+1. **Push to GitHub**: Ensure your `backend/` folder is on the `Deployment` branch.
 2. **Create New Project**: On Railway, click "New Project" -> "Deploy from GitHub repo".
-3. **Set Root Directory**: In the settings, set the **Root Directory** to `backend`.
-4. **Add Variables**: Add `REDIS_URL` and `ANIWATCH_API_URL` in the Variables tab.
-5. **Provision Redis**: If you don't have Redis, click "Add Service" -> "Redis" inside the same project. Railway will automatically set the `REDIS_URL`.
+3. **Select Branch**: In the deployment setup, ensure you select the **Deployment** branch.
+4. **Set Root Directory**: In the service settings, set the **Root Directory** to `backend`.
+5. **Add Variables**: Add `REDIS_URL` and `ANIWATCH_API_URL` in the Variables tab.
+6. **Provision Redis**: If you don't have Redis, click "Add Service" -> "Redis".
 
 ### Option B: Render
 1. **Create Web Service**: Connect your GitHub repo.
-2. **Root Directory**: Set to `backend`.
-3. **Build Command**: `npm install`
-4. **Start Command**: `npm start`
+2. **Select Branch**: Choose the **Deployment** branch from the dropdown list.
+3. **Root Directory**: Set to `backend`.
+4. **Build Command**: `npm install`
+5. **Start Command**: `npm start`
 5. **Environment Variables**: Add your `.env` keys in the "Environment" tab.
 
 ## 4. Local Testing
